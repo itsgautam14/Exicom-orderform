@@ -16,4 +16,5 @@ COPY . .
 
 EXPOSE 8000
 # Seed the catalog (idempotent) then launch the API.
-CMD ["sh", "-c", "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Hosts like Render/Railway inject $PORT; fall back to 8000 locally.
+CMD ["sh", "-c", "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
