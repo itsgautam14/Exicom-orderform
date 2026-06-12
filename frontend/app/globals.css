@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --teal: #1ea8a0;
+  --teal-2: #16c0a0;
+  --teal-dark: #0c7d77;
+  --ink: #0c1b22;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    background-image:
+      radial-gradient(900px 500px at 100% -10%, rgba(30, 168, 160, 0.08), transparent 60%),
+      radial-gradient(700px 500px at -10% 110%, rgba(33, 150, 217, 0.07), transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* ---- form controls ---- */
+  .inp {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800
+           shadow-sm outline-none transition
+           placeholder:text-slate-400
+           focus:border-exicom-teal focus:ring-4 focus:ring-exicom-teal/15;
+  }
+  textarea.inp { @apply leading-relaxed; }
+
+  .lbl {
+    @apply mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-slate-500;
+  }
+
+  /* ---- buttons ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white
+           px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition
+           hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply border-transparent bg-gradient-to-b from-exicom-teal to-exicom-tealDark text-white
+           shadow-md shadow-exicom-teal/20 hover:from-[#1a958e] hover:to-[#0a6b66];
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-slate-500 shadow-none hover:bg-slate-100;
+  }
+
+  /* ---- cards / sections ---- */
+  .card {
+    @apply rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm;
+  }
+  .section-title {
+    @apply mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-700;
+  }
+  .section-badge {
+    @apply flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md
+           bg-gradient-to-br from-exicom-teal to-exicom-tealDark text-[10px] font-bold text-white;
+  }
+
+  /* ---- exicom "e" logo chip ---- */
+  .logo-chip {
+    @apply relative inline-flex h-7 w-7 items-center justify-center rounded-full
+           text-sm font-black text-white;
+    background: conic-gradient(from 180deg, #00d4a8, #2196d9, #00d4a8);
+  }
+
+  /* ---- pill tabs ---- */
+  .tab {
+    @apply rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 transition
+           hover:bg-slate-100 hover:text-slate-700;
+  }
+  .tab-active {
+    @apply bg-gradient-to-b from-exicom-teal to-exicom-tealDark text-white shadow-md shadow-exicom-teal/25
+           hover:from-exicom-teal hover:to-exicom-tealDark hover:text-white;
+  }
+
+  /* ---- line-item block ---- */
+  .item-block {
+    @apply mb-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 transition hover:border-slate-300;
+  }
+  .item-chip {
+    @apply rounded-md bg-exicom-teal/10 px-2 py-0.5 text-[11px] font-bold text-exicom-tealDark;
+  }
+}
+
+/* thin custom scrollbars in the editor rail */
+.scroll-rail::-webkit-scrollbar { width: 10px; }
+.scroll-rail::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300; border: 3px solid transparent; background-clip: padding-box; }
+.scroll-rail::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; background-clip: padding-box; }

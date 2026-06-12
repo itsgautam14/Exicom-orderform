@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+/* =========================================================
+   EXICOM ORDER FORM — WeasyPrint template
+   Pixel-faithful replica of Exicom_Q0000007.pdf
+   ========================================================= */
+
+@page {
+  size: A4;
+  margin: 13mm 14mm 12mm 14mm;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", "Helvetica", "Arial", "Liberation Sans", sans-serif;
+  font-size: 9pt;
+  color: #1a1a1a;
+  line-height: 1.45;
+}
+
+/* Brand colours pulled from the source PDF */
+:root {
+  --teal: #3DAAB8;
+  --teal-dark: #1A8A96;
+  --teal-head: #3DAAB8;
+  --ink: #111111;
+  --muted: #555555;
+  --rule: #cfd6d8;
+}
+
+.page-break { page-break-before: always; }
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+.header {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 4mm;
+}
+.header td { vertical-align: top; }
+.header .logo-cell { width: 55%; }
+.header .meta-cell { width: 45%; text-align: right; }
+
+.logo-wrap { display: inline-block; }
+.logo-svg { display: inline-block; vertical-align: middle; }
+
+.doc-title {
+  font-size: 20pt;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin: 0 0 3mm 0;
+}
+.meta-lines {
+  font-size: 8.5pt;
+  line-height: 1.7;
+  color: #222;
+}
+.meta-lines b { font-weight: 700; color: #111; }
+
+/* =========================================================
+   RULES
+   ========================================================= */
+.hr-thin { border: none; border-top: 1px solid var(--rule); margin: 3mm 0; }
+.hr-thick { border: none; border-top: 2px solid #111; margin: 3.5mm 0; }
+
+/* =========================================================
+   COMPANY INFO BLOCK
+   ========================================================= */
+.company-block {
+  font-size: 8pt;
+  color: #333;
+  line-height: 1.65;
+}
+.company-block .name { font-size: 8.5pt; font-weight: 700; color: #111; }
+
+/* =========================================================
+   SECTION HEADERS (dark text + teal underline)
+   ========================================================= */
+.section-header {
+  font-size: 10pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #111;
+  padding-bottom: 1.6mm;
+  border-bottom: 2.5px solid var(--teal);
+  margin-bottom: 3mm;
+}
+
+/* =========================================================
+   ADDRESS INFORMATION
+   ========================================================= */
+.address-table { width: 100%; border-collapse: collapse; }
+.address-table td { vertical-align: top; width: 50%; padding-right: 8mm; }
+.address-label {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--teal);
+  margin-bottom: 1.5mm;
+}
+.address-body { font-size: 8.5pt; line-height: 1.6; color: #111; }
+.address-body .strong { font-weight: 700; }
+
+/* =========================================================
+   ORDER ITEMS TABLE
+   ========================================================= */
+.items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+.items thead th {
+  background: var(--teal-head);
+  color: #ffffff;
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+  padding: 5px 7px;
+  border: 1px solid #2d95a3;
+}
+.items thead th.r { text-align: right; }
+.items thead th.c { text-align: center; }
+
+.items tbody td {
+  padding: 6px 7px;
+  border: 1px solid #dde6e8;
+  vertical-align: top;
+}
+.items tbody tr:nth-child(even) { background: #f6fafb; }
+.items td.r { text-align: right; }
+.items td.c { text-align: center; }
+
+.code-main { font-weight: 700; color: var(--teal); font-size: 8.5pt; }
+.code-sub { color: #555; font-size: 7.5pt; line-height: 1.45; }
+.item-name { font-weight: 700; color: #111; margin-bottom: 2px; }
+.item-desc { color: #444; font-size: 7.5pt; line-height: 1.45; }
+
+/* =========================================================
+   TOTALS
+   ========================================================= */
+.totals { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+.totals td { padding: 0; }
+.totals .spacer { border: none; }
+.totals-inner { width: 62mm; border-collapse: collapse; margin-left: auto; }
+.totals-inner td {
+  padding: 3.5px 8px;
+  font-size: 8.5pt;
+  border: 1px solid #dde6e8;
+}
+.totals-inner td.label { text-align: right; color: #444; background: #f9fbfb; }
+.totals-inner td.value { text-align: right; width: 26mm; color: #111; }
+.totals-inner tr.grand td {
+  background: var(--teal-dark);
+  color: #fff;
+  font-weight: 700;
+  font-size: 9.5pt;
+  border-color: var(--teal-dark);
+}
+
+/* =========================================================
+   TERMS & CONDITIONS
+   ========================================================= */
+.terms { font-size: 8.5pt; line-height: 1.7; color: #111; }
+.terms p { margin: 0 0 1.6mm 0; }
+.terms b { font-weight: 700; }
+
+/* =========================================================
+   PURCHASE ORDER
+   ========================================================= */
+.po { font-size: 8.5pt; line-height: 1.6; color: #111; }
+.po .q { margin-bottom: 2mm; }
+.po .choice { margin-bottom: 3mm; }
+.po-fields { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+.po-fields td { width: 50%; padding-right: 8mm; vertical-align: bottom; }
+.po-field-label {
+  font-size: 8pt; font-weight: 700; color: var(--teal);
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.po-field-line { border-bottom: 1px solid #999; height: 8mm; }
+
+.signature-area { margin-top: 7mm; }
+.signature-line { border-bottom: 1px solid #bbb; width: 80mm; }
+.signature-label { font-size: 8pt; color: #666; margin-top: 1.5mm; }
+
+/* =========================================================
+   BANK DETAILS PAGE
+   ========================================================= */
+.bank-box {
+  border: 1px solid #e2e8ea;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 1mm;
+}
+.bank-heading {
+  background: #f3f6f7;
+  font-weight: 700;
+  font-size: 9pt;
+  color: #111;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e2e8ea;
+}
+.bank-table { width: 100%; border-collapse: collapse; }
+.bank-table td {
+  padding: 4.5px 8px;
+  font-size: 8.5pt;
+  vertical-align: top;
+}
+.bank-table tr:nth-child(even) { background: #fafbfb; }
+.bank-table td.k { width: 42mm; font-weight: 700; color: #444; }
+.bank-table td.v { color: #111; }
+
+.bank-footer {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 1px solid #e0e4e8;
+  text-align: center;
+  font-size: 7.5pt;
+  color: #777;
+}
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+
+<!-- HEADER -->
+<table class="header">
+  <tr>
+    <td class="logo-cell">
+      <div class="logo-wrap">{{ logo_svg | safe }}</div>
+    </td>
+    <td class="meta-cell">
+      <div class="doc-title">ORDER FORM</div>
+      <div class="meta-lines">
+        Prepared for: <b>{{ order.prepared_for }}</b><br/>
+        Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
+        Proposed by: <b>{{ order.proposed_by }}</b><br/>
+        Quote Number: <b>{{ order.quote_number }}</b><br/>
+        Incoterms: <b>{{ order.incoterms }}</b>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<hr class="hr-thin"/>
+
+<!-- COMPANY INFO -->
+<div class="company-block">
+  <span class="name">{{ company.name }}</span><br/>
+  {{ company.address }}<br/>
+  CIN: {{ company.cin }} | GSTIN: {{ company.gstin }}<br/>
+  T: {{ company.phone }} | E: {{ company.email }} | W: {{ company.website }}
+</div>
+
+<hr class="hr-thick"/>
+
+<!-- ADDRESS INFORMATION -->
+<div class="section-header">Address Information</div>
+<table class="address-table">
+  <tr>
+    <td>
+      <div class="address-label">Bill To:</div>
+      <div class="address-body">
+        <span class="strong">{{ order.bill_to_company }}</span><br/>
+        {{ order.bill_to_address | replace('\n', '<br/>') | safe }}<br/>
+        {{ order.bill_to_country }}
+      </div>
+    </td>
+    <td>
+      <div class="address-label">Ship To (ExWorks):</div>
+      <div class="address-body">
+        <span class="strong">{{ order.ship_to_company }}</span><br/>
+        {% if order.ship_to_gst %}GST: {{ order.ship_to_gst }}<br/>{% endif %}
+        {{ order.ship_to_address | replace('\n', '<br/>') | safe }}<br/>
+        {{ order.ship_to_country }}
+      </div>
+    </td>
+  </tr>
+</table>
+
+<hr class="hr-thick"/>
+
+<!-- ORDER ITEMS -->
+<div class="section-header">Order Items</div>
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width:17%">Product Code</th>
+      <th style="width:35%">Name / Description</th>
+      <th class="r" style="width:14%">Unit Price</th>
+      <th class="c" style="width:7%">QTY</th>
+      <th class="c" style="width:9%">Unit</th>
+      <th class="r" style="width:18%">Total Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in order['items'] %}
+    <tr>
+      <td>
+        <div class="code-main">{{ item.product_code }}</div>
+        {% if item.code_note %}<div class="code-sub">{{ item.code_note | replace('\n', '<br/>') | safe }}</div>{% endif %}
+      </td>
+      <td>
+        <div class="item-name">{{ item.product_name }}</div>
+        {% if item.description %}<div class="item-desc">{{ item.description | replace('\n', '<br/>') | safe }}</div>{% endif %}
+      </td>
+      <td class="r">{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
+      <td class="c">{{ item.quantity }}</td>
+      <td class="c">{{ item.unit }}</td>
+      <td class="r">{{ order.currency }} {{ "{:,.2f}".format(item.line_total) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- TOTALS -->
+<table class="totals">
+  <tr>
+    <td class="spacer"></td>
+    <td style="width:62mm">
+      <table class="totals-inner">
+        <tr>
+          <td class="label">SUBTOTAL:</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.subtotal) }}</td>
+        </tr>
+        <tr>
+          <td class="label">Tax ({{ "%.2f"|format(order.tax_rate) }}%)</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.tax_amount) }}</td>
+        </tr>
+        <tr class="grand">
+          <td class="label">TOTAL:</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.grand_total) }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<hr class="hr-thick"/>
+
+<!-- TERMS & CONDITIONS -->
+<div class="section-header">Terms &amp; Conditions</div>
+<div class="terms">
+  <p><b>Payment Terms:</b> {{ order.payment_terms }}</p>
+  <p><b>Warranty:</b> {{ order.warranty }}</p>
+  <p><b>Validity:</b> {{ order.validity }}</p>
+  <p><b>Production Lead Times:</b> {{ order.lead_time }}</p>
+</div>
+
+<hr class="hr-thick"/>
+
+<!-- PURCHASE ORDER INFORMATION -->
+<div class="section-header">Purchase Order Information</div>
+<div class="po">
+  <div class="q">Is a Purchase Order (PO) required for the purchase of the products on this Order Form? (Customer to complete)</div>
+  <div class="choice">
+    {% if order.po_required == True %}&#9746;{% else %}&#9744;{% endif %} No
+    &nbsp;&nbsp;&nbsp;
+    {% if order.po_required == True %}&#9744;{% else %}&#9744;{% endif %} Yes &ndash; please complete below
+  </div>
+  <table class="po-fields">
+    <tr>
+      <td>
+        <div class="po-field-label">PO Number</div>
+        <div class="po-field-line">{{ order.po_number or '' }}</div>
+      </td>
+      <td>
+        <div class="po-field-label">PO Amount</div>
+        <div class="po-field-line">{{ order.po_amount or '' }}</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="signature-area">
+  <div class="signature-line"></div>
+  <div class="signature-label">Signature</div>
+</div>
+
+<!-- ================= PAGE 2 — BANK DETAILS ================= -->
+<div class="page-break"></div>
+
+<div class="section-header">Bank Details</div>
+<div class="bank-box">
+  <div class="bank-heading">Bank Details &ndash; {{ company.name }}</div>
+  <table class="bank-table">
+    <tr><td class="k">Account Holder:</td><td class="v">{{ bank.account_holder }}</td></tr>
+    <tr><td class="k">Bank:</td><td class="v">{{ bank.bank_branch }}</td></tr>
+    <tr><td class="k">IBAN / Account:</td><td class="v">{{ bank.iban }}</td></tr>
+    <tr><td class="k">SWIFT / BIC:</td><td class="v">{{ bank.swift }}</td></tr>
+    <tr><td class="k">Currency:</td><td class="v">{{ bank.currency_note }}</td></tr>
+  </table>
+</div>
+
+<div class="bank-footer">
+  {{ company.name }} | {{ company.footer_address }} | {{ company.website }}
+</div>
+
+</body>
+</html>
