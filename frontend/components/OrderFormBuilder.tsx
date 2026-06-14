@@ -7,6 +7,9 @@ import type { CatalogProduct, OrderInput, OrderItem } from "@/lib/types";
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
+/** Incoterms offered in the dropdown. */
+const INCOTERMS = ["EXW", "FOB", "CIF", "DDP", "DAP"];
+
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
 function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
   const tiers = p.prices?.[currency];
@@ -156,6 +159,14 @@ export default function OrderFormBuilder() {
       }),
     }));
   }
+  // Changing incoterms keeps any incoterm reference in the lead-time line in sync.
+  function setIncoterms(next: string) {
+    setOrder((o) => {
+      const re = new RegExp(`\\b(${INCOTERMS.join("|")})\\b`, "g");
+      const lead_time = o.lead_time.replace(re, next); // no-op when no token present
+      return { ...o, incoterms: next, lead_time };
+    });
+  }
   // Changing the currency re-prices every catalog-linked line from the pricebook.
   function setCurrency(currency: string) {
     setOrder((o) => ({
@@ -239,8 +250,8 @@ export default function OrderFormBuilder() {
             <Field label="Proposed By (Sales Rep) *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
-              <select className="inp" value={order.incoterms} onChange={(e) => set("incoterms", e.target.value)}>
-                {["EXW", "FOB", "CIF", "DDP", "DAP"].map((x) => <option key={x}>{x}</option>)}
+              <select className="inp" value={order.incoterms} onChange={(e) => setIncoterms(e.target.value)}>
+                {INCOTERMS.map((x) => <option key={x}>{x}</option>)}
               </select>
             </div>
             <div>
