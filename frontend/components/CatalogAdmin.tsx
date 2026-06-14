@@ -88,11 +88,21 @@ export default function CatalogAdmin() {
             <div>
               <label className="lbl">Currency</label>
               <select className="inp" value={editing.currency || "USD"} onChange={(e) => setF("currency", e.target.value)}>
-                {["USD", "EUR", "GBP", "INR", "AED", "QAR"].map((x) => <option key={x}>{x}</option>)}
+                {["USD", "EUR", "INR", "MYR"].map((x) => <option key={x}>{x}</option>)}
               </select>
             </div>
             <F label="Unit" v={editing.unit || "Nos."} on={(v) => setF("unit", v)} />
           </div>
+          {editing.prices && Object.keys(editing.prices).length > 0 && (
+            <p className="mt-1 text-[11px] text-slate-500">
+              Multi-currency pricebook tiers on file:{" "}
+              <span className="font-semibold text-exicom-tealDark">
+                {Object.keys(editing.prices).join(", ")}
+              </span>
+              . These power the Order Form's currency &amp; quantity auto-pricing and are
+              loaded from the Excel pricebook — re-run the seed script to update them.
+            </p>
+          )}
           <div className="mt-3 flex gap-2">
             <button className="btn btn-primary" onClick={save}>Save Product</button>
             <button className="btn" onClick={() => setEditing(null)}>Cancel</button>

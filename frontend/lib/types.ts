@@ -1,3 +1,7 @@
+/** [min_qty, max_qty_or_null, price] */
+export type PriceTier = [number, number | null, number];
+export type PriceMatrix = Record<string, PriceTier[]>;
+
 export interface CatalogProduct {
   id: string;
   product_code: string;
@@ -8,6 +12,7 @@ export interface CatalogProduct {
   currency: string;
   unit: string;
   category: string;
+  prices: PriceMatrix;
   is_active: boolean;
 }
 
@@ -19,6 +24,8 @@ export interface OrderItem {
   unit_price: number;
   quantity: number;
   unit: string;
+  /** Links the line back to its catalog product so currency/qty can re-price it. */
+  catalog_id?: string;
 }
 
 export interface OrderItemOut extends OrderItem {

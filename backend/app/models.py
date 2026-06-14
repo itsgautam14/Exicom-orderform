@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import (
     String, Text, Integer, Numeric, Boolean, DateTime, ForeignKey, func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -30,6 +30,9 @@ class CatalogProduct(Base):
     currency: Mapped[str] = mapped_column(String(8), default="USD")
     unit: Mapped[str] = mapped_column(String(32), default="Nos.")
     category: Mapped[str] = mapped_column(String(64), default="")
+    # Multi-currency / multi-tier price matrix:
+    #   { "USD": [[min_qty, max_qty_or_null, price], ...], "EUR": [...], ... }
+    prices: Mapped[dict] = mapped_column(JSONB, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(

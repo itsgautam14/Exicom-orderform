@@ -4,6 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { CatalogProduct, OrderInput, OrderItem } from "@/lib/types";
 
+/** Currencies the pricebook carries. */
+const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
+
+/** Resolve the catalog price for a given currency + quantity (MoQ tier). */
+function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
+  const tiers = p.prices?.[currency];
+  if (!tiers || tiers.length === 0) return null;
+  for (const [min, max, price] of tiers) {
+    if (qty >= min && (max == null || qty <= max)) return price;
+  }
+  return tiers[0][2]; // qty below the lowest bracket → use the first tier
+}
+
 const EMPTY_ITEM: OrderItem = {
   product_code: "",
   code_note: "",
@@ -115,14 +128,46 @@ export default function OrderFormBuilder() {
   function fillFromCatalog(i: number, productId: string) {
     const p = catalog.find((c) => c.id === productId);
     if (!p) return;
+    const qty = order.items[i]?.quantity || 1;
+    const price = priceFor(p, order.currency, qty);
     setItem(i, {
       product_code: p.product_code,
       code_note: p.code_note,
       product_name: p.product_name,
       description: p.description,
-      unit_price: p.unit_price,
+      unit_price: price ?? p.unit_price,
       unit: p.unit,
+      catalog_id: p.id,
     });
+  }
+  // Quantity changes can move a line into a different MoQ price tier.
+  function setQuantity(i: number, qty: number) {
+    setOrder((o) => ({
+      ...o,
+      items: o.items.map((it, idx) => {
+        if (idx !== i) return it;
+        const next = { ...it, quantity: qty };
+        if (it.catalog_id) {
+          const p = catalog.find((c) => c.id === it.catalog_id);
+          const price = p ? priceFor(p, o.currency, qty) : null;
+          if (price != null) next.unit_price = price;
+        }
+        return next;
+      }),
+    }));
+  }
+  // Changing the currency re-prices every catalog-linked line from the pricebook.
+  function setCurrency(currency: string) {
+    setOrder((o) => ({
+      ...o,
+      currency,
+      items: o.items.map((it) => {
+        if (!it.catalog_id) return it;
+        const p = catalog.find((c) => c.id === it.catalog_id);
+        const price = p ? priceFor(p, currency, it.quantity) : null;
+        return price != null ? { ...it, unit_price: price } : it;
+      }),
+    }));
   }
 
   async function downloadPdf() {
@@ -200,8 +245,8 @@ export default function OrderFormBuilder() {
             </div>
             <div>
               <label className="lbl">Currency</label>
-              <select className="inp" value={order.currency} onChange={(e) => set("currency", e.target.value)}>
-                {["USD", "EUR", "GBP", "INR", "AED", "QAR"].map((x) => <option key={x}>{x}</option>)}
+              <select className="inp" value={order.currency} onChange={(e) => setCurrency(e.target.value)}>
+                {CURRENCIES.map((x) => <option key={x}>{x}</option>)}
               </select>
             </div>
             <div>
@@ -354,16 +399,40 @@ export default function OrderFormBuilder() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="lbl">Qty</label>
-                  <input className="inp" type="number" value={it.quantity}
-                    onChange={(e) => setItem(i, { quantity: parseInt(e.target.value) || 0 })} />
+                  <input className="inp" type="number" min="1" value={it.quantity}
+                    onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
                 </div>
                 <div>
-                  <label className="lbl">Unit Price</label>
+                  <label className="lbl">Unit Price ({order.currency})</label>
                   <input className="inp" type="number" step="0.01" value={it.unit_price}
-                    onChange={(e) => setItem(i, { unit_price: parseFloat(e.target.value) || 0 })} />
+                    onChange={(e) => setItem(i, { unit_price: parseFloat(e.target.value) || 0, catalog_id: undefined })} />
                 </div>
                 <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
               </div>
+              {(() => {
+                if (!it.catalog_id) return null;
+                const p = catalog.find((c) => c.id === it.catalog_id);
+                if (!p) return null;
+                const avail = Object.keys(p.prices || {});
+                const hasCur = avail.includes(order.currency);
+                const tiers = p.prices?.[order.currency];
+                return (
+                  <div className="mt-1 text-[10px] leading-relaxed">
+                    {hasCur ? (
+                      <span className="text-slate-400">
+                        Pricebook {order.currency}
+                        {tiers && tiers.length > 1
+                          ? ` · auto-tiered by qty (${tiers.map((t) => (t[1] ? `${t[0]}-${t[1]}` : `${t[0]}+`) + `: ${t[2]}`).join(" | ")})`
+                          : " · flat rate"}
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-amber-600">
+                        ⚠ No {order.currency} price in pricebook for this product. Available: {avail.join(", ") || "none"}. Enter price manually or switch currency.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ))}
           <button className="w-full rounded-lg border border-dashed border-slate-300 py-2.5 text-xs font-semibold text-slate-500 transition hover:border-exicom-teal hover:bg-exicom-teal/5 hover:text-exicom-tealDark"

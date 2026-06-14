@@ -16,6 +16,7 @@ class CatalogProductBase(BaseModel):
     currency: str = "USD"
     unit: str = "Nos."
     category: str = ""
+    prices: dict = {}
     is_active: bool = True
 
 
@@ -32,6 +33,7 @@ class CatalogProductUpdate(BaseModel):
     currency: Optional[str] = None
     unit: Optional[str] = None
     category: Optional[str] = None
+    prices: Optional[dict] = None
     is_active: Optional[bool] = None
 
 
