@@ -35,7 +35,9 @@ def compute_totals(order: models.Order) -> dict:
 
     tax_rate = float(order.tax_rate or 0)
     tax_amount = round(subtotal * tax_rate / 100.0, 2)
-    grand_total = round(subtotal + tax_amount, 2)
+    freight_charge = round(float(order.freight_charge or 0), 2)
+    insurance_charge = round(float(order.insurance_charge or 0), 2)
+    grand_total = round(subtotal + freight_charge + insurance_charge + tax_amount, 2)
 
     return {
         "id": order.id,
@@ -57,6 +59,11 @@ def compute_totals(order: models.Order) -> dict:
         "warranty": order.warranty,
         "validity": order.validity,
         "lead_time": order.lead_time,
+        "transport_mode": order.transport_mode or "",
+        "port_of_loading": order.port_of_loading or "",
+        "port_of_destination": order.port_of_destination or "",
+        "freight_charge": freight_charge,
+        "insurance_charge": insurance_charge,
         "po_required": order.po_required,
         "po_number": order.po_number,
         "po_amount": order.po_amount,

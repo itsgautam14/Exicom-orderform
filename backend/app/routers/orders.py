@@ -70,9 +70,8 @@ def order_preview(order_id: str, db: Session = Depends(get_db)):
     return HTMLResponse(render_order_html(data))
 
 
-@router.post("/preview", response_class=HTMLResponse)
-def preview_unsaved(payload: schemas.OrderCreate):
-    """Render HTML preview for an in-progress order without persisting it."""
+def _build_order_data(payload: schemas.OrderCreate) -> dict:
+    """Shared computation for preview and pdf endpoints."""
     items = []
     subtotal = 0.0
     for i, it in enumerate(payload.items):
@@ -80,35 +79,31 @@ def preview_unsaved(payload: schemas.OrderCreate):
         subtotal += line_total
         items.append({**it.model_dump(), "id": str(i), "position": i, "line_total": line_total})
     tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0, 2)
-    data = {
+    freight_charge = round(float(payload.freight_charge or 0), 2)
+    insurance_charge = round(float(payload.insurance_charge or 0), 2)
+    grand_total = round(subtotal + freight_charge + insurance_charge + tax_amount, 2)
+    return {
         **payload.model_dump(exclude={"items"}),
         "id": "preview",
         "items": items,
         "subtotal": round(subtotal, 2),
         "tax_amount": tax_amount,
-        "grand_total": round(subtotal + tax_amount, 2),
+        "freight_charge": freight_charge,
+        "insurance_charge": insurance_charge,
+        "grand_total": grand_total,
     }
-    return HTMLResponse(render_order_html(data))
+
+
+@router.post("/preview", response_class=HTMLResponse)
+def preview_unsaved(payload: schemas.OrderCreate):
+    """Render HTML preview for an in-progress order without persisting it."""
+    return HTMLResponse(render_order_html(_build_order_data(payload)))
 
 
 @router.post("/pdf")
 def pdf_unsaved(payload: schemas.OrderCreate):
     """Generate a PDF for an in-progress order without persisting it."""
-    items = []
-    subtotal = 0.0
-    for i, it in enumerate(payload.items):
-        line_total = float(it.unit_price) * int(it.quantity)
-        subtotal += line_total
-        items.append({**it.model_dump(), "id": str(i), "position": i, "line_total": line_total})
-    tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0, 2)
-    data = {
-        **payload.model_dump(exclude={"items"}),
-        "id": "preview",
-        "items": items,
-        "subtotal": round(subtotal, 2),
-        "tax_amount": tax_amount,
-        "grand_total": round(subtotal + tax_amount, 2),
-    }
+    data = _build_order_data(payload)
     pdf_bytes = render_order_pdf(data)
     filename = f"Exicom_{data['quote_number'] or 'order'}.pdf"
     return Response(

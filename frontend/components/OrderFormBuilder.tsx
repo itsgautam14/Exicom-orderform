@@ -14,57 +14,63 @@ const EMPTY_ITEM: OrderItem = {
   unit: "Nos.",
 };
 
-const DEFAULT_ORDER: OrderInput = {
-  quote_number: "Q-00000007",
-  prepared_for: "Antoine Sleiman",
-  proposed_by: "Zouheir Fathallah",
-  offer_valid_through: "12/07/2026",
+function todayPlus30(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return d.toLocaleDateString("en-GB").replace(/\//g, "/");
+}
+
+function nextQuoteNumber(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = String(Math.floor(Math.random() * 900) + 100);
+  return `Q-${yy}${mm}${dd}-${rand}`;
+}
+
+const BLANK_ORDER = (): OrderInput => ({
+  quote_number: nextQuoteNumber(),
+  prepared_for: "",
+  proposed_by: "",
+  offer_valid_through: todayPlus30(),
   incoterms: "EXW",
   currency: "USD",
   tax_rate: 0,
-  bill_to_company: "Al Attiya Motors & Trading Co.",
-  bill_to_address: "Building 175, Zone 38, Street 150, Al Rayyan Road,\nDoha",
-  bill_to_country: "Qatar",
+  bill_to_company: "",
+  bill_to_address: "",
+  bill_to_country: "",
   ship_to_company: "EXICOM LOGISTICS WAREHOUSE",
   ship_to_gst: "36AAACH2448G1ZS",
   ship_to_address: "Plot No. S-105 to S-112, Mansanpally Cross Road\nMaheshwaram Rangareddy, Telangana - 501359",
   ship_to_country: "India",
   payment_terms: "Advance payment.",
-  warranty:
-    "36 months from date of commissioning (or 39 months from date of dispatch, whichever is earlier).",
+  warranty: "36 months from date of commissioning (or 39 months from date of dispatch, whichever is earlier).",
   validity: "This offer is valid for 30 days from the date of issue.",
   lead_time: "Lead times are from order acceptance. EXW Gurugram, India.",
+  transport_mode: "",
+  port_of_loading: "",
+  port_of_destination: "",
+  freight_charge: 0,
+  insurance_charge: 0,
   po_required: false,
   po_number: "",
   po_amount: "",
-  items: [
-    {
-      product_code: "HE518585",
-      code_note: "Spin Air AC Charger\n22 kW / Type 2 / Light Cyan",
-      product_name: "Spin Air 22kW AC Charger",
-      description: "Power: 22 kW (3-Phase)\nConnector: Type 2 / 5m Cable\nWifi only",
-      unit_price: 342,
-      quantity: 5,
-      unit: "Nos.",
-    },
-    {
-      product_code: "HE518581",
-      code_note: "Spin Air AC Charger\n7.5 kW / Type 2 / Light Cyan",
-      product_name: "Spin Air 7kW AC Charger",
-      description: "Power: 7.5 kW (1-Phase)\nConnector: Type 2 / 5m Cable\nWifi only",
-      unit_price: 258,
-      quantity: 5,
-      unit: "Nos.",
-    },
-  ],
-};
+  items: [{ ...EMPTY_ITEM }],
+});
 
 export default function OrderFormBuilder() {
-  const [order, setOrder] = useState<OrderInput>(DEFAULT_ORDER);
+  const [order, setOrder] = useState<OrderInput>(BLANK_ORDER);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [itemFilters, setItemFilters] = useState<Record<number, string>>({});
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+
+  const categories = useMemo(
+    () => [...new Set(catalog.map((c) => c.category).filter(Boolean))].sort(),
+    [catalog]
+  );
 
   // load catalog for the "fill from catalog" pickers
   useEffect(() => {
@@ -85,8 +91,10 @@ export default function OrderFormBuilder() {
 
   const totals = useMemo(() => {
     const subtotal = order.items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
+    const freight = order.freight_charge || 0;
+    const insurance = order.insurance_charge || 0;
     const tax = (subtotal * (order.tax_rate || 0)) / 100;
-    return { subtotal, tax, grand: subtotal + tax };
+    return { subtotal, freight, insurance, tax, grand: subtotal + freight + insurance + tax };
   }, [order]);
 
   function set<K extends keyof OrderInput>(key: K, val: OrderInput[K]) {
@@ -135,10 +143,14 @@ export default function OrderFormBuilder() {
   }
 
   async function saveOrder() {
+    if (!order.bill_to_company) { alert("Please fill in the customer (Bill To) company name before saving."); return; }
+    if (!order.prepared_for) { alert("Please fill in who this quote is Prepared For."); return; }
     setBusy(true);
     try {
       const saved = await api.createOrder(order);
-      alert(`Order saved. ID: ${saved.id}`);
+      if (confirm(`Order ${order.quote_number} saved (ID: ${saved.id}).\n\nDownload PDF now?`)) {
+        await downloadPdf();
+      }
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -154,23 +166,32 @@ export default function OrderFormBuilder() {
     <div className="flex">
       {/* ---------------- EDITOR ---------------- */}
       <aside className="scroll-rail h-[calc(100vh-65px)] w-[470px] flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-gradient-to-b from-white to-slate-50/40 p-5">
-        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex gap-2 border-b border-slate-100 bg-white/85 px-5 py-3 backdrop-blur">
-          <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
-            {busy ? "Working…" : "⤓  Download PDF"}
-          </button>
-          <button className="btn flex-1" onClick={saveOrder} disabled={busy}>
-            Save Order
-          </button>
+        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 border-b border-slate-100 bg-white/85 px-5 py-3 backdrop-blur">
+          <div className="flex gap-2">
+            <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
+              {busy ? "Working…" : "⤓  Download PDF"}
+            </button>
+            <button className="btn flex-1" onClick={saveOrder} disabled={busy}>
+              Save Order
+            </button>
+            <button
+              className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
+              title="Start a new blank order"
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); } }}
+            >
+              ✕ New
+            </button>
+          </div>
         </div>
 
         {/* Header fields */}
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">1</span> Quote Information</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Quote Number" v={order.quote_number} on={(v) => set("quote_number", v)} />
+            <Field label="Quote Number *" v={order.quote_number} on={(v) => set("quote_number", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
-            <Field label="Prepared For" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
-            <Field label="Proposed By" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
+            <Field label="Prepared For (Customer) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
+            <Field label="Proposed By (Sales Rep) *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
               <select className="inp" value={order.incoterms} onChange={(e) => set("incoterms", e.target.value)}>
@@ -193,10 +214,10 @@ export default function OrderFormBuilder() {
 
         {/* Bill To */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">2</span> Bill To</div>
-          <Field label="Company Name" v={order.bill_to_company} on={(v) => set("bill_to_company", v)} />
-          <Area label="Address" v={order.bill_to_address} on={(v) => set("bill_to_address", v)} />
-          <Field label="Country" v={order.bill_to_country} on={(v) => set("bill_to_country", v)} />
+          <div className="section-title"><span className="section-badge">2</span> Bill To <span className="ml-1 text-[10px] font-normal text-slate-400">(Customer details)</span></div>
+          <Field label="Company Name *" v={order.bill_to_company} on={(v) => set("bill_to_company", v)} />
+          <Area label="Address *" v={order.bill_to_address} on={(v) => set("bill_to_address", v)} />
+          <Field label="Country *" v={order.bill_to_country} on={(v) => set("bill_to_country", v)} />
         </div>
 
         {/* Ship To */}
@@ -208,9 +229,65 @@ export default function OrderFormBuilder() {
           <Field label="Country" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} />
         </div>
 
+        {/* Logistics — only shown when CIF is selected */}
+        {order.incoterms === "CIF" && (
+          <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
+            <div className="section-title">
+              <span className="section-badge">4</span> Logistics
+              <span className="ml-2 rounded-full bg-exicom-teal/10 px-2 py-0.5 text-[10px] font-semibold text-exicom-tealDark">CIF</span>
+            </div>
+            <div className="mb-3">
+              <label className="lbl">Transport Mode *</label>
+              <div className="flex gap-2">
+                {["Airways", "Sea Freight (Waterways)"].map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => set("transport_mode", mode)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                      order.transport_mode === mode
+                        ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+                    }`}
+                  >
+                    {mode === "Airways" ? "✈  Airways" : "🚢  Sea Freight (Waterways)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field
+                label={order.transport_mode === "Airways" ? "Airport of Loading" : "Port of Loading"}
+                v={order.port_of_loading}
+                on={(v) => set("port_of_loading", v)}
+              />
+              <Field
+                label={order.transport_mode === "Airways" ? "Airport of Destination" : "Port of Destination"}
+                v={order.port_of_destination}
+                on={(v) => set("port_of_destination", v)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="lbl">Freight Charge</label>
+                <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
+                  onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="lbl">Insurance Charge</label>
+                <input className="inp" type="number" step="0.01" min="0" value={order.insurance_charge}
+                  onChange={(e) => set("insurance_charge", parseFloat(e.target.value) || 0)} />
+              </div>
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Freight &amp; insurance are added to the subtotal. Tax applies to the product subtotal only.
+            </p>
+          </div>
+        )}
+
         {/* Items */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">4</span> Order Items</div>
+          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "5" : "4"}</span> Order Items</div>
           {order.items.map((it, i) => (
             <div key={i} className="item-block">
               <div className="mb-2 flex items-center justify-between">
@@ -219,14 +296,51 @@ export default function OrderFormBuilder() {
               </div>
 
               {catalog.length > 0 && (
-                <div className="mb-2">
-                  <label className="lbl">Fill from Catalog</label>
-                  <select className="inp bg-teal-50" defaultValue=""
-                    onChange={(e) => { fillFromCatalog(i, e.target.value); e.target.value = ""; }}>
-                    <option value="">— select product —</option>
-                    {catalog.map((c) => (
-                      <option key={c.id} value={c.id}>{c.product_code} — {c.product_name}</option>
+                <div className="mb-2 space-y-1.5">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() =>
+                          setItemFilters((f) => ({ ...f, [i]: f[i] === cat ? "" : cat }))
+                        }
+                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition ${
+                          itemFilters[i] === cat
+                            ? "border-exicom-teal bg-exicom-teal text-white"
+                            : "border-slate-200 bg-white text-slate-500 hover:border-exicom-teal hover:text-exicom-teal"
+                        }`}
+                      >
+                        {cat}
+                      </button>
                     ))}
+                    {itemFilters[i] && (
+                      <button
+                        type="button"
+                        onClick={() => setItemFilters((f) => ({ ...f, [i]: "" }))}
+                        className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-400 hover:text-red-500"
+                      >
+                        ✕ clear
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    className="inp bg-teal-50/60"
+                    defaultValue=""
+                    onChange={(e) => { fillFromCatalog(i, e.target.value); e.target.value = ""; }}
+                  >
+                    <option value="">
+                      {itemFilters[i]
+                        ? `— select ${itemFilters[i]} —`
+                        : "— select product from catalog —"}
+                    </option>
+                    {catalog
+                      .filter((c) => !itemFilters[i] || c.category === itemFilters[i])
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.product_code} — {c.product_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
@@ -257,6 +371,12 @@ export default function OrderFormBuilder() {
 
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
+            {totals.freight > 0 && (
+              <Row k={`Freight (${order.transport_mode || "CIF"})`} v={`${cur} ${fmt(totals.freight)}`} />
+            )}
+            {totals.insurance > 0 && (
+              <Row k="Insurance" v={`${cur} ${fmt(totals.insurance)}`} />
+            )}
             <Row k={`Tax (${order.tax_rate}%)`} v={`${cur} ${fmt(totals.tax)}`} />
             <div className="mt-1 flex items-center justify-between rounded-md bg-gradient-to-r from-exicom-teal to-exicom-tealDark px-3 py-2 text-white">
               <span className="text-xs font-bold uppercase tracking-wide">Total</span>
@@ -267,7 +387,7 @@ export default function OrderFormBuilder() {
 
         {/* Terms */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">5</span> Terms &amp; Conditions</div>
+          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "6" : "5"}</span> Terms &amp; Conditions</div>
           <Field label="Payment Terms" v={order.payment_terms} on={(v) => set("payment_terms", v)} />
           <Area label="Warranty" v={order.warranty} on={(v) => set("warranty", v)} rows={2} />
           <Field label="Validity" v={order.validity} on={(v) => set("validity", v)} />
@@ -276,7 +396,7 @@ export default function OrderFormBuilder() {
 
         {/* PO */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">6</span> Purchase Order</div>
+          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "7" : "6"}</span> Purchase Order</div>
           <label className="mb-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={order.po_required} onChange={(e) => set("po_required", e.target.checked)} />
             PO required

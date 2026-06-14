@@ -84,6 +84,13 @@ class OrderBase(BaseModel):
     validity: str = ""
     lead_time: str = ""
 
+    # Logistics (CIF only)
+    transport_mode: str = ""
+    port_of_loading: str = ""
+    port_of_destination: str = ""
+    freight_charge: float = 0
+    insurance_charge: float = 0
+
     po_required: bool = False
     po_number: str = ""
     po_amount: str = ""

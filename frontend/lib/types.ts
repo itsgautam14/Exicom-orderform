@@ -50,6 +50,12 @@ export interface OrderInput {
   validity: string;
   lead_time: string;
 
+  transport_mode: string;
+  port_of_loading: string;
+  port_of_destination: string;
+  freight_charge: number;
+  insurance_charge: number;
+
   po_required: boolean;
   po_number: string;
   po_amount: string;

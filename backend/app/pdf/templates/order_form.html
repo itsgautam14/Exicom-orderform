@@ -195,6 +195,13 @@ html, body {
 .signature-label { font-size: 8pt; color: #666; margin-top: 1.5mm; }
 
 /* =========================================================
+   LOGISTICS SECTION (CIF orders)
+   ========================================================= */
+.logistics-table { width: 100%; border-collapse: collapse; margin-bottom: 2mm; }
+.logistics-table td { vertical-align: top; padding-right: 8mm; }
+.logistics-table td:last-child { padding-right: 0; }
+
+/* =========================================================
    BANK DETAILS PAGE
    ========================================================= */
 .bank-box {
@@ -292,6 +299,28 @@ html, body {
 
 <hr class="hr-thick"/>
 
+<!-- LOGISTICS (shown only for CIF orders) -->
+{% if order.transport_mode %}
+<div class="section-header">Logistics Information</div>
+<table class="logistics-table">
+  <tr>
+    <td style="width:28%">
+      <div class="address-label">Transport Mode:</div>
+      <div class="address-body"><span class="strong">{{ order.transport_mode }}</span></div>
+    </td>
+    <td style="width:36%">
+      <div class="address-label">Port of Loading:</div>
+      <div class="address-body"><span class="strong">{{ order.port_of_loading or '—' }}</span></div>
+    </td>
+    <td style="width:36%">
+      <div class="address-label">Port / Airport of Destination:</div>
+      <div class="address-body"><span class="strong">{{ order.port_of_destination or '—' }}</span></div>
+    </td>
+  </tr>
+</table>
+<hr class="hr-thick"/>
+{% endif %}
+
 <!-- ORDER ITEMS -->
 <div class="section-header">Order Items</div>
 <table class="items">
@@ -335,6 +364,18 @@ html, body {
           <td class="label">SUBTOTAL:</td>
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.subtotal) }}</td>
         </tr>
+        {% if order.freight_charge %}
+        <tr>
+          <td class="label">Freight{% if order.transport_mode %} ({{ order.transport_mode }}){% endif %}:</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.freight_charge) }}</td>
+        </tr>
+        {% endif %}
+        {% if order.insurance_charge %}
+        <tr>
+          <td class="label">Insurance:</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.insurance_charge) }}</td>
+        </tr>
+        {% endif %}
         <tr>
           <td class="label">Tax ({{ "%.2f"|format(order.tax_rate) }}%)</td>
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.tax_amount) }}</td>
