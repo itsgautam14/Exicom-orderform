@@ -81,7 +81,23 @@ export default function OrderFormBuilder() {
   const [itemFilters, setItemFilters] = useState<Record<number, string>>({});
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+
+  // Scale the A4 preview (794px wide) down to fit narrow screens.
+  const A4_W = 794;
+  const A4_H = 1123;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setScale(Math.min(1, el.clientWidth / A4_W));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mobileView]);
 
   const categories = useMemo(
     () => [...new Set(catalog.map((c) => c.category).filter(Boolean))].sort(),
@@ -219,10 +235,14 @@ export default function OrderFormBuilder() {
     n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="flex">
+    <div className="flex flex-col lg:flex-row">
       {/* ---------------- EDITOR ---------------- */}
-      <aside className="scroll-rail h-[calc(100vh-65px)] w-[470px] flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-gradient-to-b from-white to-slate-50/40 p-5">
-        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 border-b border-slate-100 bg-white/85 px-5 py-3 backdrop-blur">
+      <aside
+        className={`scroll-rail w-full flex-shrink-0 border-r border-slate-200 bg-gradient-to-b from-white to-slate-50/40 p-4 pb-24 lg:w-[470px] lg:h-[calc(100vh-65px)] lg:overflow-y-auto lg:p-5 lg:pb-5 ${
+          mobileView === "edit" ? "block" : "hidden"
+        } lg:block`}
+      >
+        <div className="z-10 -mx-4 -mt-4 mb-4 border-b border-slate-100 bg-white/85 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:-mx-5 lg:-mt-5 lg:px-5">
           <div className="flex gap-2">
             <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
               {busy ? "Working…" : "⤓  Download PDF"}
@@ -489,27 +509,65 @@ export default function OrderFormBuilder() {
       </aside>
 
       {/* ---------------- PREVIEW ---------------- */}
-      <section className="scroll-rail h-[calc(100vh-65px)] flex-1 overflow-auto p-8">
-        <div className="mx-auto max-w-[210mm]">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="flex h-2 w-2 animate-pulse rounded-full bg-emerald-500"></span>
-              Live preview · same WeasyPrint template as the PDF
+      <section
+        className={`scroll-rail w-full overflow-auto p-4 pb-24 lg:flex-1 lg:h-[calc(100vh-65px)] lg:p-8 lg:pb-8 ${
+          mobileView === "preview" ? "block" : "hidden"
+        } lg:block`}
+      >
+        <div ref={wrapRef} className="mx-auto" style={{ maxWidth: A4_W }}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 lg:text-xs">
+              <span className="flex h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-emerald-500"></span>
+              <span className="hidden sm:inline">Live preview · same WeasyPrint template as the PDF</span>
+              <span className="sm:hidden">Live preview</span>
             </div>
-            <span className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
+            <span className="flex-shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
               A4 · {order.currency} {fmt(totals.grand)}
             </span>
           </div>
-          <div className="overflow-hidden rounded-xl bg-white ring-1 ring-slate-900/5 shadow-[0_10px_40px_-12px_rgba(10,20,30,0.25)]">
+          <div
+            className="overflow-hidden rounded-xl bg-white ring-1 ring-slate-900/5 shadow-[0_10px_40px_-12px_rgba(10,20,30,0.25)]"
+            style={{ height: A4_H * scale }}
+          >
             <iframe
               title="preview"
-              className="w-full bg-white"
-              style={{ height: "297mm" }}
+              className="bg-white"
+              style={{
+                width: A4_W,
+                height: A4_H,
+                border: 0,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }}
               srcDoc={previewHtml}
             />
           </div>
         </div>
       </section>
+
+      {/* ---------- MOBILE EDIT / PREVIEW TOGGLE (hidden on desktop) ---------- */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-1 border-t border-slate-200 bg-white/95 p-2 backdrop-blur lg:hidden">
+        <button
+          onClick={() => setMobileView("edit")}
+          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+            mobileView === "edit"
+              ? "bg-exicom-teal text-white shadow-sm"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          ✎ Edit
+        </button>
+        <button
+          onClick={() => setMobileView("preview")}
+          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+            mobileView === "preview"
+              ? "bg-exicom-teal text-white shadow-sm"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          👁 Preview
+        </button>
+      </div>
     </div>
   );
 }

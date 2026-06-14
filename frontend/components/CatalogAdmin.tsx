@@ -56,30 +56,30 @@ export default function CatalogAdmin() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+    <div className="mx-auto max-w-4xl p-4 pb-24 lg:p-6 lg:pb-6">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <h1 className="text-lg font-bold text-slate-800">Product Catalog &amp; Pricing</h1>
-          <p className="text-sm text-slate-500">
+          <p className="hidden text-sm text-slate-500 sm:block">
             Backend team manages product costs here. These prices auto-fill Order Forms.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setEditing({ ...BLANK })}>
-          + New Product
+        <button className="btn btn-primary flex-shrink-0" onClick={() => setEditing({ ...BLANK })}>
+          + New
         </button>
       </div>
 
       {editing && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
           <div className="section-title">{editing.id ? "Edit Product" : "New Product"}</div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <F label="Product Code" v={editing.product_code || ""} on={(v) => setF("product_code", v)} />
             <F label="Category" v={editing.category || ""} on={(v) => setF("category", v)} />
           </div>
           <A label="Code Sub-text" v={editing.code_note || ""} on={(v) => setF("code_note", v)} />
           <F label="Product Name" v={editing.product_name || ""} on={(v) => setF("product_name", v)} />
           <A label="Description" v={editing.description || ""} on={(v) => setF("description", v)} rows={3} />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
               <label className="lbl">Unit Price</label>
               <input className="inp" type="number" step="0.01" value={editing.unit_price ?? 0}
@@ -115,8 +115,8 @@ export default function CatalogAdmin() {
       ) : items.length === 0 ? (
         <p className="text-slate-500">No products yet. Add one, or run the backend seed script.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full min-w-[520px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-2">Code</th>
