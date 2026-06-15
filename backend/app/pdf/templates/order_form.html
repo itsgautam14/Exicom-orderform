@@ -371,12 +371,6 @@ html, body {
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.freight_charge) }}</td>
         </tr>
         {% endif %}
-        {% if order.insurance_charge %}
-        <tr>
-          <td class="label">Insurance:</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.insurance_charge) }}</td>
-        </tr>
-        {% endif %}
         <tr>
           <td class="label">Tax ({{ "%.2f"|format(order.tax_rate) }}%)</td>
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.tax_amount) }}</td>

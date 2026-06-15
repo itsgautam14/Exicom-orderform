@@ -370,20 +370,13 @@ export default function OrderFormBuilder() {
                 on={(v) => set("port_of_destination", v)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="lbl">Transportation Cost</label>
-                <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
-                  onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
-              </div>
-              <div>
-                <label className="lbl">Insurance Charge</label>
-                <input className="inp" type="number" step="0.01" min="0" value={order.insurance_charge}
-                  onChange={(e) => set("insurance_charge", parseFloat(e.target.value) || 0)} />
-              </div>
+            <div>
+              <label className="lbl">Transportation Cost</label>
+              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
+                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">
-              Freight &amp; insurance are added to the subtotal. Tax applies to the product subtotal only.
+              Transportation cost is added to the subtotal. Tax applies to the product subtotal only.
             </p>
           </div>
         )}
@@ -500,9 +493,6 @@ export default function OrderFormBuilder() {
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
             {totals.freight > 0 && (
               <Row k={`Transportation (${order.transport_mode || "CIF"})`} v={`${cur} ${fmt(totals.freight)}`} />
-            )}
-            {totals.insurance > 0 && (
-              <Row k="Insurance" v={`${cur} ${fmt(totals.insurance)}`} />
             )}
             <Row k={`Tax (${order.tax_rate}%)`} v={`${cur} ${fmt(totals.tax)}`} />
             <div className="mt-1 flex items-center justify-between rounded-md bg-gradient-to-r from-exicom-teal to-exicom-tealDark px-3 py-2 text-white">
