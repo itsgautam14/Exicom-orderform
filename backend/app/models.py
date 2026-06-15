@@ -49,6 +49,7 @@ class Order(Base):
     quote_number: Mapped[str] = mapped_column(String(64), index=True)
     prepared_for: Mapped[str] = mapped_column(String(255), default="")
     proposed_by: Mapped[str] = mapped_column(String(255), default="")
+    quote_date: Mapped[str] = mapped_column(String(64), default="")
     offer_valid_through: Mapped[str] = mapped_column(String(64), default="")
     incoterms: Mapped[str] = mapped_column(String(16), default="EXW")
     currency: Mapped[str] = mapped_column(String(8), default="USD")

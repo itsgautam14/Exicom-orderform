@@ -251,9 +251,10 @@ html, body {
     <td class="meta-cell">
       <div class="doc-title">ORDER FORM</div>
       <div class="meta-lines">
-        Prepared for: <b>{{ order.prepared_for }}</b><br/>
+        Customer Name: <b>{{ order.prepared_for }}</b><br/>
+        {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
-        Proposed by: <b>{{ order.proposed_by }}</b><br/>
+        KAM Name: <b>{{ order.proposed_by }}</b><br/>
         Quote Number: <b>{{ order.quote_number }}</b><br/>
         Incoterms: <b>{{ order.incoterms }}</b>
       </div>

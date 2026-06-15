@@ -67,6 +67,7 @@ class OrderBase(BaseModel):
     quote_number: str = Field(..., examples=["Q-00000007"])
     prepared_for: str = ""
     proposed_by: str = ""
+    quote_date: str = ""
     offer_valid_through: str = ""
     incoterms: str = "EXW"
     currency: str = "USD"

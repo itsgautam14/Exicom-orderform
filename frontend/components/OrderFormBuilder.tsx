@@ -30,6 +30,10 @@ const EMPTY_ITEM: OrderItem = {
   unit: "Nos.",
 };
 
+function today(): string {
+  return new Date().toLocaleDateString("en-GB");
+}
+
 function todayPlus30(): string {
   const d = new Date();
   d.setDate(d.getDate() + 30);
@@ -49,6 +53,7 @@ const BLANK_ORDER = (): OrderInput => ({
   quote_number: nextQuoteNumber(),
   prepared_for: "",
   proposed_by: "",
+  quote_date: today(),
   offer_valid_through: todayPlus30(),
   incoterms: "EXW",
   currency: "USD",
@@ -216,7 +221,7 @@ export default function OrderFormBuilder() {
 
   async function saveOrder() {
     if (!order.bill_to_company) { alert("Please fill in the customer (Bill To) company name before saving."); return; }
-    if (!order.prepared_for) { alert("Please fill in who this quote is Prepared For."); return; }
+    if (!order.prepared_for) { alert("Please fill in the Customer Name."); return; }
     setBusy(true);
     try {
       const saved = await api.createOrder(order);
@@ -265,9 +270,10 @@ export default function OrderFormBuilder() {
           <div className="section-title"><span className="section-badge">1</span> Quote Information</div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Quote Number *" v={order.quote_number} on={(v) => set("quote_number", v)} />
+            <Field label="Date" v={order.quote_date} on={(v) => set("quote_date", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
-            <Field label="Prepared For (Customer) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
-            <Field label="Proposed By (Sales Rep) *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
+            <Field label="Customer Name *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
+            <Field label="KAM Name *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
               <select className="inp" value={order.incoterms} onChange={(e) => setIncoterms(e.target.value)}>

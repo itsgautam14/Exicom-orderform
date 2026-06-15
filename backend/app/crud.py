@@ -44,6 +44,7 @@ def compute_totals(order: models.Order) -> dict:
         "quote_number": order.quote_number,
         "prepared_for": order.prepared_for,
         "proposed_by": order.proposed_by,
+        "quote_date": order.quote_date,
         "offer_valid_through": order.offer_valid_through,
         "incoterms": order.incoterms,
         "currency": order.currency,

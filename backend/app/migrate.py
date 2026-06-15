@@ -14,6 +14,7 @@ from app.database import engine
 # (table, column, SQL type + default) tuples
 _COLUMNS = [
     ("catalog_products", "prices", "JSONB DEFAULT '{}'::jsonb"),
+    ("orders", "quote_date", "VARCHAR(64) DEFAULT ''"),
     ("orders", "transport_mode", "VARCHAR(32) DEFAULT ''"),
     ("orders", "port_of_loading", "VARCHAR(128) DEFAULT ''"),
     ("orders", "port_of_destination", "VARCHAR(128) DEFAULT ''"),

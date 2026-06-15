@@ -38,6 +38,7 @@ export interface OrderInput {
   quote_number: string;
   prepared_for: string;
   proposed_by: string;
+  quote_date: string;
   offer_valid_through: string;
   incoterms: string;
   currency: string;
