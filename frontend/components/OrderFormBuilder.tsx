@@ -87,7 +87,20 @@ export default function OrderFormBuilder() {
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
+  const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+
+  // When "same as Bill To" is on, mirror the Bill To address into Ship To
+  // (and keep it in sync if the Bill To fields change afterwards).
+  useEffect(() => {
+    if (!shipSameAsBill) return;
+    setOrder((o) => ({
+      ...o,
+      ship_to_company: o.bill_to_company,
+      ship_to_address: o.bill_to_address,
+      ship_to_country: o.bill_to_country,
+    }));
+  }, [shipSameAsBill, order.bill_to_company, order.bill_to_address, order.bill_to_country]);
 
   // Scale the A4 preview (794px wide) down to fit narrow screens.
   const A4_W = 794;
@@ -258,7 +271,7 @@ export default function OrderFormBuilder() {
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
-              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); } }}
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); } }}
             >
               ✕ New
             </button>
@@ -305,10 +318,18 @@ export default function OrderFormBuilder() {
         {/* Ship To */}
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">3</span> Ship To (ExWorks)</div>
-          <Field label="Company Name" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} />
+          <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={shipSameAsBill}
+              onChange={(e) => setShipSameAsBill(e.target.checked)}
+            />
+            Same as Bill To
+          </label>
+          <Field label="Company Name" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} disabled={shipSameAsBill} />
           <Field label="GST / Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} />
-          <Area label="Address" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} />
-          <Field label="Country" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} />
+          <Area label="Address" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} disabled={shipSameAsBill} />
+          <Field label="Country" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} disabled={shipSameAsBill} />
         </div>
 
         {/* Logistics — only shown when CIF is selected */}
@@ -579,19 +600,30 @@ export default function OrderFormBuilder() {
 }
 
 /* ---- small field helpers ---- */
-function Field({ label, v, on }: { label: string; v: string; on: (v: string) => void }) {
+function Field({ label, v, on, disabled }: { label: string; v: string; on: (v: string) => void; disabled?: boolean }) {
   return (
     <div className="mb-2">
       <label className="lbl">{label}</label>
-      <input className="inp" value={v} onChange={(e) => on(e.target.value)} />
+      <input
+        className={`inp ${disabled ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""}`}
+        value={v}
+        disabled={disabled}
+        onChange={(e) => on(e.target.value)}
+      />
     </div>
   );
 }
-function Area({ label, v, on, rows = 3 }: { label: string; v: string; on: (v: string) => void; rows?: number }) {
+function Area({ label, v, on, rows = 3, disabled }: { label: string; v: string; on: (v: string) => void; rows?: number; disabled?: boolean }) {
   return (
     <div className="mb-2">
       <label className="lbl">{label}</label>
-      <textarea className="inp" rows={rows} value={v} onChange={(e) => on(e.target.value)} />
+      <textarea
+        className={`inp ${disabled ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""}`}
+        rows={rows}
+        value={v}
+        disabled={disabled}
+        onChange={(e) => on(e.target.value)}
+      />
     </div>
   );
 }
