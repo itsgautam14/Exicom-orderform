@@ -367,7 +367,7 @@ html, body {
         </tr>
         {% if order.freight_charge %}
         <tr>
-          <td class="label">Freight{% if order.transport_mode %} ({{ order.transport_mode }}){% endif %}:</td>
+          <td class="label">Transportation{% if order.transport_mode %} ({{ order.transport_mode }}){% endif %}:</td>
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.freight_charge) }}</td>
         </tr>
         {% endif %}

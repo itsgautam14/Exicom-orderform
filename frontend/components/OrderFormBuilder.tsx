@@ -372,7 +372,7 @@ export default function OrderFormBuilder() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="lbl">Freight Charge</label>
+                <label className="lbl">Transportation Cost</label>
                 <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
                   onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
               </div>
@@ -499,7 +499,7 @@ export default function OrderFormBuilder() {
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
             {totals.freight > 0 && (
-              <Row k={`Freight (${order.transport_mode || "CIF"})`} v={`${cur} ${fmt(totals.freight)}`} />
+              <Row k={`Transportation (${order.transport_mode || "CIF"})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}
             {totals.insurance > 0 && (
               <Row k="Insurance" v={`${cur} ${fmt(totals.insurance)}`} />
