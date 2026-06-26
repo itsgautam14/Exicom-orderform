@@ -74,6 +74,8 @@ class Order(Base):
 
     # Logistics (populated when incoterms = CIF)
     transport_mode: Mapped[str] = mapped_column(String(32), default="")
+    transport_country: Mapped[str] = mapped_column(String(64), default="")
+    transport_qty: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     port_of_loading: Mapped[str] = mapped_column(String(128), default="")
     port_of_destination: Mapped[str] = mapped_column(String(128), default="")
     freight_charge: Mapped[float] = mapped_column(Numeric(14, 2), default=0)

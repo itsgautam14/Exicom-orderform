@@ -89,6 +89,8 @@ class OrderBase(BaseModel):
 
     # Logistics (CIF only)
     transport_mode: str = ""
+    transport_country: str = ""
+    transport_qty: float = 0
     port_of_loading: str = ""
     port_of_destination: str = ""
     freight_charge: float = 0

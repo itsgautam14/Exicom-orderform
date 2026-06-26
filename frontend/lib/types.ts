@@ -59,6 +59,8 @@ export interface OrderInput {
   lead_time: string;
 
   transport_mode: string;
+  transport_country: string;
+  transport_qty: number;
   port_of_loading: string;
   port_of_destination: string;
   freight_charge: number;

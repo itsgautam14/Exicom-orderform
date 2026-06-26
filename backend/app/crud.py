@@ -61,6 +61,8 @@ def compute_totals(order: models.Order) -> dict:
         "validity": order.validity,
         "lead_time": order.lead_time,
         "transport_mode": order.transport_mode or "",
+        "transport_country": order.transport_country or "",
+        "transport_qty": float(order.transport_qty or 0),
         "port_of_loading": order.port_of_loading or "",
         "port_of_destination": order.port_of_destination or "",
         "freight_charge": freight_charge,

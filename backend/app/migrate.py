@@ -16,6 +16,8 @@ _COLUMNS = [
     ("catalog_products", "prices", "JSONB DEFAULT '{}'::jsonb"),
     ("orders", "quote_date", "VARCHAR(64) DEFAULT ''"),
     ("orders", "transport_mode", "VARCHAR(32) DEFAULT ''"),
+    ("orders", "transport_country", "VARCHAR(64) DEFAULT ''"),
+    ("orders", "transport_qty", "NUMERIC(14,2) DEFAULT 0"),
     ("orders", "port_of_loading", "VARCHAR(128) DEFAULT ''"),
     ("orders", "port_of_destination", "VARCHAR(128) DEFAULT ''"),
     ("orders", "freight_charge", "NUMERIC(14,2) DEFAULT 0"),

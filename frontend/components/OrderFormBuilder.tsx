@@ -10,6 +10,22 @@ const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 /** Incoterms offered in the dropdown. */
 const INCOTERMS = ["EXW", "FOB", "CIF", "DDP", "DAP"];
 
+/**
+ * Transportation rates from the Exicom transport sheet, in INR.
+ *   sea = per WM³ (cubic metre) · air = per box (~10kg)
+ * null = no rate published for that country/mode.
+ */
+const TRANSPORT_RATES: Record<string, { sea: number | null; air: number | null }> = {
+  Tunisia: { sea: 37333.07, air: 7072.5 },
+  UAE: { sea: 29192, air: 5692.5 },
+  Qatar: { sea: null, air: 6612.5 },
+  "Saudi Arabia (KSA)": { sea: null, air: null },
+  Netherlands: { sea: 24306.4, air: null },
+  Malaysia: { sea: 23221, air: 1783 },
+  Morocco: { sea: 26478, air: null },
+};
+const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
+
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
 function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
   const tiers = p.prices?.[currency];
@@ -70,6 +86,8 @@ const BLANK_ORDER = (): OrderInput => ({
   validity: "This offer is valid for 30 days from the date of issue.",
   lead_time: "Lead times are from order acceptance. EXW Gurugram, India.",
   transport_mode: "",
+  transport_country: "",
+  transport_qty: 0,
   port_of_loading: "",
   port_of_destination: "",
   freight_charge: 0,
@@ -101,6 +119,46 @@ export default function OrderFormBuilder() {
       ship_to_country: o.bill_to_country,
     }));
   }, [shipSameAsBill, order.bill_to_company, order.bill_to_address, order.bill_to_country]);
+
+  // Live FX rate: 1 INR -> order currency (transport rates are stored in INR).
+  const [fx, setFx] = useState<{ rate: number; note: string }>({ rate: 1, note: "" });
+  useEffect(() => {
+    const cur = order.currency;
+    if (cur === "INR") { setFx({ rate: 1, note: "INR — no conversion needed" }); return; }
+    let cancelled = false;
+    (async () => {
+      // primary: open.er-api.com  ·  fallback: frankfurter.dev
+      for (const url of ["https://open.er-api.com/v6/latest/INR", `https://api.frankfurter.dev/v1/latest?base=INR&symbols=${cur}`]) {
+        try {
+          const d = await (await fetch(url)).json();
+          const rate = d?.rates?.[cur];
+          if (rate && !cancelled) {
+            const stamp = d.date || d.time_last_update_utc?.slice(5, 16) || "today";
+            setFx({ rate, note: `1 INR = ${rate.toFixed(5)} ${cur} · live (${stamp})` });
+            return;
+          }
+        } catch { /* try next source */ }
+      }
+      if (!cancelled) setFx({ rate: 0, note: `⚠ Live FX unavailable for ${cur} — enter transport cost manually` });
+    })();
+    return () => { cancelled = true; };
+  }, [order.currency]);
+
+  // Auto-compute the transport cost from the rate sheet (INR) × quantity, converted to the order currency.
+  useEffect(() => {
+    if (order.incoterms !== "CIF" || !order.transport_country) return;
+    const info = TRANSPORT_RATES[order.transport_country];
+    const isAir = order.transport_mode === "Airways";
+    const rateInr = info ? (isAir ? info.air : info.sea) : null;
+    if (rateInr == null) {
+      setOrder((o) => (o.freight_charge !== 0 ? { ...o, freight_charge: 0 } : o));
+      return;
+    }
+    if (order.currency !== "INR" && !fx.rate) return; // FX not ready → leave for manual entry
+    const inr = rateInr * (order.transport_qty || 0);
+    const converted = +(inr * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
+    setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
+  }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate]);
 
   // Scale the A4 preview (794px wide) down to fit narrow screens.
   const A4_W = 794;
@@ -359,6 +417,51 @@ export default function OrderFormBuilder() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="lbl">Destination Country</label>
+                <select className="inp" value={order.transport_country}
+                  onChange={(e) => set("transport_country", e.target.value)}>
+                  <option value="">— select —</option>
+                  {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (~10kg)" : "Volume (WM³)"}</label>
+                <input className="inp" type="number" step="0.01" min="0" value={order.transport_qty}
+                  onChange={(e) => set("transport_qty", parseFloat(e.target.value) || 0)} />
+              </div>
+            </div>
+
+            {/* live rate × qty × FX breakdown */}
+            {(() => {
+              const info = TRANSPORT_RATES[order.transport_country];
+              const isAir = order.transport_mode === "Airways";
+              const rateInr = info ? (isAir ? info.air : info.sea) : null;
+              const unit = isAir ? "box" : "WM³";
+              if (!order.transport_country) {
+                return <p className="mt-2 text-[10px] text-slate-400">Pick a destination country to auto-calculate the transport cost from the rate sheet.</p>;
+              }
+              if (rateInr == null) {
+                return <p className="mt-2 text-[10px] font-semibold text-amber-600">⚠ No {isAir ? "air" : "sea"} rate published for {order.transport_country}. Switch transport mode or enter the cost manually below.</p>;
+              }
+              const inr = rateInr * (order.transport_qty || 0);
+              const conv = order.currency === "INR" ? inr : inr * fx.rate;
+              return (
+                <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
+                  Rate <b>INR {fmt(rateInr)}</b>/{unit} × {order.transport_qty || 0} = <b>INR {fmt(inr)}</b>
+                  {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
+                  <br />{fx.note}
+                </div>
+              );
+            })()}
+
+            <div className="mt-2">
+              <label className="lbl">Transportation Cost ({order.currency}) · auto, editable</label>
+              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
+                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <Field
                 label={order.transport_mode === "Airways" ? "Airport of Loading" : "Port of Loading"}
                 v={order.port_of_loading}
@@ -369,11 +472,6 @@ export default function OrderFormBuilder() {
                 v={order.port_of_destination}
                 on={(v) => set("port_of_destination", v)}
               />
-            </div>
-            <div>
-              <label className="lbl">Transportation Cost</label>
-              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
-                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">
               Transportation cost is added to the subtotal. Tax applies to the product subtotal only.

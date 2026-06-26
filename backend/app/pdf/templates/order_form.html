@@ -198,7 +198,7 @@ html, body {
    LOGISTICS SECTION (CIF orders)
    ========================================================= */
 .logistics-table { width: 100%; border-collapse: collapse; margin-bottom: 2mm; }
-.logistics-table td { vertical-align: top; padding-right: 8mm; }
+.logistics-table td { vertical-align: top; padding: 0 8mm 2.5mm 0; }
 .logistics-table td:last-child { padding-right: 0; }
 
 /* =========================================================
@@ -303,18 +303,29 @@ html, body {
 <!-- LOGISTICS (shown only for CIF orders) -->
 {% if order.transport_mode %}
 <div class="section-header">Logistics Information</div>
+{% set is_air = 'Air' in order.transport_mode %}
 <table class="logistics-table">
   <tr>
-    <td style="width:28%">
+    <td style="width:34%">
       <div class="address-label">Transport Mode:</div>
       <div class="address-body"><span class="strong">{{ order.transport_mode }}</span></div>
     </td>
-    <td style="width:36%">
-      <div class="address-label">Port of Loading:</div>
+    <td style="width:33%">
+      <div class="address-label">Destination Country:</div>
+      <div class="address-body"><span class="strong">{{ order.transport_country or '—' }}</span></div>
+    </td>
+    <td style="width:33%">
+      <div class="address-label">{% if is_air %}No. of Boxes (~10kg):{% else %}Volume (WM³):{% endif %}</div>
+      <div class="address-body"><span class="strong">{% if order.transport_qty %}{{ "%g"|format(order.transport_qty) }}{% else %}—{% endif %}</span></div>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <div class="address-label">{% if is_air %}Airport{% else %}Port{% endif %} of Loading:</div>
       <div class="address-body"><span class="strong">{{ order.port_of_loading or '—' }}</span></div>
     </td>
-    <td style="width:36%">
-      <div class="address-label">Port / Airport of Destination:</div>
+    <td colspan="2">
+      <div class="address-label">{% if is_air %}Airport{% else %}Port{% endif %} of Destination:</div>
       <div class="address-body"><span class="strong">{{ order.port_of_destination or '—' }}</span></div>
     </td>
   </tr>
