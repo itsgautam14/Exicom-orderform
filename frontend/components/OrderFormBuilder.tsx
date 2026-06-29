@@ -26,6 +26,17 @@ const TRANSPORT_RATES: Record<string, { sea: number | null; air: number | null }
 };
 const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 
+/** Sea freight is priced per pallet; 1 pallet holds this many boxes. */
+const BOXES_PER_PALLET = 20;
+
+/** Standard payment-term presets; "Custom…" opens a free-text box. */
+const PAYMENT_PRESETS = [
+  "50% advance payment on PO release, balance 50% on material dispatch",
+];
+
+/** Fixed production lead time shown on every order form. */
+const STANDARD_LEAD_TIME = "Production lead time is 4-6 weeks from PO acceptance";
+
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
 function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
   const tiers = p.prices?.[currency];
@@ -81,10 +92,10 @@ const BLANK_ORDER = (): OrderInput => ({
   ship_to_gst: "36AAACH2448G1ZS",
   ship_to_address: "Plot No. S-105 to S-112, Mansanpally Cross Road\nMaheshwaram Rangareddy, Telangana - 501359",
   ship_to_country: "India",
-  payment_terms: "Advance payment.",
+  payment_terms: PAYMENT_PRESETS[0],
   warranty: "36 months from date of commissioning (or 39 months from date of dispatch, whichever is earlier).",
   validity: "This offer is valid for 30 days from the date of issue.",
-  lead_time: "Lead times are from order acceptance. EXW Gurugram, India.",
+  lead_time: STANDARD_LEAD_TIME,
   transport_mode: "",
   transport_country: "",
   transport_qty: 0,
@@ -106,6 +117,7 @@ export default function OrderFormBuilder() {
   const [busy, setBusy] = useState(false);
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
+  const [paymentCustom, setPaymentCustom] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   // When "same as Bill To" is on, mirror the Bill To address into Ship To
@@ -205,6 +217,22 @@ export default function OrderFormBuilder() {
     return { subtotal, freight, insurance, tax, grand: subtotal + freight + insurance + tax };
   }, [order]);
 
+  // Total ordered units across all line items (drives the transport quantity).
+  const totalUnits = useMemo(
+    () => order.items.reduce((s, it) => s + (it.quantity || 0), 0),
+    [order.items]
+  );
+
+  // Link the transport quantity to the order items:
+  //   Airways → number of boxes = total units
+  //   Sea     → number of pallets = ceil(total units / 20)  (whole numbers only)
+  useEffect(() => {
+    if (order.incoterms !== "CIF" || !order.transport_mode) return;
+    const isAir = order.transport_mode === "Airways";
+    const qty = isAir ? totalUnits : Math.ceil(totalUnits / BOXES_PER_PALLET);
+    setOrder((o) => (o.transport_qty !== qty ? { ...o, transport_qty: qty } : o));
+  }, [order.incoterms, order.transport_mode, totalUnits]);
+
   function set<K extends keyof OrderInput>(key: K, val: OrderInput[K]) {
     setOrder((o) => ({ ...o, [key]: val }));
   }
@@ -251,13 +279,21 @@ export default function OrderFormBuilder() {
       }),
     }));
   }
-  // Changing incoterms keeps any incoterm reference in the lead-time line in sync.
   function setIncoterms(next: string) {
-    setOrder((o) => {
-      const re = new RegExp(`\\b(${INCOTERMS.join("|")})\\b`, "g");
-      const lead_time = o.lead_time.replace(re, next); // no-op when no token present
-      return { ...o, incoterms: next, lead_time };
-    });
+    setOrder((o) =>
+      next === "CIF"
+        ? { ...o, incoterms: next }
+        : {
+            ...o,
+            incoterms: next,
+            transport_mode: "",
+            transport_country: "",
+            transport_qty: 0,
+            port_of_loading: "",
+            port_of_destination: "",
+            freight_charge: 0,
+          }
+    );
   }
   // Changing the currency re-prices every catalog-linked line from the pricebook.
   function setCurrency(currency: string) {
@@ -273,7 +309,28 @@ export default function OrderFormBuilder() {
     }));
   }
 
+  // Returns an error message listing any missing mandatory fields, or null when valid.
+  function validate(): string | null {
+    const miss: string[] = [];
+    if (!order.quote_number.trim()) miss.push("Quote Number");
+    if (!order.prepared_for.trim()) miss.push("Customer Name");
+    if (!order.proposed_by.trim()) miss.push("KAM Name");
+    if (!order.bill_to_company.trim()) miss.push("Bill To · Company Name");
+    if (!order.bill_to_address.trim()) miss.push("Bill To · Address");
+    if (!order.bill_to_country.trim()) miss.push("Bill To · Country");
+    if (!order.ship_to_company.trim()) miss.push("Ship To · Company Name");
+    if (!order.ship_to_address.trim()) miss.push("Ship To · Address");
+    if (!order.ship_to_country.trim()) miss.push("Ship To · Country");
+    if (order.po_required) {
+      if (!order.po_number.trim()) miss.push("PO Number (PO required = Yes)");
+      if (!String(order.po_amount).trim()) miss.push("PO Amount (PO required = Yes)");
+    }
+    return miss.length ? "Please complete these required fields:\n\n•  " + miss.join("\n•  ") : null;
+  }
+
   async function downloadPdf() {
+    const err = validate();
+    if (err) { alert(err); return; }
     setBusy(true);
     try {
       const blob = await api.pdfBlob(order);
@@ -291,8 +348,8 @@ export default function OrderFormBuilder() {
   }
 
   async function saveOrder() {
-    if (!order.bill_to_company) { alert("Please fill in the customer (Bill To) company name before saving."); return; }
-    if (!order.prepared_for) { alert("Please fill in the Customer Name."); return; }
+    const err = validate();
+    if (err) { alert(err); return; }
     setBusy(true);
     try {
       const saved = await api.createOrder(order);
@@ -329,7 +386,7 @@ export default function OrderFormBuilder() {
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
-              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); } }}
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
             >
               ✕ New
             </button>
@@ -384,104 +441,15 @@ export default function OrderFormBuilder() {
             />
             Same as Bill To
           </label>
-          <Field label="Company Name" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} disabled={shipSameAsBill} />
+          <Field label="Company Name *" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} disabled={shipSameAsBill} />
           <Field label="GST / Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} />
-          <Area label="Address" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} disabled={shipSameAsBill} />
-          <Field label="Country" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} disabled={shipSameAsBill} />
+          <Area label="Address *" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} disabled={shipSameAsBill} />
+          <Field label="Country *" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} disabled={shipSameAsBill} />
         </div>
-
-        {/* Logistics — only shown when CIF is selected */}
-        {order.incoterms === "CIF" && (
-          <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
-            <div className="section-title">
-              <span className="section-badge">4</span> Logistics
-              <span className="ml-2 rounded-full bg-exicom-teal/10 px-2 py-0.5 text-[10px] font-semibold text-exicom-tealDark">CIF</span>
-            </div>
-            <div className="mb-3">
-              <label className="lbl">Transport Mode *</label>
-              <div className="flex gap-2">
-                {["Airways", "Sea Freight (Waterways)"].map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => set("transport_mode", mode)}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                      order.transport_mode === mode
-                        ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
-                    }`}
-                  >
-                    {mode === "Airways" ? "✈  Airways" : "🚢  Sea Freight (Waterways)"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="lbl">Destination Country</label>
-                <select className="inp" value={order.transport_country}
-                  onChange={(e) => set("transport_country", e.target.value)}>
-                  <option value="">— select —</option>
-                  {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (~10kg)" : "Volume (WM³)"}</label>
-                <input className="inp" type="number" step="0.01" min="0" value={order.transport_qty}
-                  onChange={(e) => set("transport_qty", parseFloat(e.target.value) || 0)} />
-              </div>
-            </div>
-
-            {/* live rate × qty × FX breakdown */}
-            {(() => {
-              const info = TRANSPORT_RATES[order.transport_country];
-              const isAir = order.transport_mode === "Airways";
-              const rateInr = info ? (isAir ? info.air : info.sea) : null;
-              const unit = isAir ? "box" : "WM³";
-              if (!order.transport_country) {
-                return <p className="mt-2 text-[10px] text-slate-400">Pick a destination country to auto-calculate the transport cost from the rate sheet.</p>;
-              }
-              if (rateInr == null) {
-                return <p className="mt-2 text-[10px] font-semibold text-amber-600">⚠ No {isAir ? "air" : "sea"} rate published for {order.transport_country}. Switch transport mode or enter the cost manually below.</p>;
-              }
-              const inr = rateInr * (order.transport_qty || 0);
-              const conv = order.currency === "INR" ? inr : inr * fx.rate;
-              return (
-                <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
-                  Rate <b>INR {fmt(rateInr)}</b>/{unit} × {order.transport_qty || 0} = <b>INR {fmt(inr)}</b>
-                  {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
-                  <br />{fx.note}
-                </div>
-              );
-            })()}
-
-            <div className="mt-2">
-              <label className="lbl">Transportation Cost ({order.currency}) · auto, editable</label>
-              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
-                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
-            </div>
-
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <Field
-                label={order.transport_mode === "Airways" ? "Airport of Loading" : "Port of Loading"}
-                v={order.port_of_loading}
-                on={(v) => set("port_of_loading", v)}
-              />
-              <Field
-                label={order.transport_mode === "Airways" ? "Airport of Destination" : "Port of Destination"}
-                v={order.port_of_destination}
-                on={(v) => set("port_of_destination", v)}
-              />
-            </div>
-            <p className="mt-1 text-[10px] text-slate-400">
-              Transportation cost is added to the subtotal. Tax applies to the product subtotal only.
-            </p>
-          </div>
-        )}
 
         {/* Items */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "5" : "4"}</span> Order Items</div>
+          <div className="section-title"><span className="section-badge">4</span> Order Items</div>
           {order.items.map((it, i) => (
             <div key={i} className="item-block">
               <div className="mb-2 flex items-center justify-between">
@@ -600,26 +568,166 @@ export default function OrderFormBuilder() {
           </div>
         </div>
 
+        {/* Logistics — only shown when CIF is selected (after Order Items) */}
+        {order.incoterms === "CIF" && (
+          <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
+            <div className="section-title">
+              <span className="section-badge">5</span> Logistics
+              <span className="ml-2 rounded-full bg-exicom-teal/10 px-2 py-0.5 text-[10px] font-semibold text-exicom-tealDark">CIF</span>
+            </div>
+            <div className="mb-3">
+              <label className="lbl">Transport Mode *</label>
+              <div className="flex gap-2">
+                {["Airways", "Sea Freight (Waterways)"].map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => set("transport_mode", mode)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                      order.transport_mode === mode
+                        ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+                    }`}
+                  >
+                    {mode === "Airways" ? "✈  Airways" : "🚢  Sea Freight (Waterways)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="lbl">Destination Country</label>
+                <select className="inp" value={order.transport_country}
+                  onChange={(e) => set("transport_country", e.target.value)}>
+                  <option value="">— select —</option>
+                  {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (from qty)" : "No. of Pallets (20 boxes = 1)"}</label>
+                <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly
+                  value={order.transport_qty || ""} placeholder="—" />
+              </div>
+            </div>
+
+            {/* live rate × qty × FX breakdown */}
+            {(() => {
+              const info = TRANSPORT_RATES[order.transport_country];
+              const isAir = order.transport_mode === "Airways";
+              const rateInr = info ? (isAir ? info.air : info.sea) : null;
+              if (!order.transport_mode) {
+                return <p className="mt-2 text-[10px] text-slate-400">Select a transport mode (Air / Sea) above.</p>;
+              }
+              if (!order.transport_country) {
+                return <p className="mt-2 text-[10px] text-slate-400">Pick a destination country to auto-calculate the transport cost from the rate sheet.</p>;
+              }
+              if (rateInr == null) {
+                return <p className="mt-2 text-[10px] font-semibold text-amber-600">⚠ No {isAir ? "air" : "sea"} rate published for {order.transport_country}. Switch transport mode or enter the cost manually below.</p>;
+              }
+              const qtyUnit = isAir ? "box(es)" : "pallet(s)";
+              const rateUnit = isAir ? "box" : "WM³/pallet";
+              const inr = rateInr * (order.transport_qty || 0);
+              const conv = order.currency === "INR" ? inr : inr * fx.rate;
+              return (
+                <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
+                  Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
+                  {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
+                  <br />{fx.note}
+                  {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
+                </div>
+              );
+            })()}
+
+            <div className="mt-2">
+              <label className="lbl">Transportation Cost ({order.currency}) · auto, editable</label>
+              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
+                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Field
+                label={order.transport_mode === "Airways" ? "Airport of Loading" : "Port of Loading"}
+                v={order.port_of_loading}
+                on={(v) => set("port_of_loading", v)}
+              />
+              <Field
+                label={order.transport_mode === "Airways" ? "Airport of Destination" : "Port of Destination"}
+                v={order.port_of_destination}
+                on={(v) => set("port_of_destination", v)}
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-slate-400">
+              Boxes/pallets are linked to the order quantity. Transportation cost is added to the subtotal; tax applies to the product subtotal only.
+            </p>
+          </div>
+        )}
+
         {/* Terms */}
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "6" : "5"}</span> Terms &amp; Conditions</div>
-          <Field label="Payment Terms" v={order.payment_terms} on={(v) => set("payment_terms", v)} />
+          <div className="mb-2">
+            <label className="lbl">Payment Terms</label>
+            <select
+              className="inp"
+              value={paymentCustom ? "__custom__" : order.payment_terms}
+              onChange={(e) => {
+                if (e.target.value === "__custom__") setPaymentCustom(true);
+                else { setPaymentCustom(false); set("payment_terms", e.target.value); }
+              }}
+            >
+              {PAYMENT_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="__custom__">Custom…</option>
+            </select>
+          </div>
+          {paymentCustom && (
+            <Area label="Custom Payment Terms" v={order.payment_terms} on={(v) => set("payment_terms", v)} rows={2} />
+          )}
           <Area label="Warranty" v={order.warranty} on={(v) => set("warranty", v)} rows={2} />
           <Field label="Validity" v={order.validity} on={(v) => set("validity", v)} />
-          <Field label="Production Lead Times" v={order.lead_time} on={(v) => set("lead_time", v)} />
+          <div className="mb-2">
+            <label className="lbl">Production Lead Time (standard)</label>
+            <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly value={order.lead_time} />
+          </div>
         </div>
 
         {/* PO */}
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "7" : "6"}</span> Purchase Order</div>
-          <label className="mb-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={order.po_required} onChange={(e) => set("po_required", e.target.checked)} />
-            PO required
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="PO Number" v={order.po_number} on={(v) => set("po_number", v)} />
-            <Field label="PO Amount" v={order.po_amount} on={(v) => set("po_amount", v)} />
+          <label className="lbl">Is a Purchase Order required?</label>
+          <div className="mb-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => set("po_required", true)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                order.po_required
+                  ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+              }`}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrder((o) => ({ ...o, po_required: false, po_number: "", po_amount: "" }))}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                !order.po_required
+                  ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+              }`}
+            >
+              No
+            </button>
           </div>
+          {order.po_required ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="PO Number *" v={order.po_number} on={(v) => set("po_number", v)} />
+              <Field label="PO Amount *" v={order.po_amount} on={(v) => set("po_amount", v)} />
+            </div>
+          ) : (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
+              ✍ No PO — the customer&apos;s <b>signature is mandatory</b>. A signature line is included on the order form for sign-off.
+            </p>
+          )}
         </div>
       </aside>
 

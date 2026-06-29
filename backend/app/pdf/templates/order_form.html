@@ -315,7 +315,7 @@ html, body {
       <div class="address-body"><span class="strong">{{ order.transport_country or '—' }}</span></div>
     </td>
     <td style="width:33%">
-      <div class="address-label">{% if is_air %}No. of Boxes (~10kg):{% else %}Volume (WM³):{% endif %}</div>
+      <div class="address-label">{% if is_air %}No. of Boxes:{% else %}No. of Pallets:{% endif %}</div>
       <div class="address-body"><span class="strong">{% if order.transport_qty %}{{ "%g"|format(order.transport_qty) }}{% else %}—{% endif %}</span></div>
     </td>
   </tr>
@@ -413,10 +413,11 @@ html, body {
 <div class="po">
   <div class="q">Is a Purchase Order (PO) required for the purchase of the products on this Order Form? (Customer to complete)</div>
   <div class="choice">
-    {% if order.po_required == True %}&#9746;{% else %}&#9744;{% endif %} No
+    {% if order.po_required %}&#9746;{% else %}&#9744;{% endif %} Yes
     &nbsp;&nbsp;&nbsp;
-    {% if order.po_required == True %}&#9744;{% else %}&#9744;{% endif %} Yes &ndash; please complete below
+    {% if order.po_required %}&#9744;{% else %}&#9746;{% endif %} No
   </div>
+  {% if order.po_required %}
   <table class="po-fields">
     <tr>
       <td>
@@ -429,11 +430,12 @@ html, body {
       </td>
     </tr>
   </table>
+  {% endif %}
 </div>
 
 <div class="signature-area">
   <div class="signature-line"></div>
-  <div class="signature-label">Signature</div>
+  <div class="signature-label">Signature{% if not order.po_required %} (required){% endif %}</div>
 </div>
 
 <!-- ================= PAGE 2 — BANK DETAILS ================= -->
