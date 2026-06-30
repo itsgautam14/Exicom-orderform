@@ -86,6 +86,7 @@ const BLANK_ORDER = (): OrderInput => ({
   currency: "USD",
   tax_rate: 0,
   bill_to_company: "",
+  bill_to_gst: "",
   bill_to_address: "",
   bill_to_country: "",
   ship_to_company: "EXICOM LOGISTICS WAREHOUSE",
@@ -127,10 +128,11 @@ export default function OrderFormBuilder() {
     setOrder((o) => ({
       ...o,
       ship_to_company: o.bill_to_company,
+      ship_to_gst: o.bill_to_gst,
       ship_to_address: o.bill_to_address,
       ship_to_country: o.bill_to_country,
     }));
-  }, [shipSameAsBill, order.bill_to_company, order.bill_to_address, order.bill_to_country]);
+  }, [shipSameAsBill, order.bill_to_company, order.bill_to_gst, order.bill_to_address, order.bill_to_country]);
 
   // Live FX rate: 1 INR -> order currency (transport rates are stored in INR).
   const [fx, setFx] = useState<{ rate: number; note: string }>({ rate: 1, note: "" });
@@ -321,10 +323,6 @@ export default function OrderFormBuilder() {
     if (!order.ship_to_company.trim()) miss.push("Ship To · Company Name");
     if (!order.ship_to_address.trim()) miss.push("Ship To · Address");
     if (!order.ship_to_country.trim()) miss.push("Ship To · Country");
-    if (order.po_required) {
-      if (!order.po_number.trim()) miss.push("PO Number (PO required = Yes)");
-      if (!String(order.po_amount).trim()) miss.push("PO Amount (PO required = Yes)");
-    }
     return miss.length ? "Please complete these required fields:\n\n•  " + miss.join("\n•  ") : null;
   }
 
@@ -426,6 +424,7 @@ export default function OrderFormBuilder() {
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">2</span> Bill To <span className="ml-1 text-[10px] font-normal text-slate-400">(Customer details)</span></div>
           <Field label="Company Name *" v={order.bill_to_company} on={(v) => set("bill_to_company", v)} />
+          <Field label="GST / Tax ID" v={order.bill_to_gst} on={(v) => set("bill_to_gst", v)} />
           <Area label="Address *" v={order.bill_to_address} on={(v) => set("bill_to_address", v)} />
           <Field label="Country *" v={order.bill_to_country} on={(v) => set("bill_to_country", v)} />
         </div>
@@ -442,7 +441,7 @@ export default function OrderFormBuilder() {
             Same as Bill To
           </label>
           <Field label="Company Name *" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} disabled={shipSameAsBill} />
-          <Field label="GST / Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} />
+          <Field label="GST / Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} disabled={shipSameAsBill} />
           <Area label="Address *" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} disabled={shipSameAsBill} />
           <Field label="Country *" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} disabled={shipSameAsBill} />
         </div>
@@ -688,6 +687,10 @@ export default function OrderFormBuilder() {
             <label className="lbl">Production Lead Time (standard)</label>
             <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly value={order.lead_time} />
           </div>
+          <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
+            <b className="text-slate-600">Standard Terms</b> are automatically included on the order form:
+            Documents · Scope of Supply · Price · Freight and Insurance · Terms of Payment · Delivery.
+          </div>
         </div>
 
         {/* PO */}
@@ -719,10 +722,7 @@ export default function OrderFormBuilder() {
             </button>
           </div>
           {order.po_required ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="PO Number *" v={order.po_number} on={(v) => set("po_number", v)} />
-              <Field label="PO Amount *" v={order.po_amount} on={(v) => set("po_amount", v)} />
-            </div>
+            <div className="h-16" aria-hidden="true" />
           ) : (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
               ✍ No PO — the customer&apos;s <b>signature is mandatory</b>. A signature line is included on the order form for sign-off.

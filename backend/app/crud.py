@@ -50,6 +50,7 @@ def compute_totals(order: models.Order) -> dict:
         "currency": order.currency,
         "tax_rate": tax_rate,
         "bill_to_company": order.bill_to_company,
+        "bill_to_gst": order.bill_to_gst,
         "bill_to_address": order.bill_to_address,
         "bill_to_country": order.bill_to_country,
         "ship_to_company": order.ship_to_company,

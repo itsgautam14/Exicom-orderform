@@ -57,6 +57,7 @@ class Order(Base):
 
     # Bill to
     bill_to_company: Mapped[str] = mapped_column(String(255), default="")
+    bill_to_gst: Mapped[str] = mapped_column(String(64), default="")
     bill_to_address: Mapped[str] = mapped_column(Text, default="")
     bill_to_country: Mapped[str] = mapped_column(String(128), default="")
 

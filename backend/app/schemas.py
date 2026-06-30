@@ -74,6 +74,7 @@ class OrderBase(BaseModel):
     tax_rate: float = 0
 
     bill_to_company: str = ""
+    bill_to_gst: str = ""
     bill_to_address: str = ""
     bill_to_country: str = ""
 

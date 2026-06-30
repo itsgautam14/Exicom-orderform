@@ -45,6 +45,7 @@ export interface OrderInput {
   tax_rate: number;
 
   bill_to_company: string;
+  bill_to_gst: string;
   bill_to_address: string;
   bill_to_country: string;
 

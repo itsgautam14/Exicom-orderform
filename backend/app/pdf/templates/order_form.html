@@ -177,6 +177,18 @@ html, body {
 .terms b { font-weight: 700; }
 
 /* =========================================================
+   STANDARD TERMS (fixed boilerplate)
+   ========================================================= */
+.std-terms { font-size: 8pt; line-height: 1.55; color: #222; }
+.std-clause { margin-bottom: 3.2mm; }
+.std-h {
+  font-size: 9pt; font-weight: 700; color: #111;
+  margin-bottom: 1mm; padding-bottom: 0.8mm;
+  border-bottom: 1px solid var(--rule);
+}
+.std-terms p { margin: 0; text-align: justify; }
+
+/* =========================================================
    PURCHASE ORDER
    ========================================================= */
 .po { font-size: 8.5pt; line-height: 1.6; color: #111; }
@@ -282,6 +294,7 @@ html, body {
       <div class="address-label">Bill To:</div>
       <div class="address-body">
         <span class="strong">{{ order.bill_to_company }}</span><br/>
+        {% if order.bill_to_gst %}GST: {{ order.bill_to_gst }}<br/>{% endif %}
         {{ order.bill_to_address | replace('\n', '<br/>') | safe }}<br/>
         {{ order.bill_to_country }}
       </div>
@@ -438,7 +451,38 @@ html, body {
   <div class="signature-label">Signature{% if not order.po_required %} (required){% endif %}</div>
 </div>
 
-<!-- ================= PAGE 2 — BANK DETAILS ================= -->
+<!-- ================= PAGE 2 — STANDARD TERMS ================= -->
+<div class="page-break"></div>
+
+<div class="section-header">Standard Terms</div>
+<div class="std-terms">
+  <div class="std-clause">
+    <div class="std-h">Documents</div>
+    <p>This proposal has been made based on our mutual discussion. We reserve all rights to revise this quotation if there is any change required in technical specifications of the product from what is mentioned in this offer.</p>
+  </div>
+  <div class="std-clause">
+    <div class="std-h">Scope of Supply</div>
+    <p>Scope of supply shall be strictly limited to the scope of work and services mentioned in this offer. All civil work, cabling for distribution of power, switchgears and associated electrical work would be arranged by customer, until and unless explicitly agreed and mentioned separately in the price schedule.</p>
+  </div>
+  <div class="std-clause">
+    <div class="std-h">Price</div>
+    <p>Basic Price mentioned in the price schedule is as per Ex-Works, Gurgaon, Haryana. All prices mentioned in the price schedule are exclusive of all taxes, duties and statutory levies from central, state, local bodies and hence would be charged extra as applicable at the time of billing. Current Tax applicable: GST@5% on EV Charger and 18% on services.</p>
+  </div>
+  <div class="std-clause">
+    <div class="std-h">Freight and Insurance</div>
+    <p>Freight and Insurance charges are as mentioned in the price schedule. Any replacement against goods damaged during transit would be entertained against fresh order only. Delivery of such replacement goods would be confirmed separately. F&amp;I shall be charged extra as per actual.</p>
+  </div>
+  <div class="std-clause">
+    <div class="std-h">Terms of Payment</div>
+    <p>As per mutually agreed terms. EXICOM retains the right to forfeit the security deposit in the event of cancellation of the order by the Buyer or the Buyer's inability to make payment or take delivery of the goods within the stipulated time and adjust such security deposit in satisfaction or part satisfaction of any charge, expense, loss or damage incurred or sustained by the Seller in respect of the relevant order.</p>
+  </div>
+  <div class="std-clause">
+    <div class="std-h">Delivery</div>
+    <p>Goods will be delivered within 2-4 weeks from the date of receipt of technically &amp; commercially agreed clear purchase order. The above quoted delivery is in good faith and we would endeavour our best to deliver the goods accordingly. However, please note, any penalty corresponding to late delivery or any clause pertaining to liquidated damages/risks would not be acceptable to us. The delivery quoted is subject to force majeure condition. For urgent delivery by Air, separate charges shall be applicable.</p>
+  </div>
+</div>
+
+<!-- ================= PAGE 3 — BANK DETAILS ================= -->
 <div class="page-break"></div>
 
 <div class="section-header">Bank Details</div>
