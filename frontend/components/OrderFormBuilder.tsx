@@ -31,7 +31,8 @@ const BOXES_PER_PALLET = 20;
 
 /** Standard payment-term presets; "Custom…" opens a free-text box. */
 const PAYMENT_PRESETS = [
-  "50% advance payment on PO release, balance 50% on material dispatch",
+  "50% advance payment on PO release",
+  "50% on material dispatch",
 ];
 
 /** Fixed production lead time shown on every order form. */
