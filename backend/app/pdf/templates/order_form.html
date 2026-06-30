@@ -264,7 +264,7 @@ html, body {
     <td class="meta-cell">
       <div class="doc-title">ORDER FORM</div>
       <div class="meta-lines">
-        Customer Name: <b>{{ order.prepared_for }}</b><br/>
+        Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
         KAM Name: <b>{{ order.proposed_by }}</b><br/>

@@ -48,6 +48,12 @@ function priceFor(p: CatalogProduct, currency: string, qty: number): number | nu
   return tiers[0][2]; // qty below the lowest bracket → use the first tier
 }
 
+/** Does the catalog product have pricing in the given currency? */
+function hasCurrency(p: CatalogProduct, currency: string): boolean {
+  if (p.prices && Object.keys(p.prices).length) return Boolean(p.prices[currency]?.length);
+  return p.currency === currency; // fallback for products without a price matrix
+}
+
 const EMPTY_ITEM: OrderItem = {
   product_code: "",
   code_note: "",
@@ -90,10 +96,10 @@ const BLANK_ORDER = (): OrderInput => ({
   bill_to_gst: "",
   bill_to_address: "",
   bill_to_country: "",
-  ship_to_company: "EXICOM LOGISTICS WAREHOUSE",
-  ship_to_gst: "36AAACH2448G1ZS",
-  ship_to_address: "Plot No. S-105 to S-112, Mansanpally Cross Road\nMaheshwaram Rangareddy, Telangana - 501359",
-  ship_to_country: "India",
+  ship_to_company: "",
+  ship_to_gst: "",
+  ship_to_address: "",
+  ship_to_country: "",
   payment_terms: PAYMENT_PRESETS[0],
   warranty: "36 months from date of commissioning (or 39 months from date of dispatch, whichever is earlier).",
   validity: "This offer is valid for 30 days from the date of issue.",
@@ -190,9 +196,12 @@ export default function OrderFormBuilder() {
     return () => ro.disconnect();
   }, [mobileView]);
 
+  // Only categories that have at least one product priced in the selected currency.
   const categories = useMemo(
-    () => [...new Set(catalog.map((c) => c.category).filter(Boolean))].sort(),
-    [catalog]
+    () => [...new Set(
+      catalog.filter((c) => hasCurrency(c, order.currency)).map((c) => c.category).filter(Boolean)
+    )].sort(),
+    [catalog, order.currency]
   );
 
   // load catalog for the "fill from catalog" pickers
@@ -226,15 +235,34 @@ export default function OrderFormBuilder() {
     [order.items]
   );
 
+  // Units that are DC chargers (each DC charger = 1 pallet for sea freight).
+  const dcUnits = useMemo(
+    () =>
+      order.items.reduce((s, it) => {
+        const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+        const isDc = p
+          ? p.category === "DC Charger"
+          : /\bDC\b/i.test(it.code_note || "") || /\bDC\b/i.test(it.product_name || "");
+        return s + (isDc ? it.quantity || 0 : 0);
+      }, 0),
+    [order.items, catalog]
+  );
+
+  // Pallets: each DC charger = 1 pallet; all other items pack 20 boxes/pallet.
+  const palletCount = useMemo(
+    () => dcUnits + Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET),
+    [dcUnits, totalUnits]
+  );
+
   // Link the transport quantity to the order items:
   //   Airways → number of boxes = total units
-  //   Sea     → number of pallets = ceil(total units / 20)  (whole numbers only)
+  //   Sea     → number of pallets (DC charger = 1 pallet; others 20 boxes = 1 pallet)
   useEffect(() => {
     if (order.incoterms !== "CIF" || !order.transport_mode) return;
     const isAir = order.transport_mode === "Airways";
-    const qty = isAir ? totalUnits : Math.ceil(totalUnits / BOXES_PER_PALLET);
+    const qty = isAir ? totalUnits : palletCount;
     setOrder((o) => (o.transport_qty !== qty ? { ...o, transport_qty: qty } : o));
-  }, [order.incoterms, order.transport_mode, totalUnits]);
+  }, [order.incoterms, order.transport_mode, totalUnits, palletCount]);
 
   function set<K extends keyof OrderInput>(key: K, val: OrderInput[K]) {
     setOrder((o) => ({ ...o, [key]: val }));
@@ -316,7 +344,7 @@ export default function OrderFormBuilder() {
   function validate(): string | null {
     const miss: string[] = [];
     if (!order.quote_number.trim()) miss.push("Quote Number");
-    if (!order.prepared_for.trim()) miss.push("Customer Name");
+    if (!order.prepared_for.trim()) miss.push("Customer (SPOC)");
     if (!order.proposed_by.trim()) miss.push("KAM Name");
     if (!order.bill_to_company.trim()) miss.push("Bill To · Company Name");
     if (!order.bill_to_address.trim()) miss.push("Bill To · Address");
@@ -399,7 +427,7 @@ export default function OrderFormBuilder() {
             <Field label="Quote Number *" v={order.quote_number} on={(v) => set("quote_number", v)} />
             <Field label="Date" v={order.quote_date} on={(v) => set("quote_date", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
-            <Field label="Customer Name *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
+            <Field label="Customer (SPOC) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
             <Field label="KAM Name *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
@@ -493,11 +521,11 @@ export default function OrderFormBuilder() {
                   >
                     <option value="">
                       {itemFilters[i]
-                        ? `— select ${itemFilters[i]} —`
-                        : "— select product from catalog —"}
+                        ? `— select ${itemFilters[i]} (${order.currency}) —`
+                        : `— select product in ${order.currency} —`}
                     </option>
                     {catalog
-                      .filter((c) => !itemFilters[i] || c.category === itemFilters[i])
+                      .filter((c) => hasCurrency(c, order.currency) && (!itemFilters[i] || c.category === itemFilters[i]))
                       .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.product_code} — {c.product_name}
@@ -604,7 +632,7 @@ export default function OrderFormBuilder() {
                 </select>
               </div>
               <div>
-                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (from qty)" : "No. of Pallets (20 boxes = 1)"}</label>
+                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (from qty)" : "No. of Pallets (1 DC = 1 pallet)"}</label>
                 <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly
                   value={order.transport_qty || ""} placeholder="—" />
               </div>
@@ -633,6 +661,7 @@ export default function OrderFormBuilder() {
                   Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
                   {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
                   <br />{fx.note}
+                  {!isAir && <><br /><span className="text-slate-400">Pallets: {dcUnits} DC charger(s) + {Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET)} for other items (20 boxes = 1 pallet).</span></>}
                   {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
                 </div>
               );
