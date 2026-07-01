@@ -31,8 +31,8 @@ const BOXES_PER_PALLET = 20;
 
 /** Standard payment-term presets; "Custom…" opens a free-text box. */
 const PAYMENT_PRESETS = [
-  "50% advance payment on PO release",
-  "50% on material dispatch",
+  "100% advance",
+  "50% advance payment on PO release, 50% on material dispatch",
 ];
 
 /** Fixed production lead time shown on every order form. */
@@ -74,13 +74,12 @@ function todayPlus30(): string {
   return d.toLocaleDateString("en-GB").replace(/\//g, "/");
 }
 
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+// Format: YYYY-MMM-001 (sequence editable from 001 to 999).
 function nextQuoteNumber(): string {
   const now = new Date();
-  const yy = String(now.getFullYear()).slice(2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const rand = String(Math.floor(Math.random() * 900) + 100);
-  return `Q-${yy}${mm}${dd}-${rand}`;
+  return `${now.getFullYear()}-${MONTHS[now.getMonth()]}-001`;
 }
 
 const BLANK_ORDER = (): OrderInput => ({
@@ -311,10 +310,10 @@ export default function OrderFormBuilder() {
     }));
   }
   function setIncoterms(next: string) {
+    // EXW has no logistics — clear transport fields. All other incoterms keep them.
     setOrder((o) =>
-      next === "CIF"
-        ? { ...o, incoterms: next }
-        : {
+      next === "EXW"
+        ? {
             ...o,
             incoterms: next,
             transport_mode: "",
@@ -324,6 +323,7 @@ export default function OrderFormBuilder() {
             port_of_destination: "",
             freight_charge: 0,
           }
+        : { ...o, incoterms: next }
     );
   }
   // Changing the currency re-prices every catalog-linked line from the pricebook.
@@ -586,7 +586,7 @@ export default function OrderFormBuilder() {
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
             {totals.freight > 0 && (
-              <Row k={`Transportation (${order.transport_mode || "CIF"})`} v={`${cur} ${fmt(totals.freight)}`} />
+              <Row k={`Transportation (${order.transport_mode || order.incoterms})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}
             <Row k={`Tax (${order.tax_rate}%)`} v={`${cur} ${fmt(totals.tax)}`} />
             <div className="mt-1 flex items-center justify-between rounded-md bg-gradient-to-r from-exicom-teal to-exicom-tealDark px-3 py-2 text-white">
@@ -596,12 +596,12 @@ export default function OrderFormBuilder() {
           </div>
         </div>
 
-        {/* Logistics — only shown when CIF is selected (after Order Items) */}
-        {order.incoterms === "CIF" && (
+        {/* Logistics — shown for every incoterm except EXW (after Order Items) */}
+        {order.incoterms !== "EXW" && (
           <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
             <div className="section-title">
               <span className="section-badge">5</span> Logistics
-              <span className="ml-2 rounded-full bg-exicom-teal/10 px-2 py-0.5 text-[10px] font-semibold text-exicom-tealDark">CIF</span>
+              <span className="ml-2 rounded-full bg-exicom-teal/10 px-2 py-0.5 text-[10px] font-semibold text-exicom-tealDark">{order.incoterms}</span>
             </div>
             <div className="mb-3">
               <label className="lbl">Transport Mode *</label>
@@ -622,53 +622,61 @@ export default function OrderFormBuilder() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="lbl">Destination Country</label>
-                <select className="inp" value={order.transport_country}
-                  onChange={(e) => set("transport_country", e.target.value)}>
-                  <option value="">— select —</option>
-                  {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (from qty)" : "No. of Pallets (1 DC = 1 pallet)"}</label>
-                <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly
-                  value={order.transport_qty || ""} placeholder="—" />
-              </div>
-            </div>
-
-            {/* live rate × qty × FX breakdown */}
-            {(() => {
-              const info = TRANSPORT_RATES[order.transport_country];
-              const isAir = order.transport_mode === "Airways";
-              const rateInr = info ? (isAir ? info.air : info.sea) : null;
-              if (!order.transport_mode) {
-                return <p className="mt-2 text-[10px] text-slate-400">Select a transport mode (Air / Sea) above.</p>;
-              }
-              if (!order.transport_country) {
-                return <p className="mt-2 text-[10px] text-slate-400">Pick a destination country to auto-calculate the transport cost from the rate sheet.</p>;
-              }
-              if (rateInr == null) {
-                return <p className="mt-2 text-[10px] font-semibold text-amber-600">⚠ No {isAir ? "air" : "sea"} rate published for {order.transport_country}. Switch transport mode or enter the cost manually below.</p>;
-              }
-              const qtyUnit = isAir ? "box(es)" : "pallet(s)";
-              const rateUnit = isAir ? "box" : "WM³/pallet";
-              const inr = rateInr * (order.transport_qty || 0);
-              const conv = order.currency === "INR" ? inr : inr * fx.rate;
-              return (
-                <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
-                  Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
-                  {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
-                  <br />{fx.note}
-                  {!isAir && <><br /><span className="text-slate-400">Pallets: {dcUnits} DC charger(s) + {Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET)} for other items (20 boxes = 1 pallet).</span></>}
-                  {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
+            {order.incoterms === "CIF" ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="lbl">Destination Country</label>
+                    <select className="inp" value={order.transport_country}
+                      onChange={(e) => set("transport_country", e.target.value)}>
+                      <option value="">— select —</option>
+                      {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="lbl">{order.transport_mode === "Airways" ? "No. of Boxes (from qty)" : "No. of Pallets (1 DC = 1 pallet)"}</label>
+                    <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly
+                      value={order.transport_qty || ""} placeholder="—" />
+                  </div>
                 </div>
-              );
-            })()}
+
+                {/* live rate × qty × FX breakdown */}
+                {(() => {
+                  const info = TRANSPORT_RATES[order.transport_country];
+                  const isAir = order.transport_mode === "Airways";
+                  const rateInr = info ? (isAir ? info.air : info.sea) : null;
+                  if (!order.transport_mode) {
+                    return <p className="mt-2 text-[10px] text-slate-400">Select a transport mode (Air / Sea) above.</p>;
+                  }
+                  if (!order.transport_country) {
+                    return <p className="mt-2 text-[10px] text-slate-400">Pick a destination country to auto-calculate the transport cost from the rate sheet.</p>;
+                  }
+                  if (rateInr == null) {
+                    return <p className="mt-2 text-[10px] font-semibold text-amber-600">⚠ No {isAir ? "air" : "sea"} rate published for {order.transport_country}. Switch transport mode or enter the cost manually below.</p>;
+                  }
+                  const qtyUnit = isAir ? "box(es)" : "pallet(s)";
+                  const rateUnit = isAir ? "box" : "WM³/pallet";
+                  const inr = rateInr * (order.transport_qty || 0);
+                  const conv = order.currency === "INR" ? inr : inr * fx.rate;
+                  return (
+                    <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
+                      Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
+                      {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
+                      <br />{fx.note}
+                      {!isAir && <><br /><span className="text-slate-400">Pallets: {dcUnits} DC charger(s) + {Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET)} for other items (20 boxes = 1 pallet).</span></>}
+                      {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <p className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-700">
+                {order.incoterms}: enter the transportation cost manually below. (Automatic rate lookup applies to CIF only.)
+              </p>
+            )}
 
             <div className="mt-2">
-              <label className="lbl">Transportation Cost ({order.currency}) · auto, editable</label>
+              <label className="lbl">Transportation Cost ({order.currency}) · {order.incoterms === "CIF" ? "auto, editable" : "enter manually"}</label>
               <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
                 onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
             </div>
@@ -686,14 +694,14 @@ export default function OrderFormBuilder() {
               />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">
-              Boxes/pallets are linked to the order quantity. Transportation cost is added to the subtotal; tax applies to the product subtotal only.
+              {order.incoterms === "CIF" && "Boxes/pallets are linked to the order quantity. "}Transportation cost is added to the subtotal; tax applies to the product subtotal only.
             </p>
           </div>
         )}
 
         {/* Terms */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "6" : "5"}</span> Terms &amp; Conditions</div>
+          <div className="section-title"><span className="section-badge">{order.incoterms !== "EXW" ? "6" : "5"}</span> Terms &amp; Conditions</div>
           <div className="mb-2">
             <label className="lbl">Payment Terms</label>
             <select
@@ -719,13 +727,13 @@ export default function OrderFormBuilder() {
           </div>
           <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
             <b className="text-slate-600">Standard Terms</b> are automatically included on the order form:
-            Documents · Scope of Supply · Price · Freight and Insurance · Terms of Payment · Delivery.
+            Documents · Scope of Supply · Freight and Insurance · Terms of Payment.
           </div>
         </div>
 
         {/* PO */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">{order.incoterms === "CIF" ? "7" : "6"}</span> Purchase Order</div>
+          <div className="section-title"><span className="section-badge">{order.incoterms !== "EXW" ? "7" : "6"}</span> Purchase Order</div>
           <label className="lbl">Is a Purchase Order required?</label>
           <div className="mb-3 flex gap-2">
             <button

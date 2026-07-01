@@ -433,10 +433,12 @@ html, body {
   </div>
 </div>
 
+{% if not order.po_required %}
 <div class="signature-area">
   <div class="signature-line"></div>
-  <div class="signature-label">Signature{% if not order.po_required %} (required){% endif %}</div>
+  <div class="signature-label">Signature (required)</div>
 </div>
+{% endif %}
 
 <hr class="hr-thick"/>
 
@@ -465,20 +467,12 @@ html, body {
     <p>Scope of supply shall be strictly limited to the scope of work and services mentioned in this offer. All civil work, cabling for distribution of power, switchgears and associated electrical work would be arranged by customer, until and unless explicitly agreed and mentioned separately in the price schedule.</p>
   </div>
   <div class="std-clause">
-    <div class="std-h">Price</div>
-    <p>Basic Price mentioned in the price schedule is as per Ex-Works, Gurgaon, Haryana. All prices mentioned in the price schedule are exclusive of all taxes, duties and statutory levies from central, state, local bodies and hence would be charged extra as applicable at the time of billing. Current Tax applicable: GST@5% on EV Charger and 18% on services.</p>
-  </div>
-  <div class="std-clause">
     <div class="std-h">Freight and Insurance</div>
     <p>Freight and Insurance charges are as mentioned in the price schedule. Any replacement against goods damaged during transit would be entertained against fresh order only. Delivery of such replacement goods would be confirmed separately. F&amp;I shall be charged extra as per actual.</p>
   </div>
   <div class="std-clause">
     <div class="std-h">Terms of Payment</div>
     <p>As per mutually agreed terms. EXICOM retains the right to forfeit the security deposit in the event of cancellation of the order by the Buyer or the Buyer's inability to make payment or take delivery of the goods within the stipulated time and adjust such security deposit in satisfaction or part satisfaction of any charge, expense, loss or damage incurred or sustained by the Seller in respect of the relevant order.</p>
-  </div>
-  <div class="std-clause">
-    <div class="std-h">Delivery</div>
-    <p>Goods will be delivered within 2-4 weeks from the date of receipt of technically &amp; commercially agreed clear purchase order. The above quoted delivery is in good faith and we would endeavour our best to deliver the goods accordingly. However, please note, any penalty corresponding to late delivery or any clause pertaining to liquidated damages/risks would not be acceptable to us. The delivery quoted is subject to force majeure condition. For urgent delivery by Air, separate charges shall be applicable.</p>
   </div>
 </div>
 
