@@ -30,6 +30,7 @@ def compute_totals(order: models.Order) -> dict:
             "unit_price": float(it.unit_price),
             "quantity": int(it.quantity),
             "unit": it.unit,
+            "input_cable": it.input_cable or "",
             "line_total": line_total,
         })
 

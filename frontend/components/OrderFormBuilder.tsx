@@ -62,6 +62,7 @@ const EMPTY_ITEM: OrderItem = {
   unit_price: 0,
   quantity: 1,
   unit: "Nos.",
+  input_cable: "",
 };
 
 function today(): string {
@@ -120,6 +121,7 @@ export default function OrderFormBuilder() {
   const [order, setOrder] = useState<OrderInput>(BLANK_ORDER);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [itemFilters, setItemFilters] = useState<Record<number, string>>({});
+  const [itemSearch, setItemSearch] = useState<Record<number, string>>({});
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
@@ -352,6 +354,10 @@ export default function OrderFormBuilder() {
     if (!order.ship_to_company.trim()) miss.push("Ship To · Company Name");
     if (!order.ship_to_address.trim()) miss.push("Ship To · Address");
     if (!order.ship_to_country.trim()) miss.push("Ship To · Country");
+    order.items.forEach((it, i) => {
+      if (!it.quantity || it.quantity <= 0) miss.push(`Item ${i + 1} · Quantity`);
+      if (!it.unit_price || it.unit_price <= 0) miss.push(`Item ${i + 1} · Unit Price`);
+    });
     return miss.length ? "Please complete these required fields:\n\n•  " + miss.join("\n•  ") : null;
   }
 
@@ -514,6 +520,12 @@ export default function OrderFormBuilder() {
                       </button>
                     )}
                   </div>
+                  <input
+                    className="inp"
+                    placeholder="🔍  Search by product code or name…"
+                    value={itemSearch[i] || ""}
+                    onChange={(e) => setItemSearch((s) => ({ ...s, [i]: e.target.value }))}
+                  />
                   <select
                     className="inp bg-teal-50/60"
                     defaultValue=""
@@ -525,7 +537,14 @@ export default function OrderFormBuilder() {
                         : `— select product in ${order.currency} —`}
                     </option>
                     {catalog
-                      .filter((c) => hasCurrency(c, order.currency) && (!itemFilters[i] || c.category === itemFilters[i]))
+                      .filter((c) =>
+                        hasCurrency(c, order.currency) &&
+                        (!itemFilters[i] || c.category === itemFilters[i]) &&
+                        (!itemSearch[i] ||
+                          `${c.product_code} ${c.product_name}`.toLowerCase().includes(itemSearch[i].toLowerCase()))
+                      )
+                      .slice()
+                      .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
                       .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.product_code} — {c.product_name}
@@ -541,14 +560,33 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
+              <div className="mb-2">
+                <label className="lbl">Input Cable Included?</label>
+                <div className="flex gap-2">
+                  {["Yes", "No"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setItem(i, { input_cable: it.input_cable === v ? "" : v })}
+                      className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                        it.input_cable === v
+                          ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="lbl">Qty</label>
+                  <label className="lbl">Qty *</label>
                   <input className="inp" type="number" min="1" value={it.quantity}
                     onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
                 </div>
                 <div>
-                  <label className="lbl">Unit Price ({order.currency})</label>
+                  <label className="lbl">Unit Price ({order.currency}) *</label>
                   <input className="inp" type="number" step="0.01" value={it.unit_price}
                     onChange={(e) => setItem(i, { unit_price: parseFloat(e.target.value) || 0, catalog_id: undefined })} />
                 </div>
@@ -782,9 +820,6 @@ export default function OrderFormBuilder() {
               <span className="hidden sm:inline">Live preview · same WeasyPrint template as the PDF</span>
               <span className="sm:hidden">Live preview</span>
             </div>
-            <span className="flex-shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
-              A4 · {order.currency} {fmt(totals.grand)}
-            </span>
           </div>
           <div
             className="overflow-hidden rounded-xl bg-white ring-1 ring-slate-900/5 shadow-[0_10px_40px_-12px_rgba(10,20,30,0.25)]"

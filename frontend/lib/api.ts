@@ -10,28 +10,46 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ---- admin auth -------------------------------------------------------------
+
+const ADMIN_PW_KEY = "catalog_admin_pw";
+
+/** Admin password header (read from sessionStorage after a successful unlock). */
+function adminHeaders(): Record<string, string> {
+  const pw = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_PW_KEY) : null;
+  return pw ? { "X-Admin-Password": pw } : {};
+}
+
 // ---- catalog ----------------------------------------------------------------
 
 export const api = {
+  // Verify the admin password against the backend (password never ships to the client).
+  verifyAdmin: (password: string): Promise<boolean> =>
+    fetch(`${BASE}/api/catalog/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    }).then((r) => r.ok),
+
   listCatalog: (): Promise<CatalogProduct[]> =>
     fetch(`${BASE}/api/catalog`).then(json<CatalogProduct[]>),
 
   createCatalog: (p: Partial<CatalogProduct>): Promise<CatalogProduct> =>
     fetch(`${BASE}/api/catalog`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify(p),
     }).then(json<CatalogProduct>),
 
   updateCatalog: (id: string, p: Partial<CatalogProduct>): Promise<CatalogProduct> =>
     fetch(`${BASE}/api/catalog/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify(p),
     }).then(json<CatalogProduct>),
 
   deleteCatalog: (id: string): Promise<void> =>
-    fetch(`${BASE}/api/catalog/${id}`, { method: "DELETE" }).then(() => undefined),
+    fetch(`${BASE}/api/catalog/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
   // ---- orders ----
 

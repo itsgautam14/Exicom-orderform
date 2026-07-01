@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import OrderFormBuilder from "@/components/OrderFormBuilder";
-import CatalogAdmin from "@/components/CatalogAdmin";
+import CatalogGate from "@/components/CatalogGate";
 
 export default function Home() {
   const [tab, setTab] = useState<"order" | "admin">("order");
@@ -17,7 +17,6 @@ export default function Home() {
               <div className="truncate text-[15px] font-extrabold tracking-tight text-slate-800">
                 exicom <span className="hidden font-light text-slate-400 sm:inline">| Order Form Builder</span>
               </div>
-              <div className="hidden text-[11px] text-slate-400 sm:block">EVSE Commercial Documents</div>
             </div>
           </div>
           <nav className="flex flex-shrink-0 gap-1 rounded-xl bg-slate-100/70 p-1">
@@ -33,7 +32,7 @@ export default function Home() {
         </div>
       </header>
 
-      {tab === "order" ? <OrderFormBuilder /> : <CatalogAdmin />}
+      {tab === "order" ? <OrderFormBuilder /> : <CatalogGate />}
     </main>
   );
 }

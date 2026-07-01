@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Misc
     app_name: str = "Exicom Order Form Service"
 
+    # Password for the Catalog / Pricing admin area (server-side only).
+    admin_password: str = "Admin#@!2468"
+
 
 @lru_cache
 def get_settings() -> Settings:

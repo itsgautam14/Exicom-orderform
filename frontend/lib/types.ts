@@ -24,6 +24,8 @@ export interface OrderItem {
   unit_price: number;
   quantity: number;
   unit: string;
+  /** Whether the input cable is included ("Yes" / "No" / ""). */
+  input_cable?: string;
   /** Links the line back to its catalog product so currency/qty can re-price it. */
   catalog_id?: string;
 }

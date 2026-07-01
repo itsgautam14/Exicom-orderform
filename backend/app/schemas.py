@@ -5,6 +5,12 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
+# ----------------------------- Admin auth ------------------------------------
+
+class AdminAuth(BaseModel):
+    password: str = ""
+
+
 # ----------------------------- Catalog ---------------------------------------
 
 class CatalogProductBase(BaseModel):
@@ -52,6 +58,7 @@ class OrderItemIn(BaseModel):
     unit_price: float = 0
     quantity: int = 1
     unit: str = "Nos."
+    input_cable: str = ""
 
 
 class OrderItemOut(OrderItemIn):

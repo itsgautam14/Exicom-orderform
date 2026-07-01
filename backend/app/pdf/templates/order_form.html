@@ -370,6 +370,7 @@ html, body {
       <td>
         <div class="item-name">{{ item.product_name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description | replace('\n', '<br/>') | safe }}</div>{% endif %}
+        {% if item.input_cable %}<div class="item-desc">Input cable: {{ item.input_cable }}</div>{% endif %}
       </td>
       <td class="r">{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
       <td class="c">{{ item.quantity }}</td>
@@ -451,7 +452,6 @@ html, body {
     <tr><td class="k">Bank:</td><td class="v">{{ bank.bank_branch }}</td></tr>
     <tr><td class="k">IBAN / Account:</td><td class="v">{{ bank.iban }}</td></tr>
     <tr><td class="k">SWIFT / BIC:</td><td class="v">{{ bank.swift }}</td></tr>
-    <tr><td class="k">Currency:</td><td class="v">{{ bank.currency_note }}</td></tr>
   </table>
 </div>
 
