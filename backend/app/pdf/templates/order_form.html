@@ -295,16 +295,16 @@ html, body {
       <div class="address-label">Bill To:</div>
       <div class="address-body">
         <span class="strong">{{ order.bill_to_company }}</span><br/>
-        {% if order.bill_to_gst %}GST: {{ order.bill_to_gst }}<br/>{% endif %}
+        {% if order.bill_to_gst %}Tax ID: {{ order.bill_to_gst }}<br/>{% endif %}
         {{ order.bill_to_address | replace('\n', '<br/>') | safe }}<br/>
         {{ order.bill_to_country }}
       </div>
     </td>
     <td>
-      <div class="address-label">Ship To (ExWorks):</div>
+      <div class="address-label">Ship To:</div>
       <div class="address-body">
         <span class="strong">{{ order.ship_to_company }}</span><br/>
-        {% if order.ship_to_gst %}GST: {{ order.ship_to_gst }}<br/>{% endif %}
+        {% if order.ship_to_gst %}Tax ID: {{ order.ship_to_gst }}<br/>{% endif %}
         {{ order.ship_to_address | replace('\n', '<br/>') | safe }}<br/>
         {{ order.ship_to_country }}
       </div>

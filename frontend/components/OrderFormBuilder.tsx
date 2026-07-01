@@ -453,14 +453,14 @@ export default function OrderFormBuilder() {
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">2</span> Bill To <span className="ml-1 text-[10px] font-normal text-slate-400">(Customer details)</span></div>
           <Field label="Company Name *" v={order.bill_to_company} on={(v) => set("bill_to_company", v)} />
-          <Field label="GST / Tax ID" v={order.bill_to_gst} on={(v) => set("bill_to_gst", v)} />
+          <Field label="Tax ID" v={order.bill_to_gst} on={(v) => set("bill_to_gst", v)} />
           <Area label="Address *" v={order.bill_to_address} on={(v) => set("bill_to_address", v)} />
           <Field label="Country *" v={order.bill_to_country} on={(v) => set("bill_to_country", v)} />
         </div>
 
         {/* Ship To */}
         <div className="card mb-4">
-          <div className="section-title"><span className="section-badge">3</span> Ship To (ExWorks)</div>
+          <div className="section-title"><span className="section-badge">3</span> Ship To</div>
           <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
             <input
               type="checkbox"
@@ -470,7 +470,7 @@ export default function OrderFormBuilder() {
             Same as Bill To
           </label>
           <Field label="Company Name *" v={order.ship_to_company} on={(v) => set("ship_to_company", v)} disabled={shipSameAsBill} />
-          <Field label="GST / Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} disabled={shipSameAsBill} />
+          <Field label="Tax ID" v={order.ship_to_gst} on={(v) => set("ship_to_gst", v)} disabled={shipSameAsBill} />
           <Area label="Address *" v={order.ship_to_address} on={(v) => set("ship_to_address", v)} disabled={shipSameAsBill} />
           <Field label="Country *" v={order.ship_to_country} on={(v) => set("ship_to_country", v)} disabled={shipSameAsBill} />
         </div>

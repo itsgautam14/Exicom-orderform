@@ -19,6 +19,8 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 _env = Environment(
     loader=FileSystemLoader(str(TEMPLATE_DIR)),
     autoescape=select_autoescape(["html", "xml"]),
+    auto_reload=True,   # re-read the template on every render (picks up edits without a restart)
+    cache_size=0,       # never cache the compiled template
 )
 
 
