@@ -29,9 +29,20 @@ const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 /** Sea freight is priced per pallet; 1 pallet holds this many boxes. */
 const BOXES_PER_PALLET = 20;
 
-/** Input cable add-on: fixed price per unit (order currency) and the length supplied. */
-const INPUT_CABLE_PRICE = 10;
-const INPUT_CABLE_LENGTH = "1.5 m";
+/**
+ * Shipping space each item occupies, in "charger spaces" (1 charger space = 1 pallet):
+ *   DC charger = 1 · AC spare kit = 1 · 10 load-balancing kits = 1 · 20 AC chargers = 1.
+ */
+function spaceFactor(it: OrderItem, catalog: CatalogProduct[]): number {
+  const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+  const cat = p?.category || "";
+  const name = (p?.product_name || it.product_name || "").toLowerCase();
+  if (cat === "DC Charger" || /\bdc\b/.test(name)) return 1;
+  if (/load balancing/.test(name)) return 1 / 10;
+  if (/spare kit/.test(name)) return 1;
+  if (cat === "AC Charger") return 1 / BOXES_PER_PALLET;
+  return 1 / BOXES_PER_PALLET;
+}
 
 /** Standard payment-term presets; "Custom…" opens a free-text box. */
 const PAYMENT_PRESETS = [
@@ -228,14 +239,10 @@ export default function OrderFormBuilder() {
 
   const totals = useMemo(() => {
     const subtotal = order.items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
-    const inputCable = order.items.reduce(
-      (s, it) => s + (it.input_cable === "Yes" ? INPUT_CABLE_PRICE * (it.quantity || 0) : 0),
-      0
-    );
     const freight = order.freight_charge || 0;
     const insurance = order.insurance_charge || 0;
     const tax = (subtotal * (order.tax_rate || 0)) / 100;
-    return { subtotal, inputCable, freight, insurance, tax, grand: subtotal + inputCable + freight + insurance + tax };
+    return { subtotal, freight, insurance, tax, grand: subtotal + freight + insurance + tax };
   }, [order]);
 
   // Total ordered units across all line items (drives the transport quantity).
@@ -244,24 +251,14 @@ export default function OrderFormBuilder() {
     [order.items]
   );
 
-  // Units that are DC chargers (each DC charger = 1 pallet for sea freight).
-  const dcUnits = useMemo(
-    () =>
-      order.items.reduce((s, it) => {
-        const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
-        const isDc = p
-          ? p.category === "DC Charger"
-          : /\bDC\b/i.test(it.code_note || "") || /\bDC\b/i.test(it.product_name || "");
-        return s + (isDc ? it.quantity || 0 : 0);
-      }, 0),
+  // Total shipping space in "charger spaces" (see spaceFactor for the ratios).
+  const chargerSpaces = useMemo(
+    () => order.items.reduce((s, it) => s + spaceFactor(it, catalog) * (it.quantity || 0), 0),
     [order.items, catalog]
   );
 
-  // Pallets: each DC charger = 1 pallet; all other items pack 20 boxes/pallet.
-  const palletCount = useMemo(
-    () => dcUnits + Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET),
-    [dcUnits, totalUnits]
-  );
+  // Pallets for sea freight = whole charger spaces (rounded up).
+  const palletCount = useMemo(() => Math.ceil(chargerSpaces), [chargerSpaces]);
 
   // Link the transport quantity to the order items:
   //   Airways → number of boxes = total units
@@ -599,25 +596,6 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
-              <div className="mb-2">
-                <label className="lbl">Input Cable Included? <span className="font-normal text-slate-400">({INPUT_CABLE_LENGTH}, +{order.currency} {INPUT_CABLE_PRICE}/unit)</span></label>
-                <div className="flex gap-2">
-                  {["Yes", "No"].map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setItem(i, { input_cable: it.input_cable === v ? "" : v })}
-                      className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                        it.input_cable === v
-                          ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="lbl">Qty *</label>
@@ -662,9 +640,6 @@ export default function OrderFormBuilder() {
 
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
-            {totals.inputCable > 0 && (
-              <Row k={`Input Cable (${INPUT_CABLE_LENGTH})`} v={`${cur} ${fmt(totals.inputCable)}`} />
-            )}
             {totals.freight > 0 && (
               <Row k={`Transportation (${order.transport_mode || order.incoterms})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}
@@ -743,7 +718,7 @@ export default function OrderFormBuilder() {
                       Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
                       {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
                       <br />{fx.note}
-                      {!isAir && <><br /><span className="text-slate-400">Pallets: {dcUnits} DC charger(s) + {Math.ceil(Math.max(0, totalUnits - dcUnits) / BOXES_PER_PALLET)} for other items (20 boxes = 1 pallet).</span></>}
+                      {!isAir && <><br /><span className="text-slate-400">Space: {chargerSpaces.toFixed(2)} charger-space(s) → {palletCount} pallet(s). (DC=1, AC spare kit=1, 10 load-balancing kits=1, 20 AC chargers=1.)</span></>}
                       {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
                     </div>
                   );
