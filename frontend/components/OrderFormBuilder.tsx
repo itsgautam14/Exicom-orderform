@@ -570,6 +570,26 @@ export default function OrderFormBuilder() {
                       </div>
                     );
                   })()}
+                  <select
+                    className="inp bg-teal-50/60"
+                    value=""
+                    onChange={(e) => { if (e.target.value) fillFromCatalog(i, e.target.value); }}
+                  >
+                    <option value="">
+                      {itemFilters[i]
+                        ? `— or pick from ${itemFilters[i]} (${order.currency}) —`
+                        : `— or pick from list (${order.currency}) —`}
+                    </option>
+                    {catalog
+                      .filter((c) => hasCurrency(c, order.currency) && (!itemFilters[i] || c.category === itemFilters[i]))
+                      .slice()
+                      .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.product_code} — {c.product_name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
               )}
 
