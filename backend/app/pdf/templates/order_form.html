@@ -24,6 +24,13 @@ html, body {
   line-height: 1.45;
 }
 
+/* Screen-only: reproduce the A4 page margins in the live HTML preview.
+   WeasyPrint renders as print media and ignores this, using @page instead,
+   so the PDF is unaffected and the preview matches it. */
+@media screen {
+  body { padding: 13mm 14mm 12mm 14mm; }
+}
+
 /* Brand colours pulled from the source PDF */
 :root {
   --teal: #3DAAB8;
@@ -281,8 +288,8 @@ html, body {
 <div class="company-block">
   <span class="name">{{ company.name }}</span><br/>
   {{ company.address }}<br/>
-  CIN: {{ company.cin }} | GSTIN: {{ company.gstin }}<br/>
-  T: {{ company.phone }} | E: {{ company.email }} | W: {{ company.website }}
+  CIN: {{ company.cin }}<br/>
+  E: {{ company.email }} | W: {{ company.website }}
 </div>
 
 <hr class="hr-thick"/>
@@ -474,10 +481,6 @@ html, body {
     <div class="std-h">Terms of Payment</div>
     <p>As per mutually agreed terms. EXICOM retains the right to forfeit the security deposit in the event of cancellation of the order by the Buyer or the Buyer's inability to make payment or take delivery of the goods within the stipulated time and adjust such security deposit in satisfaction or part satisfaction of any charge, expense, loss or damage incurred or sustained by the Seller in respect of the relevant order.</p>
   </div>
-</div>
-
-<div class="bank-footer">
-  {{ company.name }} | {{ company.footer_address }} | {{ company.website }}
 </div>
 
 </body>
