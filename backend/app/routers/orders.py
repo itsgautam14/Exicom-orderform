@@ -74,19 +74,24 @@ def _build_order_data(payload: schemas.OrderCreate) -> dict:
     """Shared computation for preview and pdf endpoints."""
     items = []
     subtotal = 0.0
+    input_cable_total = 0.0
     for i, it in enumerate(payload.items):
         line_total = float(it.unit_price) * int(it.quantity)
         subtotal += line_total
+        if (it.input_cable or "") == "Yes":
+            input_cable_total += crud.INPUT_CABLE_PRICE * int(it.quantity)
         items.append({**it.model_dump(), "id": str(i), "position": i, "line_total": line_total})
     tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0, 2)
+    input_cable_total = round(input_cable_total, 2)
     freight_charge = round(float(payload.freight_charge or 0), 2)
     insurance_charge = round(float(payload.insurance_charge or 0), 2)
-    grand_total = round(subtotal + freight_charge + insurance_charge + tax_amount, 2)
+    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount, 2)
     return {
         **payload.model_dump(exclude={"items"}),
         "id": "preview",
         "items": items,
         "subtotal": round(subtotal, 2),
+        "input_cable_total": input_cable_total,
         "tax_amount": tax_amount,
         "freight_charge": freight_charge,
         "insurance_charge": insurance_charge,

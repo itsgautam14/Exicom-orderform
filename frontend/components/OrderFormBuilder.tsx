@@ -29,6 +29,10 @@ const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 /** Sea freight is priced per pallet; 1 pallet holds this many boxes. */
 const BOXES_PER_PALLET = 20;
 
+/** Input cable add-on: fixed price per unit (order currency) and the length supplied. */
+const INPUT_CABLE_PRICE = 10;
+const INPUT_CABLE_LENGTH = "1.5 m";
+
 /** Standard payment-term presets; "Custom…" opens a free-text box. */
 const PAYMENT_PRESETS = [
   "100% advance",
@@ -224,10 +228,14 @@ export default function OrderFormBuilder() {
 
   const totals = useMemo(() => {
     const subtotal = order.items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
+    const inputCable = order.items.reduce(
+      (s, it) => s + (it.input_cable === "Yes" ? INPUT_CABLE_PRICE * (it.quantity || 0) : 0),
+      0
+    );
     const freight = order.freight_charge || 0;
     const insurance = order.insurance_charge || 0;
     const tax = (subtotal * (order.tax_rate || 0)) / 100;
-    return { subtotal, freight, insurance, tax, grand: subtotal + freight + insurance + tax };
+    return { subtotal, inputCable, freight, insurance, tax, grand: subtotal + inputCable + freight + insurance + tax };
   }, [order]);
 
   // Total ordered units across all line items (drives the transport quantity).
@@ -526,44 +534,42 @@ export default function OrderFormBuilder() {
                   </div>
                   <input
                     className="inp"
-                    placeholder="🔍  Search by product code or name…"
+                    placeholder={`🔍  Type product code or name (${order.currency})…`}
                     value={itemSearch[i] || ""}
                     onChange={(e) => setItemSearch((s) => ({ ...s, [i]: e.target.value }))}
                   />
-                  <select
-                    className="inp bg-teal-50/60"
-                    defaultValue=""
-                    onChange={(e) => { fillFromCatalog(i, e.target.value); e.target.value = ""; }}
-                  >
-                    <option value="">
-                      {itemFilters[i]
-                        ? `— select ${itemFilters[i]} (${order.currency}) —`
-                        : `— select product in ${order.currency} —`}
-                    </option>
-                    {catalog
+                  {itemSearch[i] && (() => {
+                    const q = itemSearch[i].toLowerCase();
+                    const matches = catalog
                       .filter((c) =>
                         hasCurrency(c, order.currency) &&
                         (!itemFilters[i] || c.category === itemFilters[i]) &&
-                        (!itemSearch[i] ||
-                          `${c.product_code} ${c.product_name}`.toLowerCase().includes(itemSearch[i].toLowerCase()))
+                        `${c.product_code} ${c.product_name}`.toLowerCase().includes(q)
                       )
-                      .slice()
                       .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.product_code} — {c.product_name}
-                        </option>
-                      ))}
-                  </select>
-                  {catalog.filter((c) =>
-                    hasCurrency(c, order.currency) &&
-                    (!itemFilters[i] || c.category === itemFilters[i]) &&
-                    (!itemSearch[i] || `${c.product_code} ${c.product_name}`.toLowerCase().includes(itemSearch[i].toLowerCase()))
-                  ).length === 0 && (
-                    <p className="text-[10px] font-semibold text-amber-600">
-                      No products match — clear the search / category, or switch currency.
-                    </p>
-                  )}
+                      .slice(0, 30);
+                    return (
+                      <div className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                        {matches.length === 0 ? (
+                          <div className="px-3 py-2 text-[11px] text-amber-600">
+                            No products match “{itemSearch[i]}” in {order.currency}. Try another term or switch currency.
+                          </div>
+                        ) : (
+                          matches.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => { fillFromCatalog(i, c.id); setItemSearch((s) => ({ ...s, [i]: "" })); }}
+                              className="flex w-full flex-col items-start gap-0.5 border-b border-slate-100 px-3 py-2 text-left last:border-0 hover:bg-teal-50"
+                            >
+                              <span className="font-mono text-[11px] font-semibold text-exicom-tealDark">{c.product_code}</span>
+                              <span className="text-xs leading-snug text-slate-700">{c.product_name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -574,7 +580,7 @@ export default function OrderFormBuilder() {
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
               <div className="mb-2">
-                <label className="lbl">Input Cable Included?</label>
+                <label className="lbl">Input Cable Included? <span className="font-normal text-slate-400">({INPUT_CABLE_LENGTH}, +{order.currency} {INPUT_CABLE_PRICE}/unit)</span></label>
                 <div className="flex gap-2">
                   {["Yes", "No"].map((v) => (
                     <button
@@ -636,6 +642,9 @@ export default function OrderFormBuilder() {
 
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
+            {totals.inputCable > 0 && (
+              <Row k={`Input Cable (${INPUT_CABLE_LENGTH})`} v={`${cur} ${fmt(totals.inputCable)}`} />
+            )}
             {totals.freight > 0 && (
               <Row k={`Transportation (${order.transport_mode || order.incoterms})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}

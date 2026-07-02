@@ -11,7 +11,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 
-from app.pdf.logo import EXICOM_LOGO_SVG
+from app.pdf.logo import EXICOM_LOGO_DATA_URI
 from app.config import settings
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -60,7 +60,7 @@ def render_order_pdf(order: dict) -> bytes:
         order=order,
         company=COMPANY_INFO,
         bank=BANK_DETAILS,
-        logo_svg=EXICOM_LOGO_SVG,
+        logo_data_uri=EXICOM_LOGO_DATA_URI,
     )
     pdf_io = io.BytesIO()
     HTML(string=html_str, base_url=str(TEMPLATE_DIR)).write_pdf(pdf_io)
@@ -74,5 +74,5 @@ def render_order_html(order: dict) -> str:
         order=order,
         company=COMPANY_INFO,
         bank=BANK_DETAILS,
-        logo_svg=EXICOM_LOGO_SVG,
+        logo_data_uri=EXICOM_LOGO_DATA_URI,
     )

@@ -59,7 +59,8 @@ export default function CatalogGate() {
     <div className="flex min-h-[calc(100vh-65px)] items-start justify-center p-6">
       <form onSubmit={submit} className="card mt-16 w-full max-w-sm">
         <div className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-800">
-          <span className="logo-chip">e</span> Admin access
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Exicom" className="h-8 w-8" /> Admin access
         </div>
         <p className="mb-4 text-sm text-slate-500">
           The product catalog &amp; pricing is restricted. Enter the admin password to continue.

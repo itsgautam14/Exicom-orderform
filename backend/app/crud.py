@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 
 
+# Input cable add-on: fixed price per unit (order currency).
+INPUT_CABLE_PRICE = 10
+
+
 # ----------------------------- Totals ----------------------------------------
 
 def compute_totals(order: models.Order) -> dict:
@@ -17,9 +21,12 @@ def compute_totals(order: models.Order) -> dict:
     """
     items = []
     subtotal = 0.0
+    input_cable_total = 0.0
     for it in order.items:
         line_total = float(it.unit_price) * int(it.quantity)
         subtotal += line_total
+        if (it.input_cable or "") == "Yes":
+            input_cable_total += INPUT_CABLE_PRICE * int(it.quantity)
         items.append({
             "id": it.id,
             "position": it.position,
@@ -36,9 +43,10 @@ def compute_totals(order: models.Order) -> dict:
 
     tax_rate = float(order.tax_rate or 0)
     tax_amount = round(subtotal * tax_rate / 100.0, 2)
+    input_cable_total = round(input_cable_total, 2)
     freight_charge = round(float(order.freight_charge or 0), 2)
     insurance_charge = round(float(order.insurance_charge or 0), 2)
-    grand_total = round(subtotal + freight_charge + insurance_charge + tax_amount, 2)
+    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount, 2)
 
     return {
         "id": order.id,
@@ -74,6 +82,7 @@ def compute_totals(order: models.Order) -> dict:
         "po_amount": order.po_amount,
         "items": items,
         "subtotal": round(subtotal, 2),
+        "input_cable_total": input_cable_total,
         "tax_amount": tax_amount,
         "grand_total": grand_total,
     }

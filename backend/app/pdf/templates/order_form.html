@@ -266,7 +266,7 @@ html, body {
 <table class="header">
   <tr>
     <td class="logo-cell">
-      <div class="logo-wrap">{{ logo_svg | safe }}</div>
+      <div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>
     </td>
     <td class="meta-cell">
       <div class="doc-title">ORDER FORM</div>
@@ -377,7 +377,7 @@ html, body {
       <td>
         <div class="item-name">{{ item.product_name }}</div>
         {% if item.description %}<div class="item-desc">{{ item.description | replace('\n', '<br/>') | safe }}</div>{% endif %}
-        {% if item.input_cable %}<div class="item-desc">Input cable: {{ item.input_cable }}</div>{% endif %}
+        {% if item.input_cable %}<div class="item-desc">Input cable: {{ item.input_cable }}{% if item.input_cable == 'Yes' %} (1.5 m){% endif %}</div>{% endif %}
       </td>
       <td class="r">{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
       <td class="c">{{ item.quantity }}</td>
@@ -398,6 +398,12 @@ html, body {
           <td class="label">SUBTOTAL:</td>
           <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.subtotal) }}</td>
         </tr>
+        {% if order.input_cable_total %}
+        <tr>
+          <td class="label">Input Cable (1.5 m):</td>
+          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.input_cable_total) }}</td>
+        </tr>
+        {% endif %}
         {% if order.freight_charge %}
         <tr>
           <td class="label">Transportation{% if order.transport_mode %} ({{ order.transport_mode }}){% endif %}:</td>

@@ -12,7 +12,8 @@ export default function Home() {
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
         <div className="flex items-center justify-between gap-2 px-4 py-3 lg:px-6">
           <div className="flex min-w-0 items-center gap-2 lg:gap-3">
-            <span className="logo-chip flex-shrink-0">e</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Exicom" className="h-8 w-8 flex-shrink-0" />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[15px] font-extrabold tracking-tight text-slate-800">
                 exicom <span className="hidden font-light text-slate-400 sm:inline">| Order Form Builder</span>
