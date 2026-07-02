@@ -604,25 +604,28 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
-              <div className="mb-2">
-                <label className="lbl">Input Cable? <span className="font-normal text-slate-400">({INPUT_CABLE_LENGTH}, +{order.currency} {INPUT_CABLE_PRICE}/unit)</span></label>
-                <div className="flex gap-2">
-                  {["Yes", "No"].map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setItem(i, { input_cable: it.input_cable === v ? "" : v })}
-                      className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                        it.input_cable === v
-                          ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
+              {/* Input Cable section — only under the Accessories category */}
+              {itemFilters[i] === "Accessories" && (
+                <div className="mb-2">
+                  <label className="lbl">Input Cable? <span className="font-normal text-slate-400">({INPUT_CABLE_LENGTH}, +{order.currency} {INPUT_CABLE_PRICE}/unit)</span></label>
+                  <div className="flex gap-2">
+                    {["Yes", "No"].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setItem(i, { input_cable: it.input_cable === v ? "" : v })}
+                        className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                          it.input_cable === v
+                            ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="lbl">Qty *</label>
