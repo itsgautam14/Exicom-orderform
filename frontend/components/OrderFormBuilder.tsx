@@ -69,6 +69,16 @@ function hasCurrency(p: CatalogProduct, currency: string): boolean {
   return p.currency === currency; // fallback for products without a price matrix
 }
 
+/** Products shown only when the Accessories category is selected (e.g. the input cable). */
+function isAccessoryOnly(p: CatalogProduct): boolean {
+  return p.product_code === "HE-INCABLE";
+}
+/** Whether a product should appear given the active category filter. */
+function passesCategory(p: CatalogProduct, activeFilter: string | undefined): boolean {
+  if (activeFilter) return p.category === activeFilter;      // a chip is selected
+  return !isAccessoryOnly(p);                                // no chip → hide accessory-only items
+}
+
 const EMPTY_ITEM: OrderItem = {
   product_code: "",
   code_note: "",
@@ -540,7 +550,7 @@ export default function OrderFormBuilder() {
                     const matches = catalog
                       .filter((c) =>
                         hasCurrency(c, order.currency) &&
-                        (!itemFilters[i] || c.category === itemFilters[i]) &&
+                        passesCategory(c, itemFilters[i]) &&
                         `${c.product_code} ${c.product_name}`.toLowerCase().includes(q)
                       )
                       .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
@@ -578,7 +588,7 @@ export default function OrderFormBuilder() {
                         : `— or pick from list (${order.currency}) —`}
                     </option>
                     {catalog
-                      .filter((c) => hasCurrency(c, order.currency) && (!itemFilters[i] || c.category === itemFilters[i]))
+                      .filter((c) => hasCurrency(c, order.currency) && passesCategory(c, itemFilters[i]))
                       .slice()
                       .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
                       .map((c) => (
