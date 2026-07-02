@@ -64,7 +64,7 @@
   .logo-chip {
     @apply relative inline-flex h-7 w-7 items-center justify-center rounded-full
            text-sm font-black text-white;
-    background: conic-gradient(from 180deg, #00d4a8, #2196d9, #00d4a8);
+    background: linear-gradient(135deg, #16b8b0 0%, #2ec48f 50%, #57c62f 100%);
   }
 
   /* ---- pill tabs ---- */

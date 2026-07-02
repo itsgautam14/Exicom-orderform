@@ -491,7 +491,11 @@ export default function OrderFormBuilder() {
                 <button className="flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-500" onClick={() => removeItem(i)}>✕</button>
               </div>
 
-              {catalog.length > 0 && (
+              {catalog.length === 0 ? (
+                <p className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
+                  ⚠ No catalog products loaded. The product database may be unavailable — reload once it&apos;s back, or type the item details manually below.
+                </p>
+              ) : (
                 <div className="mb-2 space-y-1.5">
                   <div className="flex gap-1.5 flex-wrap">
                     {categories.map((cat) => (
@@ -551,6 +555,15 @@ export default function OrderFormBuilder() {
                         </option>
                       ))}
                   </select>
+                  {catalog.filter((c) =>
+                    hasCurrency(c, order.currency) &&
+                    (!itemFilters[i] || c.category === itemFilters[i]) &&
+                    (!itemSearch[i] || `${c.product_code} ${c.product_name}`.toLowerCase().includes(itemSearch[i].toLowerCase()))
+                  ).length === 0 && (
+                    <p className="text-[10px] font-semibold text-amber-600">
+                      No products match — clear the search / category, or switch currency.
+                    </p>
+                  )}
                 </div>
               )}
 
