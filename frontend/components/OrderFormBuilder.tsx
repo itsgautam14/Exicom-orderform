@@ -29,6 +29,10 @@ const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 /** Sea freight is priced per pallet; 1 pallet holds this many boxes. */
 const BOXES_PER_PALLET = 20;
 
+/** Input cable add-on (Yes/No): fixed price per unit (order currency) and the length supplied. */
+const INPUT_CABLE_PRICE = 10;
+const INPUT_CABLE_LENGTH = "1.5 m";
+
 /**
  * Shipping space each item occupies, in "charger spaces" (1 charger space = 1 pallet):
  *   DC charger = 1 · AC spare kit = 1 · 10 load-balancing kits = 1 · 20 AC chargers = 1.
@@ -67,16 +71,6 @@ function priceFor(p: CatalogProduct, currency: string, qty: number): number | nu
 function hasCurrency(p: CatalogProduct, currency: string): boolean {
   if (p.prices && Object.keys(p.prices).length) return Boolean(p.prices[currency]?.length);
   return p.currency === currency; // fallback for products without a price matrix
-}
-
-/** Products shown only when the Accessories category is selected (e.g. the input cable). */
-function isAccessoryOnly(p: CatalogProduct): boolean {
-  return p.product_code === "HE-INCABLE";
-}
-/** Whether a product should appear given the active category filter. */
-function passesCategory(p: CatalogProduct, activeFilter: string | undefined): boolean {
-  if (activeFilter) return p.category === activeFilter;      // a chip is selected
-  return !isAccessoryOnly(p);                                // no chip → hide accessory-only items
 }
 
 const EMPTY_ITEM: OrderItem = {
@@ -249,10 +243,14 @@ export default function OrderFormBuilder() {
 
   const totals = useMemo(() => {
     const subtotal = order.items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
+    const inputCable = order.items.reduce(
+      (s, it) => s + (it.input_cable === "Yes" ? INPUT_CABLE_PRICE * (it.quantity || 0) : 0),
+      0
+    );
     const freight = order.freight_charge || 0;
     const insurance = order.insurance_charge || 0;
     const tax = (subtotal * (order.tax_rate || 0)) / 100;
-    return { subtotal, freight, insurance, tax, grand: subtotal + freight + insurance + tax };
+    return { subtotal, inputCable, freight, insurance, tax, grand: subtotal + inputCable + freight + insurance + tax };
   }, [order]);
 
   // Total ordered units across all line items (drives the transport quantity).
@@ -550,7 +548,7 @@ export default function OrderFormBuilder() {
                     const matches = catalog
                       .filter((c) =>
                         hasCurrency(c, order.currency) &&
-                        passesCategory(c, itemFilters[i]) &&
+                        (!itemFilters[i] || c.category === itemFilters[i]) &&
                         `${c.product_code} ${c.product_name}`.toLowerCase().includes(q)
                       )
                       .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
@@ -588,7 +586,7 @@ export default function OrderFormBuilder() {
                         : `— or pick from list (${order.currency}) —`}
                     </option>
                     {catalog
-                      .filter((c) => hasCurrency(c, order.currency) && passesCategory(c, itemFilters[i]))
+                      .filter((c) => hasCurrency(c, order.currency) && (!itemFilters[i] || c.category === itemFilters[i]))
                       .slice()
                       .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
                       .map((c) => (
@@ -606,6 +604,25 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
+              <div className="mb-2">
+                <label className="lbl">Input Cable? <span className="font-normal text-slate-400">({INPUT_CABLE_LENGTH}, +{order.currency} {INPUT_CABLE_PRICE}/unit)</span></label>
+                <div className="flex gap-2">
+                  {["Yes", "No"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setItem(i, { input_cable: it.input_cable === v ? "" : v })}
+                      className={`flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                        it.input_cable === v
+                          ? "border-exicom-teal bg-exicom-teal text-white shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-exicom-teal hover:text-exicom-teal"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="lbl">Qty *</label>
@@ -650,6 +667,9 @@ export default function OrderFormBuilder() {
 
           <div className="mt-4 space-y-1.5 rounded-lg bg-slate-50 p-3 text-sm">
             <Row k="Subtotal" v={`${cur} ${fmt(totals.subtotal)}`} />
+            {totals.inputCable > 0 && (
+              <Row k={`Input Cable (${INPUT_CABLE_LENGTH})`} v={`${cur} ${fmt(totals.inputCable)}`} />
+            )}
             {totals.freight > 0 && (
               <Row k={`Transportation (${order.transport_mode || order.incoterms})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}
