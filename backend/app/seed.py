@@ -1135,6 +1135,17 @@ SEED_PRODUCTS = [
         category='Accessories',
         prices={'USD': [[1, None, 165.0]], 'EUR': [[1, None, 138.6]]},
     ),
+    dict(
+        product_code='HE-INCABLE',
+        code_note='Accessories',
+        product_name='Input Cable (1.5 m)',
+        description='',
+        unit_price=10,
+        currency='USD',
+        unit='Nos.',
+        category='Accessories',
+        prices={'USD': [[1, None, 10]], 'EUR': [[1, None, 10]], 'INR': [[1, None, 850]], 'MYR': [[1, None, 45]]},
+    ),
 ]
 
 

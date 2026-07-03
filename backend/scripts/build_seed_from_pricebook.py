@@ -239,6 +239,13 @@ def main():
     products += parse_dc(wb["DC Charger"])
     products += parse_accessories(wb["Accessories Spare"])
 
+    # Extra accessory not in the pricebook: the input cable ($10, editable).
+    products.append(make_product(
+        "HE-INCABLE", "Input Cable (1.5 m)",
+        {"USD": [[1, None, 10]], "EUR": [[1, None, 10]], "INR": [[1, None, 850]], "MYR": [[1, None, 45]]},
+        "Accessories",
+    ))
+
     SEED_PATH.write_text(render_seed(products), encoding="utf-8")
     print(f"Wrote {len(products)} products to {SEED_PATH}")
 
