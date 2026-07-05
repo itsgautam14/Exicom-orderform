@@ -236,7 +236,7 @@ def main():
     wb = openpyxl.load_workbook(xlsx, data_only=True)
     products = []
     products += parse_ac(wb["AC Charger"])
-    products += parse_dc(wb["DC Charger"])
+    # DC chargers intentionally excluded — catalog is AC chargers + accessories only.
     products += parse_accessories(wb["Accessories Spare"])
 
     # Extra accessory not in the pricebook: the input cable ($10, editable).

@@ -30,7 +30,7 @@ const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 const BOXES_PER_PALLET = 20;
 
 /** Classify an order line for the shipping-space calculation. */
-type ItemType = "dc" | "ac" | "spare" | "loadbal" | "inputcable" | "other";
+type ItemType = "ac" | "spare" | "loadbal" | "inputcable" | "other";
 function itemType(it: OrderItem, catalog: CatalogProduct[]): ItemType {
   const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
   const cat = p?.category || "";
@@ -39,26 +39,24 @@ function itemType(it: OrderItem, catalog: CatalogProduct[]): ItemType {
   if (code === "HE-INCABLE" || /input cable/.test(name)) return "inputcable";
   if (/load balancing/.test(name)) return "loadbal";
   if (/spare kit/.test(name)) return "spare";
-  if (cat === "DC Charger" || /\bdc\b/.test(name)) return "dc";
   if (cat === "AC Charger") return "ac";
   return "other";
 }
 
 /**
  * Shipping space in pallets, plus the air box count.
- * Ratios: 1 DC charger = 1 pallet · 20 AC chargers = 1 pallet · 10 load-balancing kits = 1 pallet
- *         · 20 AC spare kits = 1 pallet. AC spare kits ride free inside AC charger boxes (10 per
- *         AC charger). Input cable ships inside the AC charger box → no logistics space.
+ * Ratios: 20 AC chargers = 1 pallet · 10 load-balancing kits = 1 pallet · 20 AC spare kits = 1 pallet.
+ * AC spare kits ride free inside AC charger boxes (10 per AC charger). Input cable ships inside the
+ * AC charger box → no logistics space.
  */
 function shippingSpace(items: OrderItem[], catalog: CatalogProduct[]): { pallets: number; boxes: number } {
-  let dc = 0, ac = 0, spare = 0, loadbal = 0, other = 0, boxes = 0;
+  let ac = 0, spare = 0, loadbal = 0, other = 0, boxes = 0;
   for (const it of items) {
     const q = it.quantity || 0;
     const t = itemType(it, catalog);
     if (t === "inputcable") continue;      // no logistics for the input cable
     boxes += q;                            // everything else counts as an air box
-    if (t === "dc") dc += q;
-    else if (t === "ac") ac += q;
+    if (t === "ac") ac += q;
     else if (t === "spare") spare += q;
     else if (t === "loadbal") loadbal += q;
     else other += q;
@@ -66,7 +64,6 @@ function shippingSpace(items: OrderItem[], catalog: CatalogProduct[]): { pallets
   const freeSpare = Math.min(spare, 10 * ac); // spare kits packed inside AC charger boxes
   const paidSpare = spare - freeSpare;
   const pallets =
-    dc +
     ac / BOXES_PER_PALLET +
     loadbal / 10 +
     paidSpare / 20 +
@@ -747,7 +744,7 @@ export default function OrderFormBuilder() {
                       Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
                       {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
                       <br />{fx.note}
-                      {!isAir && <><br /><span className="text-slate-400">Space: {space.pallets.toFixed(2)} → {palletCount} pallet(s). (1 DC=1, 20 AC chargers=1, 10 load-balancing kits=1, 20 spare kits=1; spare kits ride free in AC charger boxes; input cable = no logistics.)</span></>}
+                      {!isAir && <><br /><span className="text-slate-400">Space: {space.pallets.toFixed(2)} → {palletCount} pallet(s). (20 AC chargers=1, 10 load-balancing kits=1, 20 spare kits=1; spare kits ride free in AC charger boxes; input cable = no logistics.)</span></>}
                       {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
                     </div>
                   );
