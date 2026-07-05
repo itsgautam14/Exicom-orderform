@@ -10,6 +10,9 @@ const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 /** Incoterms offered in the dropdown. */
 const INCOTERMS = ["EXW", "FOB", "CIF", "DDP", "DAP"];
 
+/** FOB: fixed transportation cost in INR, converted live to the order currency. */
+const FOB_TRANSPORT_INR = 17250;
+
 /**
  * Transportation rates from the Exicom transport sheet, in INR.
  *   sea = per WM³ (cubic metre) · air = per box (~10kg)
@@ -199,6 +202,7 @@ export default function OrderFormBuilder() {
   useEffect(() => {
     const cur = order.currency;
     if (cur === "INR") { setFx({ rate: 1, note: "INR — no conversion needed" }); return; }
+    setFx({ rate: 0, note: "Fetching live FX rate…" }); // not ready until the fetch resolves
     let cancelled = false;
     (async () => {
       // primary: open.er-api.com  ·  fallback: frankfurter.dev
@@ -233,6 +237,14 @@ export default function OrderFormBuilder() {
     const converted = +(inr * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
     setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
   }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate]);
+
+  // FOB: a fixed transportation cost (INR 17,250) converted live to the order currency.
+  useEffect(() => {
+    if (order.incoterms !== "FOB") return;
+    if (order.currency !== "INR" && !fx.rate) return; // FX not ready → leave for manual entry
+    const converted = +(FOB_TRANSPORT_INR * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
+    setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
+  }, [order.incoterms, order.currency, fx.rate]);
 
   // Scale the A4 preview (794px wide) down to fit narrow screens.
   const A4_W = 794;
@@ -750,6 +762,14 @@ export default function OrderFormBuilder() {
                   );
                 })()}
               </>
+            ) : order.incoterms === "FOB" ? (
+              <div className="mt-2 rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-slate-500">
+                FOB fixed transportation: <b>INR {FOB_TRANSPORT_INR.toLocaleString("en-IN")}</b>
+                {order.currency !== "INR" && fx.rate > 0 && (
+                  <> → <b className="text-exicom-tealDark">{order.currency} {fmt(FOB_TRANSPORT_INR * fx.rate)}</b></>
+                )}
+                <br />{fx.note}
+              </div>
             ) : (
               <p className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-700">
                 {order.incoterms}: enter the transportation cost manually below. (Automatic rate lookup applies to CIF only.)
@@ -757,7 +777,7 @@ export default function OrderFormBuilder() {
             )}
 
             <div className="mt-2">
-              <label className="lbl">Transportation Cost ({order.currency}) · {order.incoterms === "CIF" ? "auto, editable" : "enter manually"}</label>
+              <label className="lbl">Transportation Cost ({order.currency}) · {order.incoterms === "CIF" || order.incoterms === "FOB" ? "auto, editable" : "enter manually"}</label>
               <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
                 onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
             </div>
