@@ -14,20 +14,28 @@ const INCOTERMS = ["EXW", "FOB", "CIF", "DDP", "DAP"];
 const FOB_TRANSPORT_INR = 17250;
 
 /**
- * Transportation rates from the Exicom transport sheet, in INR.
- *   sea = per WM³ (cubic metre) · air = per box (~10kg)
+ * Transportation rates from the Exicom transport sheet, in INR (incl. local + 15% markup).
+ *   sea = per pallet (WM³)
+ *   air = per box (1 box = 10 kg), tiered by total shipment weight:
+ *         upTo500 = 1–500 kg · above500 = over 500 kg
  * null = no rate published for that country/mode.
  */
-const TRANSPORT_RATES: Record<string, { sea: number | null; air: number | null }> = {
-  Tunisia: { sea: 37333.07, air: 7072.5 },
-  UAE: { sea: 29192, air: 5692.5 },
-  Qatar: { sea: null, air: 6612.5 },
-  "Saudi Arabia (KSA)": { sea: null, air: null },
-  Netherlands: { sea: 24306.4, air: null },
-  Malaysia: { sea: 23221, air: 1783 },
-  Morocco: { sea: 26478, air: null },
+type AirRate = { upTo500: number | null; above500: number | null };
+const TRANSPORT_RATES: Record<string, { sea: number | null; air: AirRate }> = {
+  Tunisia: { sea: 37554.4, air: { upTo500: 7072.5, above500: 6842.5 } },
+  UAE: { sea: 29322.7, air: { upTo500: 5692.5, above500: 5175 } },
+  Qatar: { sea: null, air: { upTo500: 6612.5, above500: 6325 } },
+  "Saudi Arabia (KSA)": { sea: null, air: { upTo500: null, above500: null } },
+  Netherlands: { sea: 24384.6, air: { upTo500: null, above500: null } },
+  Malaysia: { sea: 23286.35, air: { upTo500: 1782.5, above500: 1552.5 } },
+  Morocco: { sea: 26578.8, air: { upTo500: null, above500: null } },
 };
 const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
+
+/** Air rate per box (1 box = 10 kg): +500 kg tier kicks in above 50 boxes. */
+function airRate(info: { air: AirRate }, boxes: number): number | null {
+  return boxes * 10 > 500 ? info.air.above500 : info.air.upTo500;
+}
 
 /** Sea freight is priced per pallet; 1 pallet holds this many boxes. */
 const BOXES_PER_PALLET = 20;
@@ -227,7 +235,7 @@ export default function OrderFormBuilder() {
     if (order.incoterms !== "CIF" || !order.transport_country) return;
     const info = TRANSPORT_RATES[order.transport_country];
     const isAir = order.transport_mode === "Airways";
-    const rateInr = info ? (isAir ? info.air : info.sea) : null;
+    const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
     if (rateInr == null) {
       setOrder((o) => (o.freight_charge !== 0 ? { ...o, freight_charge: 0 } : o));
       return;
@@ -737,7 +745,7 @@ export default function OrderFormBuilder() {
                 {(() => {
                   const info = TRANSPORT_RATES[order.transport_country];
                   const isAir = order.transport_mode === "Airways";
-                  const rateInr = info ? (isAir ? info.air : info.sea) : null;
+                  const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
                   if (!order.transport_mode) {
                     return <p className="mt-2 text-[10px] text-slate-400">Select a transport mode (Air / Sea) above.</p>;
                   }
@@ -756,6 +764,7 @@ export default function OrderFormBuilder() {
                       Rate <b>INR {fmt(rateInr)}</b>/{rateUnit} × {order.transport_qty || 0} {qtyUnit} = <b>INR {fmt(inr)}</b>
                       {order.currency !== "INR" && fx.rate > 0 && <> → <b className="text-exicom-tealDark">{order.currency} {fmt(conv)}</b></>}
                       <br />{fx.note}
+                      {isAir && <><br /><span className="text-slate-400">Air weight: {(order.transport_qty || 0) * 10} kg → {(order.transport_qty || 0) * 10 > 500 ? "+500 kg" : "1–500 kg"} rate tier (1 box = 10 kg).</span></>}
                       {!isAir && <><br /><span className="text-slate-400">Space: {space.pallets.toFixed(2)} → {palletCount} pallet(s). (20 AC chargers=1, 10 load-balancing kits=1, 20 spare kits=1; spare kits ride free in AC charger boxes; input cable = no logistics.)</span></>}
                       {!isAir && <><br /><span className="text-amber-600">Sea rate basis provisional — confirm pallet/volume calc with logistics.</span></>}
                     </div>
