@@ -117,6 +117,18 @@ function passesCategory(p: CatalogProduct, activeFilter: string | undefined): bo
   return !isAccessoryOnly(p);                                // no chip → hide accessory-only items
 }
 
+/**
+ * Sort order for the product picker: by code (ascending), then by product-name
+ * length (shorter first), then alphabetically as a tie-break.
+ */
+function byCodeThenNameLength(a: CatalogProduct, b: CatalogProduct): number {
+  const c = a.product_code.localeCompare(b.product_code, undefined, { numeric: true });
+  if (c !== 0) return c;
+  const l = a.product_name.length - b.product_name.length;
+  if (l !== 0) return l;
+  return a.product_name.localeCompare(b.product_name);
+}
+
 const EMPTY_ITEM: OrderItem = {
   product_code: "",
   code_note: "",
@@ -589,7 +601,7 @@ export default function OrderFormBuilder() {
                         passesCategory(c, itemFilters[i]) &&
                         `${c.product_code} ${c.product_name}`.toLowerCase().includes(q)
                       )
-                      .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
+                      .sort(byCodeThenNameLength)
                       .slice(0, 30);
                     return (
                       <div className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -626,7 +638,7 @@ export default function OrderFormBuilder() {
                     {catalog
                       .filter((c) => hasCurrency(c, order.currency) && passesCategory(c, itemFilters[i]))
                       .slice()
-                      .sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true }))
+                      .sort(byCodeThenNameLength)
                       .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.product_code} — {c.product_name}
