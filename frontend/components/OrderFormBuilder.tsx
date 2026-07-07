@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem } from "@/lib/types";
+import { WORLD_COUNTRIES } from "@/lib/countries";
 
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
@@ -23,14 +24,13 @@ const FOB_TRANSPORT_INR = 17250;
 type AirRate = { upTo500: number | null; above500: number | null };
 const TRANSPORT_RATES: Record<string, { sea: number | null; air: AirRate }> = {
   Tunisia: { sea: 37554.4, air: { upTo500: 7072.5, above500: 6842.5 } },
-  UAE: { sea: 29322.7, air: { upTo500: 5692.5, above500: 5175 } },
+  "United Arab Emirates": { sea: 29322.7, air: { upTo500: 5692.5, above500: 5175 } },
   Qatar: { sea: null, air: { upTo500: 6612.5, above500: 6325 } },
-  "Saudi Arabia (KSA)": { sea: null, air: { upTo500: null, above500: null } },
+  "Saudi Arabia": { sea: null, air: { upTo500: null, above500: null } },
   Netherlands: { sea: 24384.6, air: { upTo500: null, above500: null } },
   Malaysia: { sea: 23286.35, air: { upTo500: 1782.5, above500: 1552.5 } },
   Morocco: { sea: 26578.8, air: { upTo500: null, above500: null } },
 };
-const TRANSPORT_COUNTRIES = Object.keys(TRANSPORT_RATES);
 
 /** Air rate per box (1 box = 10 kg): +500 kg tier kicks in above 50 boxes. */
 function airRate(info: { air: AirRate }, boxes: number): number | null {
@@ -203,12 +203,9 @@ export default function OrderFormBuilder() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
-  // Inline "add destination country" (creates a pending logistics rate for admin approval).
-  const [addCountry, setAddCountry] = useState<{ country: string; sea: string; air1: string; air2: string } | null>(null);
-  const [addCountryMsg, setAddCountryMsg] = useState("");
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
-  // Approved logistics rates from the DB → same shape as the hardcoded fallback.
+  // Approved logistics rates from the DB, keyed by country → auto-fill map.
   const logistics = useMemo(() => {
     const map: Record<string, { sea: number | null; air: AirRate }> = {};
     for (const r of logisticsRates) {
@@ -217,7 +214,6 @@ export default function OrderFormBuilder() {
     }
     return Object.keys(map).length ? map : TRANSPORT_RATES; // fallback if the API is unavailable
   }, [logisticsRates]);
-  const logisticsCountries = useMemo(() => Object.keys(logistics), [logistics]);
 
   // When "same as Bill To" is on, mirror the Bill To address into Ship To
   // (and keep it in sync if the Bill To fields change afterwards).
@@ -257,16 +253,14 @@ export default function OrderFormBuilder() {
     return () => { cancelled = true; };
   }, [order.currency]);
 
-  // Auto-compute the transport cost from the rate sheet (INR) × quantity, converted to the order currency.
+  // Auto-compute the transport cost from a registered rate (INR) × quantity, converted to the
+  // order currency. If the country has no registered rate, leave the cost for manual entry.
   useEffect(() => {
     if (order.incoterms !== "CIF" || !order.transport_country) return;
     const info = logistics[order.transport_country];
     const isAir = order.transport_mode === "Airways";
     const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
-    if (rateInr == null) {
-      setOrder((o) => (o.freight_charge !== 0 ? { ...o, freight_charge: 0 } : o));
-      return;
-    }
+    if (rateInr == null) return; // no registered rate → manual entry (don't overwrite)
     if (order.currency !== "INR" && !fx.rate) return; // FX not ready → leave for manual entry
     const inr = rateInr * (order.transport_qty || 0);
     const converted = +(inr * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
@@ -419,26 +413,6 @@ export default function OrderFormBuilder() {
         return price != null ? { ...it, unit_price: price } : it;
       }),
     }));
-  }
-
-  // Submit a new destination country's rates → creates a pending logistics request.
-  async function submitNewCountry() {
-    if (!addCountry) return;
-    if (!addCountry.country.trim()) { setAddCountryMsg("Enter a country name."); return; }
-    const num = (s: string) => (s.trim() === "" ? null : parseFloat(s));
-    try {
-      await api.createLogistics({
-        country: addCountry.country.trim(),
-        sea_rate: num(addCountry.sea),
-        air_up_to_500: num(addCountry.air1),
-        air_above_500: num(addCountry.air2),
-      });
-      setAddCountry(null);
-      setAddCountryMsg("✓ Submitted — pending admin approval. It will appear here once approved.");
-      api.listLogistics().then(setLogisticsRates).catch(() => {});
-    } catch (e) {
-      setAddCountryMsg((e as Error).message);
-    }
   }
 
   // Returns an error message listing any missing mandatory fields, or null when valid.
@@ -775,18 +749,13 @@ export default function OrderFormBuilder() {
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <div className="flex items-center justify-between">
-                      <label className="lbl">Destination Country</label>
-                      <button type="button"
-                        className="text-[10px] font-semibold text-exicom-tealDark hover:underline"
-                        onClick={() => { setAddCountry({ country: "", sea: "", air1: "", air2: "" }); setAddCountryMsg(""); }}>
-                        + Add country
-                      </button>
-                    </div>
+                    <label className="lbl">Destination Country</label>
                     <select className="inp" value={order.transport_country}
-                      onChange={(e) => set("transport_country", e.target.value)}>
+                      onChange={(e) => setOrder((o) => ({ ...o, transport_country: e.target.value, freight_charge: 0 }))}>
                       <option value="">— select —</option>
-                      {logisticsCountries.map((c) => <option key={c}>{c}</option>)}
+                      {WORLD_COUNTRIES.map((c) => (
+                        <option key={c} value={c}>{logistics[c] ? `${c}  ✓` : c}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -795,28 +764,6 @@ export default function OrderFormBuilder() {
                       value={order.transport_qty || ""} placeholder="—" />
                   </div>
                 </div>
-
-                {/* add a new destination country (creates a pending logistics request) */}
-                {addCountry && (
-                  <div className="mt-2 rounded-lg border border-dashed border-exicom-teal/40 bg-white p-2">
-                    <div className="mb-1 text-[11px] font-semibold text-slate-600">New country — rates in INR (submitted for admin approval)</div>
-                    <input className="inp mb-1" placeholder="Country name"
-                      value={addCountry.country} onChange={(e) => setAddCountry((s) => s && { ...s, country: e.target.value })} />
-                    <div className="grid grid-cols-3 gap-1">
-                      <input className="inp" type="number" step="0.01" placeholder="Sea / pallet"
-                        value={addCountry.sea} onChange={(e) => setAddCountry((s) => s && { ...s, sea: e.target.value })} />
-                      <input className="inp" type="number" step="0.01" placeholder="Air ≤500kg"
-                        value={addCountry.air1} onChange={(e) => setAddCountry((s) => s && { ...s, air1: e.target.value })} />
-                      <input className="inp" type="number" step="0.01" placeholder="Air >500kg"
-                        value={addCountry.air2} onChange={(e) => setAddCountry((s) => s && { ...s, air2: e.target.value })} />
-                    </div>
-                    <div className="mt-1 flex gap-2">
-                      <button type="button" className="btn btn-primary flex-1 py-1 text-[11px]" onClick={submitNewCountry}>Submit for approval</button>
-                      <button type="button" className="btn py-1 text-[11px]" onClick={() => setAddCountry(null)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-                {addCountryMsg && <p className="mt-1 text-[10px] font-semibold text-exicom-tealDark">{addCountryMsg}</p>}
 
                 {/* live rate × qty × FX breakdown */}
                 {(() => {

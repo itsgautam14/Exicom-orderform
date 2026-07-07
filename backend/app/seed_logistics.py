@@ -11,14 +11,15 @@ from app import models
 #   sea_rate      = per pallet
 #   air_up_to_500 = per box (1 box = 10kg), shipment ≤ 500kg
 #   air_above_500 = per box, shipment > 500kg
+# Country names match the frontend WORLD_COUNTRIES list so the dropdown auto-fills.
 LOGISTICS_SEED = [
-    dict(country="Tunisia",             sea_rate=37554.4,  air_up_to_500=7072.5, air_above_500=6842.5),
-    dict(country="UAE",                 sea_rate=29322.7,  air_up_to_500=5692.5, air_above_500=5175),
-    dict(country="Qatar",               sea_rate=None,     air_up_to_500=6612.5, air_above_500=6325),
-    dict(country="Saudi Arabia (KSA)",  sea_rate=None,     air_up_to_500=None,   air_above_500=None),
-    dict(country="Netherlands",         sea_rate=24384.6,  air_up_to_500=None,   air_above_500=None),
-    dict(country="Malaysia",            sea_rate=23286.35, air_up_to_500=1782.5, air_above_500=1552.5),
-    dict(country="Morocco",             sea_rate=26578.8,  air_up_to_500=None,   air_above_500=None),
+    dict(country="Tunisia",              sea_rate=37554.4,  air_up_to_500=7072.5, air_above_500=6842.5),
+    dict(country="United Arab Emirates", sea_rate=29322.7,  air_up_to_500=5692.5, air_above_500=5175),
+    dict(country="Qatar",                sea_rate=None,     air_up_to_500=6612.5, air_above_500=6325),
+    dict(country="Saudi Arabia",         sea_rate=None,     air_up_to_500=None,   air_above_500=None),
+    dict(country="Netherlands",          sea_rate=24384.6,  air_up_to_500=None,   air_above_500=None),
+    dict(country="Malaysia",             sea_rate=23286.35, air_up_to_500=1782.5, air_above_500=1552.5),
+    dict(country="Morocco",              sea_rate=26578.8,  air_up_to_500=None,   air_above_500=None),
 ]
 
 
