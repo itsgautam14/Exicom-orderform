@@ -525,7 +525,7 @@ export default function OrderFormBuilder() {
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">1</span> Quote Information</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Quote Number *" v={order.quote_number} on={(v) => set("quote_number", v)} />
+            <Field label="Quote Number (auto — locked)" v={order.quote_number} on={() => {}} disabled />
             <Field label="Date" v={order.quote_date} on={(v) => set("quote_date", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
             <Field label="Customer (SPOC) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
