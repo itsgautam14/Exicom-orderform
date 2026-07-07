@@ -152,10 +152,26 @@ function todayPlus30(): string {
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-// Format: YYYY-MMM-001 (sequence editable from 001 to 999).
-function nextQuoteNumber(): string {
+// Quote number: YYYY-MMM-NNN. The NNN sequence auto-increments per month, persisted
+// in the browser (localStorage) and bumped each time a PDF is downloaded.
+function monthKey(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${MONTHS[now.getMonth()]}-001`;
+  return `${now.getFullYear()}-${MONTHS[now.getMonth()]}`;
+}
+function nextQuoteNumber(seq = 1): string {
+  return `${monthKey()}-${String(seq).padStart(3, "0")}`;
+}
+function readQuoteSeq(): number {
+  if (typeof window === "undefined") return 1; // SSR-safe default
+  const v = parseInt(localStorage.getItem(`quote_seq_${monthKey()}`) || "1", 10);
+  return Number.isFinite(v) && v >= 1 ? v : 1;
+}
+function bumpQuoteSeq(usedNumber: string): void {
+  if (typeof window === "undefined") return;
+  const m = usedNumber.match(/(\d+)$/);              // trailing sequence digits
+  const used = m ? parseInt(m[1], 10) : readQuoteSeq();
+  const next = Math.max(readQuoteSeq(), used + 1);   // never go backwards; safe on re-downloads
+  localStorage.setItem(`quote_seq_${monthKey()}`, String(next));
 }
 
 const BLANK_ORDER = (): OrderInput => ({
@@ -304,6 +320,11 @@ export default function OrderFormBuilder() {
     api.listLogistics().then(setLogisticsRates).catch(() => setLogisticsRates([]));
   }, []);
 
+  // Apply the persisted quote sequence on mount (client-only → avoids hydration mismatch).
+  useEffect(() => {
+    setOrder((o) => ({ ...o, quote_number: nextQuoteNumber(readQuoteSeq()) }));
+  }, []);
+
   // debounced live preview from the backend (same WeasyPrint HTML the PDF uses)
   useEffect(() => {
     clearTimeout(debounce.current);
@@ -446,6 +467,7 @@ export default function OrderFormBuilder() {
       a.download = `Exicom_${order.quote_number || "order"}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      bumpQuoteSeq(order.quote_number); // next quote gets the next number
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -492,7 +514,7 @@ export default function OrderFormBuilder() {
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
-              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder({ ...BLANK_ORDER(), quote_number: nextQuoteNumber(readQuoteSeq()) }); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
             >
               ✕ New
             </button>
