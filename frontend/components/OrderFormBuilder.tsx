@@ -203,6 +203,9 @@ export default function OrderFormBuilder() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
+  // Inline "add destination country" (creates a pending logistics rate for admin approval).
+  const [addCountry, setAddCountry] = useState<{ country: string; sea: string; air1: string; air2: string } | null>(null);
+  const [addCountryMsg, setAddCountryMsg] = useState("");
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   // Approved logistics rates from the DB → same shape as the hardcoded fallback.
@@ -416,6 +419,26 @@ export default function OrderFormBuilder() {
         return price != null ? { ...it, unit_price: price } : it;
       }),
     }));
+  }
+
+  // Submit a new destination country's rates → creates a pending logistics request.
+  async function submitNewCountry() {
+    if (!addCountry) return;
+    if (!addCountry.country.trim()) { setAddCountryMsg("Enter a country name."); return; }
+    const num = (s: string) => (s.trim() === "" ? null : parseFloat(s));
+    try {
+      await api.createLogistics({
+        country: addCountry.country.trim(),
+        sea_rate: num(addCountry.sea),
+        air_up_to_500: num(addCountry.air1),
+        air_above_500: num(addCountry.air2),
+      });
+      setAddCountry(null);
+      setAddCountryMsg("✓ Submitted — pending admin approval. It will appear here once approved.");
+      api.listLogistics().then(setLogisticsRates).catch(() => {});
+    } catch (e) {
+      setAddCountryMsg((e as Error).message);
+    }
   }
 
   // Returns an error message listing any missing mandatory fields, or null when valid.
@@ -752,7 +775,14 @@ export default function OrderFormBuilder() {
               <>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="lbl">Destination Country</label>
+                    <div className="flex items-center justify-between">
+                      <label className="lbl">Destination Country</label>
+                      <button type="button"
+                        className="text-[10px] font-semibold text-exicom-tealDark hover:underline"
+                        onClick={() => { setAddCountry({ country: "", sea: "", air1: "", air2: "" }); setAddCountryMsg(""); }}>
+                        + Add country
+                      </button>
+                    </div>
                     <select className="inp" value={order.transport_country}
                       onChange={(e) => set("transport_country", e.target.value)}>
                       <option value="">— select —</option>
@@ -765,6 +795,28 @@ export default function OrderFormBuilder() {
                       value={order.transport_qty || ""} placeholder="—" />
                   </div>
                 </div>
+
+                {/* add a new destination country (creates a pending logistics request) */}
+                {addCountry && (
+                  <div className="mt-2 rounded-lg border border-dashed border-exicom-teal/40 bg-white p-2">
+                    <div className="mb-1 text-[11px] font-semibold text-slate-600">New country — rates in INR (submitted for admin approval)</div>
+                    <input className="inp mb-1" placeholder="Country name"
+                      value={addCountry.country} onChange={(e) => setAddCountry((s) => s && { ...s, country: e.target.value })} />
+                    <div className="grid grid-cols-3 gap-1">
+                      <input className="inp" type="number" step="0.01" placeholder="Sea / pallet"
+                        value={addCountry.sea} onChange={(e) => setAddCountry((s) => s && { ...s, sea: e.target.value })} />
+                      <input className="inp" type="number" step="0.01" placeholder="Air ≤500kg"
+                        value={addCountry.air1} onChange={(e) => setAddCountry((s) => s && { ...s, air1: e.target.value })} />
+                      <input className="inp" type="number" step="0.01" placeholder="Air >500kg"
+                        value={addCountry.air2} onChange={(e) => setAddCountry((s) => s && { ...s, air2: e.target.value })} />
+                    </div>
+                    <div className="mt-1 flex gap-2">
+                      <button type="button" className="btn btn-primary flex-1 py-1 text-[11px]" onClick={submitNewCountry}>Submit for approval</button>
+                      <button type="button" className="btn py-1 text-[11px]" onClick={() => setAddCountry(null)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {addCountryMsg && <p className="mt-1 text-[10px] font-semibold text-exicom-tealDark">{addCountryMsg}</p>}
 
                 {/* live rate × qty × FX breakdown */}
                 {(() => {
