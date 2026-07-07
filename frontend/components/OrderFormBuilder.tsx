@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { CatalogProduct, OrderInput, OrderItem } from "@/lib/types";
+import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem } from "@/lib/types";
 
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
@@ -195,6 +195,7 @@ const BLANK_ORDER = (): OrderInput => ({
 export default function OrderFormBuilder() {
   const [order, setOrder] = useState<OrderInput>(BLANK_ORDER);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [logisticsRates, setLogisticsRates] = useState<LogisticsRate[]>([]);
   const [itemFilters, setItemFilters] = useState<Record<number, string>>({});
   const [itemSearch, setItemSearch] = useState<Record<number, string>>({});
   const [previewHtml, setPreviewHtml] = useState<string>("");
@@ -203,6 +204,17 @@ export default function OrderFormBuilder() {
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+
+  // Approved logistics rates from the DB → same shape as the hardcoded fallback.
+  const logistics = useMemo(() => {
+    const map: Record<string, { sea: number | null; air: AirRate }> = {};
+    for (const r of logisticsRates) {
+      if (r.status !== "approved") continue;
+      map[r.country] = { sea: r.sea_rate, air: { upTo500: r.air_up_to_500, above500: r.air_above_500 } };
+    }
+    return Object.keys(map).length ? map : TRANSPORT_RATES; // fallback if the API is unavailable
+  }, [logisticsRates]);
+  const logisticsCountries = useMemo(() => Object.keys(logistics), [logistics]);
 
   // When "same as Bill To" is on, mirror the Bill To address into Ship To
   // (and keep it in sync if the Bill To fields change afterwards).
@@ -245,7 +257,7 @@ export default function OrderFormBuilder() {
   // Auto-compute the transport cost from the rate sheet (INR) × quantity, converted to the order currency.
   useEffect(() => {
     if (order.incoterms !== "CIF" || !order.transport_country) return;
-    const info = TRANSPORT_RATES[order.transport_country];
+    const info = logistics[order.transport_country];
     const isAir = order.transport_mode === "Airways";
     const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
     if (rateInr == null) {
@@ -256,7 +268,7 @@ export default function OrderFormBuilder() {
     const inr = rateInr * (order.transport_qty || 0);
     const converted = +(inr * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
     setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
-  }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate]);
+  }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate, logistics]);
 
   // FOB: a fixed transportation cost (INR 17,250) converted live to the order currency.
   useEffect(() => {
@@ -292,6 +304,7 @@ export default function OrderFormBuilder() {
   // load catalog for the "fill from catalog" pickers
   useEffect(() => {
     api.listCatalog().then(setCatalog).catch(() => setCatalog([]));
+    api.listLogistics().then(setLogisticsRates).catch(() => setLogisticsRates([]));
   }, []);
 
   // debounced live preview from the backend (same WeasyPrint HTML the PDF uses)
@@ -743,7 +756,7 @@ export default function OrderFormBuilder() {
                     <select className="inp" value={order.transport_country}
                       onChange={(e) => set("transport_country", e.target.value)}>
                       <option value="">— select —</option>
-                      {TRANSPORT_COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                      {logisticsCountries.map((c) => <option key={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
@@ -755,7 +768,7 @@ export default function OrderFormBuilder() {
 
                 {/* live rate × qty × FX breakdown */}
                 {(() => {
-                  const info = TRANSPORT_RATES[order.transport_country];
+                  const info = logistics[order.transport_country];
                   const isAir = order.transport_mode === "Airways";
                   const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
                   if (!order.transport_mode) {

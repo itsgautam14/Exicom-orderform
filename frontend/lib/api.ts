@@ -1,4 +1,4 @@
-import type { CatalogProduct, OrderInput, OrderOut } from "./types";
+import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -50,6 +50,31 @@ export const api = {
 
   deleteCatalog: (id: string): Promise<void> =>
     fetch(`${BASE}/api/catalog/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
+
+  // ---- logistics rates ----
+
+  listLogistics: (): Promise<LogisticsRate[]> =>
+    fetch(`${BASE}/api/logistics`).then(json<LogisticsRate[]>),
+
+  createLogistics: (r: Partial<LogisticsRate>): Promise<LogisticsRate> =>
+    fetch(`${BASE}/api/logistics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(r),
+    }).then(json<LogisticsRate>),
+
+  updateLogistics: (id: string, r: Partial<LogisticsRate>): Promise<LogisticsRate> =>
+    fetch(`${BASE}/api/logistics/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(r),
+    }).then(json<LogisticsRate>),
+
+  approveLogistics: (id: string): Promise<LogisticsRate> =>
+    fetch(`${BASE}/api/logistics/${id}/approve`, { method: "POST", headers: adminHeaders() }).then(json<LogisticsRate>),
+
+  deleteLogistics: (id: string): Promise<void> =>
+    fetch(`${BASE}/api/logistics/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
   // ---- orders ----
 

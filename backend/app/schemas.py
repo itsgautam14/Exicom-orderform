@@ -48,6 +48,32 @@ class CatalogProductOut(CatalogProductBase):
     id: str
 
 
+# ----------------------------- Logistics rates -------------------------------
+
+class LogisticsRateBase(BaseModel):
+    country: str
+    sea_rate: Optional[float] = None
+    air_up_to_500: Optional[float] = None
+    air_above_500: Optional[float] = None
+
+
+class LogisticsRateCreate(LogisticsRateBase):
+    pass
+
+
+class LogisticsRateUpdate(BaseModel):
+    country: Optional[str] = None
+    sea_rate: Optional[float] = None
+    air_up_to_500: Optional[float] = None
+    air_above_500: Optional[float] = None
+
+
+class LogisticsRateOut(LogisticsRateBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    status: str
+
+
 # ----------------------------- Order items -----------------------------------
 
 class OrderItemIn(BaseModel):

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from typing import Optional
 
 from sqlalchemy import (
     String, Text, Integer, Numeric, Boolean, DateTime, ForeignKey, func,
@@ -115,3 +116,24 @@ class OrderItem(Base):
     input_cable: Mapped[str] = mapped_column(String(8), default="")  # "Yes" / "No" / ""
 
     order: Mapped["Order"] = relationship(back_populates="items")
+
+
+class LogisticsRate(Base):
+    """Per-country transportation rates (INR), managed via the logistics admin panel.
+
+    New / edited rates start as ``pending`` and must be ``approved`` before the
+    order form will use them for CIF auto-pricing.
+    """
+    __tablename__ = "logistics_rates"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    country: Mapped[str] = mapped_column(String(128), index=True)
+    sea_rate: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), nullable=True)      # per pallet
+    air_up_to_500: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), nullable=True)  # per box, ≤500kg
+    air_above_500: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), nullable=True)  # per box, >500kg
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | approved
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

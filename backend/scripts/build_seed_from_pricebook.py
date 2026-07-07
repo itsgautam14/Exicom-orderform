@@ -217,6 +217,10 @@ def main(reset: bool = False) -> None:
     finally:
         db.close()
 
+    # Seed per-country logistics rates alongside the catalog.
+    from app import seed_logistics
+    seed_logistics.run(reset=reset)
+
 
 if __name__ == "__main__":
     main(reset="--reset" in sys.argv)

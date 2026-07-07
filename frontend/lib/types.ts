@@ -16,6 +16,15 @@ export interface CatalogProduct {
   is_active: boolean;
 }
 
+export interface LogisticsRate {
+  id: string;
+  country: string;
+  sea_rate: number | null;
+  air_up_to_500: number | null;
+  air_above_500: number | null;
+  status: string; // "pending" | "approved"
+}
+
 export interface OrderItem {
   product_code: string;
   code_note: string;

@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import OrderFormBuilder from "@/components/OrderFormBuilder";
-import CatalogGate from "@/components/CatalogGate";
+import AdminGate from "@/components/AdminGate";
+import CatalogAdmin from "@/components/CatalogAdmin";
+import LogisticsAdmin from "@/components/LogisticsAdmin";
+
+type Tab = "order" | "catalog" | "logistics";
 
 export default function Home() {
-  const [tab, setTab] = useState<"order" | "admin">("order");
+  const [tab, setTab] = useState<Tab>("order");
 
   return (
     <main className="min-h-screen">
@@ -25,15 +29,20 @@ export default function Home() {
               <span className="hidden sm:inline">Order Form</span>
               <span className="sm:hidden">Order</span>
             </button>
-            <button onClick={() => setTab("admin")} className={`tab ${tab === "admin" ? "tab-active" : ""}`}>
+            <button onClick={() => setTab("catalog")} className={`tab ${tab === "catalog" ? "tab-active" : ""}`}>
               <span className="hidden sm:inline">Catalog / Pricing</span>
               <span className="sm:hidden">Catalog</span>
+            </button>
+            <button onClick={() => setTab("logistics")} className={`tab ${tab === "logistics" ? "tab-active" : ""}`}>
+              Logistics
             </button>
           </nav>
         </div>
       </header>
 
-      {tab === "order" ? <OrderFormBuilder /> : <CatalogGate />}
+      {tab === "order" && <OrderFormBuilder />}
+      {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
+      {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
     </main>
   );
 }

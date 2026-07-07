@@ -4,19 +4,15 @@ Reads are public (the order form needs them). Writes require the admin
 password, supplied via the `X-Admin-Password` header and checked against
 `settings.admin_password` — the password lives on the server only.
 """
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
+from app.auth import require_admin
 from app.config import settings
 from app.database import get_db
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
-
-
-def require_admin(x_admin_password: str = Header(default="")) -> None:
-    if x_admin_password != settings.admin_password:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid admin password")
 
 
 @router.post("/verify")

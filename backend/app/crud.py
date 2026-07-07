@@ -123,6 +123,47 @@ def delete_product(db: Session, obj: models.CatalogProduct) -> None:
     db.commit()
 
 
+# ----------------------------- Logistics rates -------------------------------
+
+def list_logistics(db: Session) -> list[models.LogisticsRate]:
+    stmt = select(models.LogisticsRate).order_by(models.LogisticsRate.country)
+    return list(db.scalars(stmt))
+
+
+def get_logistics(db: Session, rate_id: str) -> models.LogisticsRate | None:
+    return db.get(models.LogisticsRate, rate_id)
+
+
+def create_logistics(db: Session, data: schemas.LogisticsRateCreate) -> models.LogisticsRate:
+    # New rates always start pending — an admin must approve before orders use them.
+    obj = models.LogisticsRate(**data.model_dump(), status="pending")
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def update_logistics(db: Session, obj: models.LogisticsRate, data: schemas.LogisticsRateUpdate):
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    obj.status = "pending"  # an edit needs re-approval
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def approve_logistics(db: Session, obj: models.LogisticsRate) -> models.LogisticsRate:
+    obj.status = "approved"
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def delete_logistics(db: Session, obj: models.LogisticsRate) -> None:
+    db.delete(obj)
+    db.commit()
+
+
 # ----------------------------- Orders ----------------------------------------
 
 def list_orders(db: Session) -> list[models.Order]:
