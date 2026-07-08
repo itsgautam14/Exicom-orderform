@@ -152,30 +152,35 @@ function todayPlus30(): string {
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-// Quote number: YYYY-MMM-NNN. The NNN sequence auto-increments per month, persisted
-// in the browser (localStorage) and bumped each time a PDF is downloaded.
+// Quote number: assigned on download from an atomic server counter (globally unique,
+// sequential across the whole team) → YYYY-MMM-NNNN-HHMMSS. While editing, the form
+// shows a "DRAFT" placeholder; the real number is reserved only when a PDF is issued.
 function monthKey(): string {
   const now = new Date();
   return `${now.getFullYear()}-${MONTHS[now.getMonth()]}`;
 }
-function nextQuoteNumber(seq = 1): string {
-  return `${monthKey()}-${String(seq).padStart(3, "0")}`;
+function timeStamp(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
-function readQuoteSeq(): number {
-  if (typeof window === "undefined") return 1; // SSR-safe default
-  const v = parseInt(localStorage.getItem(`quote_seq_${monthKey()}`) || "1", 10);
-  return Number.isFinite(v) && v >= 1 ? v : 1;
+// Deterministic draft placeholder (SSR-safe — no time component → no hydration mismatch).
+function draftQuoteNumber(): string {
+  return `${monthKey()}-DRAFT`;
 }
-function bumpQuoteSeq(usedNumber: string): void {
-  if (typeof window === "undefined") return;
-  const m = usedNumber.match(/(\d+)$/);              // trailing sequence digits
-  const used = m ? parseInt(m[1], 10) : readQuoteSeq();
-  const next = Math.max(readQuoteSeq(), used + 1);   // never go backwards; safe on re-downloads
-  localStorage.setItem(`quote_seq_${monthKey()}`, String(next));
+// Offline fallback if the server counter is unreachable: per-browser sequence + timestamp.
+function localQuoteNumber(): string {
+  let seq = 1;
+  if (typeof window !== "undefined") {
+    const stored = parseInt(localStorage.getItem(`quote_seq_${monthKey()}`) || "1", 10);
+    seq = Number.isFinite(stored) && stored >= 1 ? stored : 1;
+    localStorage.setItem(`quote_seq_${monthKey()}`, String(seq + 1)); // consume this one
+  }
+  return `${monthKey()}-${String(seq).padStart(4, "0")}-${timeStamp()}`;
 }
 
 const BLANK_ORDER = (): OrderInput => ({
-  quote_number: nextQuoteNumber(),
+  quote_number: draftQuoteNumber(),
   prepared_for: "",
   proposed_by: "",
   quote_date: today(),
@@ -220,6 +225,8 @@ export default function OrderFormBuilder() {
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+  const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
+  const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
 
   // Approved logistics rates from the DB, keyed by country → auto-fill map.
   const logistics = useMemo(() => {
@@ -320,10 +327,6 @@ export default function OrderFormBuilder() {
     api.listLogistics().then(setLogisticsRates).catch(() => setLogisticsRates([]));
   }, []);
 
-  // Apply the persisted quote sequence on mount (client-only → avoids hydration mismatch).
-  useEffect(() => {
-    setOrder((o) => ({ ...o, quote_number: nextQuoteNumber(readQuoteSeq()) }));
-  }, []);
 
   // debounced live preview from the backend (same WeasyPrint HTML the PDF uses)
   useEffect(() => {
@@ -455,19 +458,54 @@ export default function OrderFormBuilder() {
     return miss.length ? "Please complete these required fields:\n\n•  " + miss.join("\n•  ") : null;
   }
 
+  // Whether this quote's logistics couldn't be filled → it'll be saved as a DRAFT
+  // for an admin to complete (CIF with no transport cost).
+  function isLogisticsDraft(o: OrderInput): boolean {
+    return o.incoterms === "CIF" && (!o.freight_charge || o.freight_charge <= 0);
+  }
+
+  // Reserve a globally-unique quote number on first use (server counter; offline
+  // fallback = per-browser sequence). Re-downloads/saves reuse the same number.
+  async function ensureNumber(): Promise<string> {
+    if (!finalizedNumber.current) {
+      try {
+        const { quote_number } = await api.nextQuoteNumber();
+        finalizedNumber.current = `${quote_number}-${timeStamp()}`;
+      } catch {
+        finalizedNumber.current = localQuoteNumber();
+      }
+    }
+    return finalizedNumber.current;
+  }
+
+  // Record the quote in the backend once, so it shows up in the admin Orders panel.
+  // Best-effort: a failure here must never block the PDF download.
+  async function persistOrder(o: OrderInput) {
+    if (persistedId.current) return;
+    try {
+      const saved = await api.createOrder(o);
+      persistedId.current = saved.id;
+    } catch {
+      /* offline — the PDF is still generated; the record can be re-saved later */
+    }
+  }
+
   async function downloadPdf() {
     const err = validate();
     if (err) { alert(err); return; }
     setBusy(true);
     try {
-      const blob = await api.pdfBlob(order);
+      const quoteNumber = await ensureNumber();
+      const issued = { ...order, quote_number: quoteNumber };
+      setOrder(issued); // show the issued number in the (locked) field
+      const blob = await api.pdfBlob(issued);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Exicom_${order.quote_number || "order"}.pdf`;
+      a.download = `Exicom_${quoteNumber}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      bumpQuoteSeq(order.quote_number); // next quote gets the next number
+      void persistOrder(issued); // file it under the admin Orders panel (draft/submitted)
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -480,10 +518,15 @@ export default function OrderFormBuilder() {
     if (err) { alert(err); return; }
     setBusy(true);
     try {
-      const saved = await api.createOrder(order);
-      if (confirm(`Order ${order.quote_number} saved (ID: ${saved.id}).\n\nDownload PDF now?`)) {
-        await downloadPdf();
-      }
+      const quoteNumber = await ensureNumber();
+      const issued = { ...order, quote_number: quoteNumber };
+      setOrder(issued);
+      await persistOrder(issued);
+      const draft = isLogisticsDraft(issued);
+      const msg = draft
+        ? `Saved as DRAFT — ${quoteNumber}.\n\nTransport/logistics cost is missing, so an admin needs to complete and approve it.\n\nDownload the draft PDF now?`
+        : `Order ${quoteNumber} saved.\n\nDownload PDF now?`;
+      if (confirm(msg)) await downloadPdf();
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -514,7 +557,7 @@ export default function OrderFormBuilder() {
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
-              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { setOrder({ ...BLANK_ORDER(), quote_number: nextQuoteNumber(readQuoteSeq()) }); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { finalizedNumber.current = null; persistedId.current = null; setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
             >
               ✕ New
             </button>
@@ -525,7 +568,7 @@ export default function OrderFormBuilder() {
         <div className="card mb-4">
           <div className="section-title"><span className="section-badge">1</span> Quote Information</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Quote Number (auto — locked)" v={order.quote_number} on={() => {}} disabled />
+            <Field label="Quote Number (assigned on download)" v={order.quote_number} on={() => {}} disabled />
             <Field label="Date" v={order.quote_date} on={(v) => set("quote_date", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
             <Field label="Customer (SPOC) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />

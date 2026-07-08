@@ -71,6 +71,24 @@ html, body {
   color: #222;
 }
 .meta-lines b { font-weight: 700; color: #111; }
+.draft-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 2mm;
+  padding: 0.4mm 2mm;
+  border: 1.2pt solid #c1121f;
+  border-radius: 2pt;
+  font-size: 11pt;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #c1121f;
+}
+.draft-note {
+  margin: 0 0 3mm 0;
+  font-size: 7.5pt;
+  font-style: italic;
+  color: #c1121f;
+}
 
 /* =========================================================
    RULES
@@ -269,7 +287,8 @@ html, body {
       <div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>
     </td>
     <td class="meta-cell">
-      <div class="doc-title">ORDER FORM</div>
+      <div class="doc-title">ORDER FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
+      {% if order.status == "draft" %}<div class="draft-note">Provisional — transport/logistics cost pending admin approval.</div>{% endif %}
       <div class="meta-lines">
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}

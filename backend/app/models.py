@@ -88,6 +88,12 @@ class Order(Base):
     po_number: Mapped[str] = mapped_column(String(64), default="")
     po_amount: Mapped[str] = mapped_column(String(64), default="")
 
+    # Approval workflow:
+    #   draft     — logistics couldn't be filled (CIF with no transport cost); needs an admin.
+    #   submitted — a complete quotation saved by a sales person.
+    #   approved  — an admin filled the missing logistics and published it.
+    status: Mapped[str] = mapped_column(String(16), default="submitted", index=True)
+
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -137,3 +143,11 @@ class LogisticsRate(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class QuoteCounter(Base):
+    """Atomic per-month counter that hands out globally-unique quote sequence numbers."""
+    __tablename__ = "quote_counters"
+
+    period: Mapped[str] = mapped_column(String(16), primary_key=True)  # e.g. "2026-JUL"
+    value: Mapped[int] = mapped_column(Integer, default=0)

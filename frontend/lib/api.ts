@@ -1,4 +1,4 @@
-import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut } from "./types";
+import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut, OrderPublish } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -78,12 +78,40 @@ export const api = {
 
   // ---- orders ----
 
+  // Atomically reserve the next globally-unique quote number from the server.
+  nextQuoteNumber: (): Promise<{ period: string; sequence: number; quote_number: string }> =>
+    fetch(`${BASE}/api/orders/next-number`, { method: "POST" }).then(
+      json<{ period: string; sequence: number; quote_number: string }>
+    ),
+
   createOrder: (o: OrderInput): Promise<OrderOut> =>
     fetch(`${BASE}/api/orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(o),
     }).then(json<OrderOut>),
+
+  // ---- saved orders (admin "Orders" panel) ----
+
+  listOrders: (): Promise<OrderOut[]> =>
+    fetch(`${BASE}/api/orders`, { headers: adminHeaders() }).then(json<OrderOut[]>),
+
+  publishOrder: (id: string, body: OrderPublish): Promise<OrderOut> =>
+    fetch(`${BASE}/api/orders/${id}/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify(body),
+    }).then(json<OrderOut>),
+
+  deleteOrder: (id: string): Promise<void> =>
+    fetch(`${BASE}/api/orders/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
+
+  // Saved-order PDF (admin only) → blob for download / view.
+  orderPdfBlob: (id: string): Promise<Blob> =>
+    fetch(`${BASE}/api/orders/${id}/pdf`, { headers: adminHeaders() }).then((r) => {
+      if (!r.ok) throw new Error("PDF generation failed");
+      return r.blob();
+    }),
 
   // live HTML preview of an unsaved order
   previewHtml: (o: OrderInput): Promise<string> =>

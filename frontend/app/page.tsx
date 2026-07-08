@@ -5,8 +5,9 @@ import OrderFormBuilder from "@/components/OrderFormBuilder";
 import AdminGate from "@/components/AdminGate";
 import CatalogAdmin from "@/components/CatalogAdmin";
 import LogisticsAdmin from "@/components/LogisticsAdmin";
+import OrdersAdmin from "@/components/OrdersAdmin";
 
-type Tab = "order" | "catalog" | "logistics";
+type Tab = "order" | "orders" | "catalog" | "logistics";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("order");
@@ -29,6 +30,9 @@ export default function Home() {
               <span className="hidden sm:inline">Order Form</span>
               <span className="sm:hidden">Order</span>
             </button>
+            <button onClick={() => setTab("orders")} className={`tab ${tab === "orders" ? "tab-active" : ""}`}>
+              Orders
+            </button>
             <button onClick={() => setTab("catalog")} className={`tab ${tab === "catalog" ? "tab-active" : ""}`}>
               <span className="hidden sm:inline">Catalog / Pricing</span>
               <span className="sm:hidden">Catalog</span>
@@ -41,6 +45,7 @@ export default function Home() {
       </header>
 
       {tab === "order" && <OrderFormBuilder />}
+      {tab === "orders" && <AdminGate><OrdersAdmin /></AdminGate>}
       {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
       {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
     </main>

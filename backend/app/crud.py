@@ -11,6 +11,21 @@ from app import models, schemas
 INPUT_CABLE_PRICE = 10
 
 
+# ----------------------------- Approval status -------------------------------
+
+def order_status_for(incoterms: str, freight_charge) -> str:
+    """Decide a fresh order's status from its logistics completeness.
+
+    A CIF order needs a country transport cost. When the sales person can't fill
+    it (no approved rate for the destination → freight stays 0) the quotation is
+    a ``draft`` an admin must complete. Everything else is a finished
+    ``submitted`` quotation.
+    """
+    if (incoterms or "").upper() == "CIF" and float(freight_charge or 0) <= 0:
+        return "draft"
+    return "submitted"
+
+
 # ----------------------------- Totals ----------------------------------------
 
 def compute_totals(order: models.Order) -> dict:
@@ -80,6 +95,7 @@ def compute_totals(order: models.Order) -> dict:
         "po_required": order.po_required,
         "po_number": order.po_number,
         "po_amount": order.po_amount,
+        "status": order.status or "submitted",
         "items": items,
         "subtotal": round(subtotal, 2),
         "input_cable_total": input_cable_total,
@@ -185,6 +201,8 @@ def _apply_items(order: models.Order, items: list[schemas.OrderItemIn]) -> None:
 def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     payload = data.model_dump(exclude={"items"})
     obj = models.Order(**payload)
+    # The server decides the status from logistics completeness — never the client.
+    obj.status = order_status_for(obj.incoterms, obj.freight_charge)
     _apply_items(obj, data.items)
     db.add(obj)
     db.commit()
@@ -196,6 +214,20 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
     for k, v in data.model_dump(exclude={"items"}).items():
         setattr(obj, k, v)
     _apply_items(obj, data.items)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) -> models.Order:
+    """Admin fills in the missing logistics fields, then marks the order approved.
+
+    Only the provided (logistics) fields are touched — the line items and the
+    rest of the quotation the sales person built are left untouched.
+    """
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    obj.status = "approved"
     db.commit()
     db.refresh(obj)
     return obj

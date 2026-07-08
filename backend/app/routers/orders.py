@@ -1,16 +1,41 @@
 """Order CRUD + PDF / HTML rendering endpoints."""
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, HTMLResponse
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
+from app.auth import require_admin
 from app.database import get_db
 from app.pdf.generator import render_order_pdf, render_order_html
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
+_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
-@router.get("", response_model=list[schemas.OrderOut])
+
+@router.post("/next-number")
+def next_quote_number(db: Session = Depends(get_db)):
+    """Atomically hand out the next globally-unique quote number for the current month."""
+    now = datetime.now()
+    period = f"{now.year}-{_MONTHS[now.month - 1]}"
+    value = db.execute(
+        text(
+            "INSERT INTO quote_counters (period, value) VALUES (:p, 1) "
+            "ON CONFLICT (period) DO UPDATE SET value = quote_counters.value + 1 "
+            "RETURNING value"
+        ),
+        {"p": period},
+    ).scalar_one()
+    db.commit()
+    return {"period": period, "sequence": value, "quote_number": f"{period}-{value:04d}"}
+
+
+# The saved-order collection is the admin "Orders" panel — reads and writes here
+# require the admin password. Only create (sales person saving a quote) is public.
+@router.get("", response_model=list[schemas.OrderOut], dependencies=[Depends(require_admin)])
 def list_orders(db: Session = Depends(get_db)):
     return [crud.compute_totals(o) for o in crud.list_orders(db)]
 
@@ -21,7 +46,7 @@ def create_order(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.get("/{order_id}", response_model=schemas.OrderOut)
+@router.get("/{order_id}", response_model=schemas.OrderOut, dependencies=[Depends(require_admin)])
 def get_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -29,7 +54,7 @@ def get_order(order_id: str, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.put("/{order_id}", response_model=schemas.OrderOut)
+@router.put("/{order_id}", response_model=schemas.OrderOut, dependencies=[Depends(require_admin)])
 def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -38,7 +63,19 @@ def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depe
     return crud.compute_totals(obj)
 
 
-@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{order_id}/publish", response_model=schemas.OrderOut,
+             dependencies=[Depends(require_admin)])
+def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = Depends(get_db)):
+    """Admin fills in the missing logistics and marks the draft as approved."""
+    obj = crud.get_order(db, order_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    obj = crud.publish_order(db, obj, payload)
+    return crud.compute_totals(obj)
+
+
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_admin)])
 def delete_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -46,7 +83,7 @@ def delete_order(order_id: str, db: Session = Depends(get_db)):
     crud.delete_order(db, obj)
 
 
-@router.get("/{order_id}/pdf")
+@router.get("/{order_id}/pdf", dependencies=[Depends(require_admin)])
 def order_pdf(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -61,7 +98,7 @@ def order_pdf(order_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{order_id}/preview", response_class=HTMLResponse)
+@router.get("/{order_id}/preview", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
 def order_preview(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -89,6 +126,7 @@ def _build_order_data(payload: schemas.OrderCreate) -> dict:
     return {
         **payload.model_dump(exclude={"items"}),
         "id": "preview",
+        "status": crud.order_status_for(payload.incoterms, freight_charge),
         "items": items,
         "subtotal": round(subtotal, 2),
         "input_cable_total": input_cable_total,

@@ -143,9 +143,22 @@ class OrderUpdate(OrderCreate):
     pass
 
 
+class OrderPublish(BaseModel):
+    """Logistics fields an admin fills in before publishing a draft (all optional)."""
+    incoterms: Optional[str] = None
+    transport_mode: Optional[str] = None
+    transport_country: Optional[str] = None
+    transport_qty: Optional[float] = None
+    port_of_loading: Optional[str] = None
+    port_of_destination: Optional[str] = None
+    freight_charge: Optional[float] = None
+    insurance_charge: Optional[float] = None
+
+
 class OrderOut(OrderBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
+    status: str = "submitted"
     items: list[OrderItemOut] = []
     # computed
     subtotal: float = 0

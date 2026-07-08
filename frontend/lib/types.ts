@@ -87,8 +87,22 @@ export interface OrderInput {
 
 export interface OrderOut extends Omit<OrderInput, "items"> {
   id: string;
+  /** Approval workflow: "draft" | "submitted" | "approved". */
+  status: string;
   items: OrderItemOut[];
   subtotal: number;
   tax_amount: number;
   grand_total: number;
+}
+
+/** Logistics fields an admin fills before publishing a draft. */
+export interface OrderPublish {
+  incoterms?: string;
+  transport_mode?: string;
+  transport_country?: string;
+  transport_qty?: number;
+  port_of_loading?: string;
+  port_of_destination?: string;
+  freight_charge?: number;
+  insurance_charge?: number;
 }
