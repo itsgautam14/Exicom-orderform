@@ -150,11 +150,12 @@ function todayPlus30(): string {
   return d.toLocaleDateString("en-GB").replace(/\//g, "/");
 }
 
-const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 // Quote number: assigned on download from an atomic server counter (globally unique,
-// sequential across the whole team) → YYYY-MMM-NNNN-HHMMSS. While editing, the form
-// shows a "DRAFT" placeholder; the real number is reserved only when a PDF is issued.
+// sequential across the whole team) → e.g. 2026-july-02-143022 (year-month-seq-time).
+// While editing, the form shows a "DRAFT" placeholder; the real number is reserved
+// only when a PDF is issued.
 function monthKey(): string {
   const now = new Date();
   return `${now.getFullYear()}-${MONTHS[now.getMonth()]}`;
@@ -176,7 +177,7 @@ function localQuoteNumber(): string {
     seq = Number.isFinite(stored) && stored >= 1 ? stored : 1;
     localStorage.setItem(`quote_seq_${monthKey()}`, String(seq + 1)); // consume this one
   }
-  return `${monthKey()}-${String(seq).padStart(4, "0")}-${timeStamp()}`;
+  return `${monthKey()}-${String(seq).padStart(2, "0")}-${timeStamp()}`;
 }
 
 const BLANK_ORDER = (): OrderInput => ({

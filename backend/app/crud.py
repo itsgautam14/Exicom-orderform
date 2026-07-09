@@ -1,7 +1,7 @@
 """Database operations and total computation."""
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -198,6 +198,23 @@ def _apply_items(order: models.Order, items: list[schemas.OrderItemIn]) -> None:
     ]
 
 
+def _ensure_pending_logistics(db: Session, country: str) -> None:
+    """Make sure a draft's destination country exists in the logistics table.
+
+    When a quote is drafted because its transport cost is missing, we drop the
+    country into the Logistics data as a ``pending`` row (with blank rates) so the
+    admin can go there and mention the prices. Existing countries are left as-is.
+    """
+    country = (country or "").strip()
+    if not country:
+        return
+    exists = db.query(models.LogisticsRate).filter(
+        func.lower(models.LogisticsRate.country) == country.lower()
+    ).first()
+    if not exists:
+        db.add(models.LogisticsRate(country=country, status="pending"))
+
+
 def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     payload = data.model_dump(exclude={"items"})
     obj = models.Order(**payload)
@@ -205,6 +222,11 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     obj.status = order_status_for(obj.incoterms, obj.freight_charge)
     _apply_items(obj, data.items)
     db.add(obj)
+    if obj.status == "draft":
+        # Route the missing-logistics country into the Logistics panel for pricing.
+        _ensure_pending_logistics(
+            db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
+        )
     db.commit()
     db.refresh(obj)
     return obj

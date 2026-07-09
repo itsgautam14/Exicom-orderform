@@ -13,12 +13,19 @@ from app.pdf.generator import render_order_pdf, render_order_html
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
-_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+_MONTHS = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+]
 
 
 @router.post("/next-number")
 def next_quote_number(db: Session = Depends(get_db)):
-    """Atomically hand out the next globally-unique quote number for the current month."""
+    """Atomically hand out the next globally-unique quote number for the current month.
+
+    Format: ``{year}-{month}-{NN}`` (e.g. ``2026-july-02``). The frontend appends a
+    ``-HHMMSS`` time stamp so numbers stay unique even across concurrent sales people.
+    """
     now = datetime.now()
     period = f"{now.year}-{_MONTHS[now.month - 1]}"
     value = db.execute(
@@ -30,7 +37,7 @@ def next_quote_number(db: Session = Depends(get_db)):
         {"p": period},
     ).scalar_one()
     db.commit()
-    return {"period": period, "sequence": value, "quote_number": f"{period}-{value:04d}"}
+    return {"period": period, "sequence": value, "quote_number": f"{period}-{value:02d}"}
 
 
 # The saved-order collection is the admin "Orders" panel — reads and writes here

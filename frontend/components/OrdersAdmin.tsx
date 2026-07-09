@@ -178,6 +178,11 @@ export default function OrdersAdmin() {
           <p className="mb-3 text-xs text-slate-500">
             Fill in the transport cost for <b>{publishing.bill_to_country || "the destination"}</b>{" "}
             (in {publishing.currency}), then publish. This marks the order <b>Approved</b>.
+            <br />
+            <span className="text-slate-400">
+              Tip: this country was added to the <b>Logistics</b> tab as <i>pending</i> — set its
+              standing rates there so future quotes auto-fill.
+            </span>
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
