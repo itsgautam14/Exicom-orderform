@@ -479,16 +479,13 @@ export default function OrderFormBuilder() {
     return finalizedNumber.current;
   }
 
-  // Record the quote in the backend once, so it shows up in the admin Orders panel.
-  // Best-effort: a failure here must never block the PDF download.
-  async function persistOrder(o: OrderInput) {
+  // Record the quote in the backend once, so it shows up in the admin Orders panel
+  // (and, for a missing-logistics draft, routes the country into the Logistics tab).
+  // Throws on failure — callers decide whether that's fatal.
+  async function persistOrder(o: OrderInput): Promise<void> {
     if (persistedId.current) return;
-    try {
-      const saved = await api.createOrder(o);
-      persistedId.current = saved.id;
-    } catch {
-      /* offline — the PDF is still generated; the record can be re-saved later */
-    }
+    const saved = await api.createOrder(o);
+    persistedId.current = saved.id;
   }
 
   async function downloadPdf() {
@@ -506,7 +503,11 @@ export default function OrderFormBuilder() {
       a.download = `Exicom_${quoteNumber}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      void persistOrder(issued); // file it under the admin Orders panel (draft/submitted)
+      // File it under the admin Orders panel (draft/submitted). Best-effort here —
+      // the PDF already downloaded, so a persist failure only warns.
+      persistOrder(issued).catch((e) =>
+        console.warn("Order not recorded on the server (is the backend running?):", e)
+      );
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -522,14 +523,14 @@ export default function OrderFormBuilder() {
       const quoteNumber = await ensureNumber();
       const issued = { ...order, quote_number: quoteNumber };
       setOrder(issued);
-      await persistOrder(issued);
+      await persistOrder(issued); // must succeed to claim "saved"
       const draft = isLogisticsDraft(issued);
       const msg = draft
-        ? `Saved as DRAFT — ${quoteNumber}.\n\nTransport/logistics cost is missing, so an admin needs to complete and approve it.\n\nDownload the draft PDF now?`
+        ? `Saved as DRAFT — ${quoteNumber}.\n\nTransport/logistics cost is missing, so this country has been sent to the Logistics tab for pricing and an admin needs to complete & approve it.\n\nDownload the draft PDF now?`
         : `Order ${quoteNumber} saved.\n\nDownload PDF now?`;
       if (confirm(msg)) await downloadPdf();
     } catch (e) {
-      alert((e as Error).message);
+      alert("Could not save the order — is the backend running?\n\n" + (e as Error).message);
     } finally {
       setBusy(false);
     }
