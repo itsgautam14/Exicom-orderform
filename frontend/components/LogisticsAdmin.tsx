@@ -40,10 +40,6 @@ export default function LogisticsAdmin() {
       alert((e as Error).message);
     }
   }
-  async function approve(id: string) {
-    try { await api.approveLogistics(id); reload(); }
-    catch (e) { alert((e as Error).message); }
-  }
   async function del(id: string) {
     if (!confirm("Delete this country's logistics rates?")) return;
     try { await api.deleteLogistics(id); reload(); }
@@ -83,12 +79,13 @@ export default function LogisticsAdmin() {
             Logistics Rates
             {pending > 0 && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
-                {pending} pending approval
+                {pending} awaiting prices
               </span>
             )}
           </h1>
           <p className="hidden text-sm text-slate-500 sm:block">
-            Per-country transport rates (INR). New/edited rates are <b>Pending</b> until an admin approves them.
+            Per-country transport rates (INR). Rates you fill in here go <b>live immediately</b>. Countries
+            flagged by a draft quote appear as <b>Awaiting prices</b> until you fill them.
           </p>
         </div>
         <button className="btn btn-primary flex-shrink-0" onClick={() => setEditing({ ...BLANK })}>
@@ -110,7 +107,7 @@ export default function LogisticsAdmin() {
           </div>
           <p className="mt-1 text-[11px] text-slate-400">Leave a field blank if that mode isn&apos;t offered for this country.</p>
           <div className="mt-3 flex gap-2">
-            <button className="btn btn-primary" onClick={save}>Save (as Pending)</button>
+            <button className="btn btn-primary" onClick={save}>Save &amp; Activate</button>
             <button className="btn" onClick={() => setEditing(null)}>Cancel</button>
           </div>
         </div>
@@ -144,14 +141,14 @@ export default function LogisticsAdmin() {
                   <td className="px-4 py-2 text-right text-slate-600">{fmt(r.air_above_500)}</td>
                   <td className="px-4 py-2">
                     {r.status === "approved" ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Approved</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Active</span>
                     ) : (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Pending</span>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Awaiting prices</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
                     {r.status !== "approved" && (
-                      <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => approve(r.id)}>Approve</button>
+                      <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => setEditing(r)}>Fill prices</button>
                     )}
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => setEditing(r)}>Edit</button>
                     <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>

@@ -19,10 +19,10 @@ def list_rates(db: Session = Depends(get_db)):
     return crud.list_logistics(db)
 
 
-@router.post("", response_model=schemas.LogisticsRateOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.LogisticsRateOut, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_admin)])
 def create_rate(payload: schemas.LogisticsRateCreate, db: Session = Depends(get_db)):
-    # Open to team members (e.g. from the order form) — always created as `pending`.
-    # Admin approval (a protected endpoint) is required before orders can use it.
+    # Filled in by the logistics handler in the Logistics tab → active immediately.
     return crud.create_logistics(db, payload)
 
 

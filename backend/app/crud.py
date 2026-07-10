@@ -151,8 +151,10 @@ def get_logistics(db: Session, rate_id: str) -> models.LogisticsRate | None:
 
 
 def create_logistics(db: Session, data: schemas.LogisticsRateCreate) -> models.LogisticsRate:
-    # New rates always start pending — an admin must approve before orders use them.
-    obj = models.LogisticsRate(**data.model_dump(), status="pending")
+    # Entered by the logistics handler in the (admin-gated) Logistics tab → active
+    # immediately. Countries auto-flagged by a draft quote are added elsewhere as
+    # `pending` (see _ensure_pending_logistics) until the handler prices them.
+    obj = models.LogisticsRate(**data.model_dump(), status="approved")
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -162,7 +164,7 @@ def create_logistics(db: Session, data: schemas.LogisticsRateCreate) -> models.L
 def update_logistics(db: Session, obj: models.LogisticsRate, data: schemas.LogisticsRateUpdate):
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
-    obj.status = "pending"  # an edit needs re-approval
+    obj.status = "approved"  # the logistics handler is the authority — active immediately
     db.commit()
     db.refresh(obj)
     return obj
