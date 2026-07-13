@@ -84,6 +84,7 @@ class OrderItemIn(BaseModel):
     unit_price: float = 0
     quantity: int = 1
     unit: str = "Nos."
+    discount_pct: float = 0
     input_cable: str = ""
 
 

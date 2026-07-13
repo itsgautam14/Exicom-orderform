@@ -137,8 +137,14 @@ const EMPTY_ITEM: OrderItem = {
   unit_price: 0,
   quantity: 1,
   unit: "Nos.",
+  discount_pct: 0,
   input_cable: "",
 };
+
+// Net line amount after the per-line discount.
+function lineNet(it: OrderItem): number {
+  return it.unit_price * it.quantity * (1 - (it.discount_pct || 0) / 100);
+}
 
 function today(): string {
   return new Date().toLocaleDateString("en-GB");
@@ -342,7 +348,7 @@ export default function OrderFormBuilder() {
   }, [order]);
 
   const totals = useMemo(() => {
-    const subtotal = order.items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
+    const subtotal = order.items.reduce((s, it) => s + lineNet(it), 0);
     const freight = order.freight_charge || 0;
     const insurance = order.insurance_charge || 0;
     const tax = (subtotal * (order.tax_rate || 0)) / 100;
@@ -731,7 +737,7 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="lbl">Qty *</label>
                   <input className="inp" type="number" min="1" value={it.quantity}
@@ -742,7 +748,18 @@ export default function OrderFormBuilder() {
                   <input className="inp" type="number" step="0.01" value={it.unit_price}
                     onChange={(e) => setItem(i, { unit_price: parseFloat(e.target.value) || 0, catalog_id: undefined })} />
                 </div>
+                <div>
+                  <label className="lbl">Discount %</label>
+                  <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
+                    onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
+                </div>
                 <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
+              </div>
+              <div className="mt-1 text-right text-[11px] text-slate-500">
+                Line total: <span className="font-semibold text-slate-700">{cur} {fmt(lineNet(it))}</span>
+                {!!(it.discount_pct && it.discount_pct > 0) && (
+                  <span className="ml-1 text-emerald-600">({it.discount_pct}% off {cur} {fmt(it.unit_price * it.quantity)})</span>
+                )}
               </div>
               {(() => {
                 if (!it.catalog_id) return null;

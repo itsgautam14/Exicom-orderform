@@ -20,6 +20,7 @@ _COLUMNS = [
     ("orders", "transport_country", "VARCHAR(64) DEFAULT ''"),
     ("orders", "transport_qty", "NUMERIC(14,2) DEFAULT 0"),
     ("order_items", "input_cable", "VARCHAR(8) DEFAULT ''"),
+    ("order_items", "discount_pct", "NUMERIC(6,2) DEFAULT 0"),
     ("orders", "port_of_loading", "VARCHAR(128) DEFAULT ''"),
     ("orders", "port_of_destination", "VARCHAR(128) DEFAULT ''"),
     ("orders", "freight_charge", "NUMERIC(14,2) DEFAULT 0"),

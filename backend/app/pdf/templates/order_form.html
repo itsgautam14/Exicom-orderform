@@ -378,12 +378,13 @@ html, body {
 <table class="items">
   <thead>
     <tr>
-      <th style="width:17%">Product Code</th>
-      <th style="width:35%">Name / Description</th>
-      <th class="r" style="width:14%">Unit Price</th>
-      <th class="c" style="width:7%">QTY</th>
-      <th class="c" style="width:9%">Unit</th>
-      <th class="r" style="width:18%">Total Price</th>
+      <th style="width:16%">Product Code</th>
+      <th style="width:32%">Name / Description</th>
+      <th class="r" style="width:13%">Unit Price</th>
+      <th class="c" style="width:6%">QTY</th>
+      <th class="c" style="width:8%">Unit</th>
+      <th class="c" style="width:8%">Disc %</th>
+      <th class="r" style="width:17%">Total Price</th>
     </tr>
   </thead>
   <tbody>
@@ -401,6 +402,7 @@ html, body {
       <td class="r">{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
       <td class="c">{{ item.quantity }}</td>
       <td class="c">{{ item.unit }}</td>
+      <td class="c">{% if item.discount_pct %}{{ "%g"|format(item.discount_pct) }}%{% else %}—{% endif %}</td>
       <td class="r">{{ order.currency }} {{ "{:,.2f}".format(item.line_total) }}</td>
     </tr>
     {% endfor %}

@@ -33,6 +33,8 @@ export interface OrderItem {
   unit_price: number;
   quantity: number;
   unit: string;
+  /** Per-line discount percentage (0–100). */
+  discount_pct?: number;
   /** Whether the input cable is included ("Yes" / "No" / ""). */
   input_cable?: string;
   /** Links the line back to its catalog product so currency/qty can re-price it. */

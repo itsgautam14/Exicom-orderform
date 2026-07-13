@@ -119,6 +119,7 @@ class OrderItem(Base):
     unit_price: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     unit: Mapped[str] = mapped_column(String(32), default="Nos.")
+    discount_pct: Mapped[float] = mapped_column(Numeric(6, 2), default=0)  # per-line discount %
     input_cable: Mapped[str] = mapped_column(String(8), default="")  # "Yes" / "No" / ""
 
     order: Mapped["Order"] = relationship(back_populates="items")

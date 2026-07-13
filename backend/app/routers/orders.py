@@ -120,7 +120,8 @@ def _build_order_data(payload: schemas.OrderCreate) -> dict:
     subtotal = 0.0
     input_cable_total = 0.0
     for i, it in enumerate(payload.items):
-        line_total = float(it.unit_price) * int(it.quantity)
+        disc = float(it.discount_pct or 0)
+        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0), 2)
         subtotal += line_total
         if (it.input_cable or "") == "Yes":
             input_cable_total += crud.INPUT_CABLE_PRICE * int(it.quantity)
