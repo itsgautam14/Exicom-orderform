@@ -294,8 +294,7 @@ html, body {
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
         KAM Name: <b>{{ order.proposed_by }}</b><br/>
-        Quote Number: <b>{{ order.quote_number }}</b><br/>
-        Incoterms: <b>{{ order.incoterms }}</b>
+        Quote Number: <b>{{ order.quote_number }}</b>
       </div>
     </td>
   </tr>
@@ -449,6 +448,8 @@ html, body {
 <!-- TERMS & CONDITIONS -->
 <div class="section-header">Terms &amp; Conditions</div>
 <div class="terms">
+  {% set incoterm_names = {'EXW': 'Ex Works', 'FOB': 'Free On Board', 'CIF': 'Cost, Insurance & Freight', 'DDP': 'Delivered Duty Paid', 'DAP': 'Delivered At Place'} %}
+  <p><b>Incoterms:</b> {{ order.incoterms }}{% if incoterm_names.get(order.incoterms) %} ({{ incoterm_names[order.incoterms] }}){% endif %}</p>
   <p><b>Payment Terms:</b> {{ order.payment_terms }}</p>
   <p><b>Warranty:</b> {{ order.warranty }}</p>
   <p><b>Validity:</b> {{ order.validity }}</p>
