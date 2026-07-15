@@ -14,6 +14,19 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
 };
 
+const REASON_LABEL: Record<string, string> = {
+  logistics: "logistics missing",
+  pricebook: "below pricebook",
+};
+function reasonText(reason?: string): string {
+  return (reason || "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .map((r) => REASON_LABEL[r] || r)
+    .join(" · ");
+}
+
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] || { label: status || "—", cls: "bg-slate-100 text-slate-600" };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
@@ -175,6 +188,14 @@ export default function OrdersAdmin() {
           <div className="section-title">
             Complete &amp; Publish — <span className="text-slate-500">{publishing.quote_number}</span>
           </div>
+          {publishing.approval_reason && (
+            <div className="mb-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
+              Needs approval: {reasonText(publishing.approval_reason)}
+              {publishing.approval_reason.includes("pricebook") && (
+                <span className="font-normal"> — one or more lines are priced below pricebook; review before approving.</span>
+              )}
+            </div>
+          )}
           <p className="mb-3 text-xs text-slate-500">
             Fill in the transport cost for <b>{publishing.bill_to_country || "the destination"}</b>{" "}
             (in {publishing.currency}), then publish. This marks the order <b>Approved</b>.
@@ -255,7 +276,14 @@ export default function OrdersAdmin() {
                   <td className="px-4 py-2 text-slate-600">{o.incoterms}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-right text-slate-700">{money(o.grand_total, o.currency)}</td>
                   <td className="px-4 py-2 text-slate-600">{o.proposed_by || "—"}</td>
-                  <td className="px-4 py-2"><StatusBadge status={o.status} /></td>
+                  <td className="px-4 py-2">
+                    <StatusBadge status={o.status} />
+                    {o.status === "draft" && o.approval_reason && (
+                      <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600">
+                        {reasonText(o.approval_reason)}
+                      </div>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
                     {o.status === "draft" && (
                       <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>

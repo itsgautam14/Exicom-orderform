@@ -121,6 +121,7 @@ class OrderBase(BaseModel):
     warranty: str = ""
     validity: str = ""
     lead_time: str = ""
+    comments: str = ""
 
     # Logistics (CIF only)
     transport_mode: str = ""
@@ -160,6 +161,7 @@ class OrderOut(OrderBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
     status: str = "submitted"
+    approval_reason: str = ""
     items: list[OrderItemOut] = []
     # computed
     subtotal: float = 0

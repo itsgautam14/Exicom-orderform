@@ -73,6 +73,7 @@ class Order(Base):
     warranty: Mapped[str] = mapped_column(Text, default="")
     validity: Mapped[str] = mapped_column(Text, default="")
     lead_time: Mapped[str] = mapped_column(Text, default="")
+    comments: Mapped[str] = mapped_column(Text, default="")
 
     # Logistics (populated when incoterms = CIF)
     transport_mode: Mapped[str] = mapped_column(String(32), default="")
@@ -93,6 +94,8 @@ class Order(Base):
     #   submitted — a complete quotation saved by a sales person.
     #   approved  — an admin filled the missing logistics and published it.
     status: Mapped[str] = mapped_column(String(16), default="submitted", index=True)
+    # Why a draft needs admin sign-off: comma list of "logistics" / "pricebook".
+    approval_reason: Mapped[str] = mapped_column(String(64), default="")
 
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(

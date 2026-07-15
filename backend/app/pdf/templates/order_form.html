@@ -230,6 +230,7 @@ html, body {
 .signature-area { margin-top: 7mm; }
 .signature-line { border-bottom: 1px solid #bbb; width: 80mm; }
 .signature-label { font-size: 8pt; color: #666; margin-top: 1.5mm; }
+.signature-note { font-size: 8pt; font-style: italic; color: #444; margin-top: 1.2mm; }
 
 /* =========================================================
    LOGISTICS SECTION (CIF orders)
@@ -288,7 +289,7 @@ html, body {
     </td>
     <td class="meta-cell">
       <div class="doc-title">ORDER FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
-      {% if order.status == "draft" %}<div class="draft-note">Provisional — transport/logistics cost pending admin approval.</div>{% endif %}
+      {% if order.status == "draft" %}<div class="draft-note">Provisional — subject to internal approval.</div>{% endif %}
       <div class="meta-lines">
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
@@ -454,6 +455,7 @@ html, body {
   <p><b>Warranty:</b> {{ order.warranty }}</p>
   <p><b>Validity:</b> {{ order.validity }}</p>
   <p><b>Production Lead Times:</b> {{ order.lead_time }}</p>
+  {% if order.comments %}<p><b>Comments:</b> {{ order.comments | replace('\n', '<br/>') | safe }}</p>{% endif %}
 </div>
 
 <hr class="hr-thick"/>
@@ -473,6 +475,7 @@ html, body {
 <div class="signature-area">
   <div class="signature-line"></div>
   <div class="signature-label">Signature (required)</div>
+  <div class="signature-note">Signature constitutes a firm order under the attached terms.</div>
 </div>
 {% endif %}
 

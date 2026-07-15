@@ -13,17 +13,53 @@ INPUT_CABLE_PRICE = 10
 
 # ----------------------------- Approval status -------------------------------
 
-def order_status_for(incoterms: str, freight_charge) -> str:
-    """Decide a fresh order's status from its logistics completeness.
+def is_logistics_missing(incoterms: str, freight_charge) -> bool:
+    """A CIF order with no transport cost couldn't have its logistics filled."""
+    return (incoterms or "").upper() == "CIF" and float(freight_charge or 0) <= 0
 
-    A CIF order needs a country transport cost. When the sales person can't fill
-    it (no approved rate for the destination → freight stays 0) the quotation is
-    a ``draft`` an admin must complete. Everything else is a finished
-    ``submitted`` quotation.
+
+def order_status_for(incoterms: str, freight_charge) -> str:
+    """Status from logistics completeness only (used by the live preview/pdf)."""
+    return "draft" if is_logistics_missing(incoterms, freight_charge) else "submitted"
+
+
+def pricebook_unit_price(product: "models.CatalogProduct", currency: str, qty: int):
+    """The catalog list price for a product at the given currency and quantity.
+
+    Mirrors the frontend ``priceFor``: pick the tier whose [min, max] brackets the
+    quantity; fall back to the first tier when the qty is below the lowest bracket.
+    Returns ``None`` when there's no price in that currency.
     """
-    if (incoterms or "").upper() == "CIF" and float(freight_charge or 0) <= 0:
-        return "draft"
-    return "submitted"
+    tiers = (product.prices or {}).get(currency)
+    if not tiers:
+        return None
+    for lo, hi, price in tiers:
+        if qty >= lo and (hi is None or qty <= hi):
+            return float(price)
+    return float(tiers[0][2])
+
+
+def below_pricebook_items(db: Session, currency: str, items) -> bool:
+    """True if any line is priced below the catalog list price for its product."""
+    for it in items:
+        code = getattr(it, "product_code", "") or ""
+        if not code:
+            continue
+        prod = db.query(models.CatalogProduct).filter(
+            models.CatalogProduct.product_code == code
+        ).first()
+        if not prod:
+            continue
+        book = pricebook_unit_price(prod, currency, int(getattr(it, "quantity", 0) or 0))
+        if book is None:
+            continue
+        # Compare the *effective* price the customer pays (after any line discount).
+        disc = float(getattr(it, "discount_pct", 0) or 0)
+        effective = float(getattr(it, "unit_price", 0) or 0) * (1 - disc / 100.0)
+        # small epsilon so exact matches aren't flagged by float noise
+        if effective < book - 0.005:
+            return True
+    return False
 
 
 # ----------------------------- Totals ----------------------------------------
@@ -87,6 +123,7 @@ def compute_totals(order: models.Order) -> dict:
         "warranty": order.warranty,
         "validity": order.validity,
         "lead_time": order.lead_time,
+        "comments": order.comments or "",
         "transport_mode": order.transport_mode or "",
         "transport_country": order.transport_country or "",
         "transport_qty": float(order.transport_qty or 0),
@@ -98,6 +135,7 @@ def compute_totals(order: models.Order) -> dict:
         "po_number": order.po_number,
         "po_amount": order.po_amount,
         "status": order.status or "submitted",
+        "approval_reason": order.approval_reason or "",
         "items": items,
         "subtotal": round(subtotal, 2),
         "input_cable_total": input_cable_total,
@@ -222,11 +260,21 @@ def _ensure_pending_logistics(db: Session, country: str) -> None:
 def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     payload = data.model_dump(exclude={"items"})
     obj = models.Order(**payload)
-    # The server decides the status from logistics completeness — never the client.
-    obj.status = order_status_for(obj.incoterms, obj.freight_charge)
     _apply_items(obj, data.items)
+
+    # The server decides whether a quote needs admin sign-off — never the client.
+    # Two independent reasons: missing CIF logistics, and/or a price below pricebook.
+    reasons = []
+    logistics_missing = is_logistics_missing(obj.incoterms, obj.freight_charge)
+    if logistics_missing:
+        reasons.append("logistics")
+    if below_pricebook_items(db, obj.currency, data.items):
+        reasons.append("pricebook")
+    obj.status = "draft" if reasons else "submitted"
+    obj.approval_reason = ",".join(reasons)
+
     db.add(obj)
-    if obj.status == "draft":
+    if logistics_missing:
         # Route the missing-logistics country into the Logistics panel for pricing.
         _ensure_pending_logistics(
             db, obj.transport_country or obj.ship_to_country or obj.bill_to_country

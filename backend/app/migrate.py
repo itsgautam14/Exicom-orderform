@@ -26,6 +26,8 @@ _COLUMNS = [
     ("orders", "freight_charge", "NUMERIC(14,2) DEFAULT 0"),
     ("orders", "insurance_charge", "NUMERIC(14,2) DEFAULT 0"),
     ("orders", "status", "VARCHAR(16) DEFAULT 'submitted'"),
+    ("orders", "comments", "TEXT DEFAULT ''"),
+    ("orders", "approval_reason", "VARCHAR(64) DEFAULT ''"),
 ]
 
 

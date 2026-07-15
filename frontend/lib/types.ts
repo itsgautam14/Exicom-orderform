@@ -71,6 +71,7 @@ export interface OrderInput {
   warranty: string;
   validity: string;
   lead_time: string;
+  comments: string;
 
   transport_mode: string;
   transport_country: string;
@@ -91,6 +92,8 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
   id: string;
   /** Approval workflow: "draft" | "submitted" | "approved". */
   status: string;
+  /** Why a draft needs sign-off: comma list of "logistics" / "pricebook". */
+  approval_reason?: string;
   items: OrderItemOut[];
   subtotal: number;
   tax_amount: number;

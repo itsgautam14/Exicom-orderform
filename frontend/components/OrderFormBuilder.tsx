@@ -146,6 +146,47 @@ function lineNet(it: OrderItem): number {
   return it.unit_price * it.quantity * (1 - (it.discount_pct || 0) / 100);
 }
 
+// ---- My Quotes: per-browser history of quotes this sales person generated --------
+interface MyQuote {
+  id?: string;          // backend id once persisted
+  quote_number: string;
+  at: number;           // when first generated (ms)
+  customer: string;
+  currency: string;
+  grand_total: number;
+  status: string;
+  order: OrderInput;    // full snapshot → reopen / re-download
+}
+const MY_QUOTES_KEY = "my_quotes";
+function grandTotalOf(o: OrderInput): number {
+  const sub = o.items.reduce((s, it) => s + lineNet(it), 0);
+  const tax = (sub * (o.tax_rate || 0)) / 100;
+  return sub + (o.freight_charge || 0) + (o.insurance_charge || 0) + tax;
+}
+function loadMyQuotes(): MyQuote[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(MY_QUOTES_KEY) || "[]"); } catch { return []; }
+}
+function saveMyQuote(o: OrderInput, meta: { id?: string; status?: string }) {
+  if (typeof window === "undefined") return;
+  try {
+    const list = loadMyQuotes();
+    const idx = list.findIndex((q) => q.quote_number === o.quote_number);
+    const entry: MyQuote = {
+      id: meta.id ?? (idx >= 0 ? list[idx].id : undefined),
+      quote_number: o.quote_number,
+      at: idx >= 0 ? list[idx].at : Date.now(),
+      customer: o.prepared_for || o.bill_to_company || "",
+      currency: o.currency,
+      grand_total: grandTotalOf(o),
+      status: meta.status ?? (idx >= 0 ? list[idx].status : "submitted"),
+      order: o,
+    };
+    if (idx >= 0) list[idx] = entry; else list.unshift(entry);
+    localStorage.setItem(MY_QUOTES_KEY, JSON.stringify(list.slice(0, 200)));
+  } catch { /* ignore quota / serialization errors */ }
+}
+
 function today(): string {
   return new Date().toLocaleDateString("en-GB");
 }
@@ -207,6 +248,7 @@ const BLANK_ORDER = (): OrderInput => ({
   warranty: "36 months from date of commissioning (or 39 months from date of dispatch, whichever is earlier).",
   validity: "This offer is valid for 30 days from the date of issue.",
   lead_time: STANDARD_LEAD_TIME,
+  comments: "",
   transport_mode: "",
   transport_country: "",
   transport_qty: 0,
@@ -231,6 +273,8 @@ export default function OrderFormBuilder() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
+  const [showQuotes, setShowQuotes] = useState(false);
+  const [myQuotes, setMyQuotes] = useState<MyQuote[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
   const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
@@ -358,6 +402,24 @@ export default function OrderFormBuilder() {
   // Shipping space: pallets (sea) and box count (air), per the ratios in shippingSpace().
   const space = useMemo(() => shippingSpace(order.items, catalog), [order.items, catalog]);
   const palletCount = useMemo(() => Math.ceil(space.pallets), [space.pallets]);
+
+  // Pricebook comparison → a line whose effective (post-discount) price is below the
+  // catalog list price makes the whole quote require admin approval.
+  function pricebookFor(it: OrderItem): number | null {
+    const p = it.catalog_id
+      ? catalog.find((c) => c.id === it.catalog_id)
+      : it.product_code
+        ? catalog.find((c) => c.product_code === it.product_code)
+        : undefined;
+    return p ? priceFor(p, order.currency, it.quantity) : null;
+  }
+  function isBelowPricebook(it: OrderItem): boolean {
+    const book = pricebookFor(it);
+    if (book == null) return false;
+    const effective = it.unit_price * (1 - (it.discount_pct || 0) / 100);
+    return effective < book - 0.005;
+  }
+  const belowPricebookAny = order.items.some(isBelowPricebook);
 
   // Link the transport quantity to the order items:
   //   Airways → number of boxes (input cable excluded — it ships in the charger box)
@@ -492,6 +554,7 @@ export default function OrderFormBuilder() {
     if (persistedId.current) return;
     const saved = await api.createOrder(o);
     persistedId.current = saved.id;
+    saveMyQuote(o, { id: saved.id, status: saved.status }); // authoritative id + status
   }
 
   async function downloadPdf() {
@@ -509,6 +572,8 @@ export default function OrderFormBuilder() {
       a.download = `Exicom_${quoteNumber}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      // Record it in this browser's "My Quotes" history immediately (works offline).
+      saveMyQuote(issued, { status: isLogisticsDraft(issued) || belowPricebookAny ? "draft" : "submitted" });
       // File it under the admin Orders panel (draft/submitted). Best-effort here —
       // the PDF already downloaded, so a persist failure only warns.
       persistOrder(issued).catch((e) =>
@@ -542,6 +607,34 @@ export default function OrderFormBuilder() {
     }
   }
 
+  // ---- My Quotes: reopen or re-download a past quote (keeps its original number) ----
+  function openMyQuotes() {
+    setMyQuotes(loadMyQuotes());
+    setShowQuotes(true);
+  }
+  function openQuote(q: MyQuote) {
+    finalizedNumber.current = q.quote_number; // reuse the original number
+    persistedId.current = q.id || null;       // don't create a duplicate on re-save
+    setOrder(q.order);
+    setPaymentCustom(!PAYMENT_PRESETS.includes(q.order.payment_terms));
+    setShipSameAsBill(false);
+    setItemFilters({});
+    setShowQuotes(false);
+  }
+  async function reDownloadQuote(q: MyQuote) {
+    try {
+      const blob = await api.pdfBlob(q.order);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Exicom_${q.quote_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+
   const cur = order.currency;
   const fmt = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -563,6 +656,13 @@ export default function OrderFormBuilder() {
               Save Order
             </button>
             <button
+              className="btn flex-shrink-0 px-3 text-slate-500 hover:text-exicom-tealDark hover:bg-exicom-teal/5"
+              title="My past quotes"
+              onClick={openMyQuotes}
+            >
+              🕘 <span className="hidden sm:inline">Quotes</span>
+            </button>
+            <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
               onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { finalizedNumber.current = null; persistedId.current = null; setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
@@ -570,6 +670,11 @@ export default function OrderFormBuilder() {
               ✕ New
             </button>
           </div>
+          {belowPricebookAny && (
+            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
+              ⚠ One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+            </div>
+          )}
         </div>
 
         {/* Header fields */}
@@ -761,6 +866,11 @@ export default function OrderFormBuilder() {
                   <span className="ml-1 text-emerald-600">({it.discount_pct}% off {cur} {fmt(it.unit_price * it.quantity)})</span>
                 )}
               </div>
+              {isBelowPricebook(it) && (
+                <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                  ⚠ Below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
+                </div>
+              )}
               {(() => {
                 if (!it.catalog_id) return null;
                 const p = catalog.find((c) => c.id === it.catalog_id);
@@ -943,6 +1053,7 @@ export default function OrderFormBuilder() {
             <label className="lbl">Production Lead Time (standard)</label>
             <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly value={order.lead_time} />
           </div>
+          <Area label="Comments (shown in Terms & Conditions)" v={order.comments} on={(v) => set("comments", v)} rows={2} />
           <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
             <b className="text-slate-600">Standard Terms</b> are automatically included on the order form:
             Documents · Scope of Supply · Freight and Insurance · Terms of Payment.
@@ -1044,6 +1155,61 @@ export default function OrderFormBuilder() {
           👁 Preview
         </button>
       </div>
+
+      {/* ---------- MY QUOTES (per-browser history) ---------- */}
+      {showQuotes && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-16" onClick={() => setShowQuotes(false)}>
+          <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <h2 className="text-base font-bold text-slate-800">
+                My Quotes <span className="text-xs font-normal text-slate-400">({myQuotes.length})</span>
+              </h2>
+              <button className="text-slate-400 hover:text-slate-700" onClick={() => setShowQuotes(false)}>✕</button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-2">
+              {myQuotes.length === 0 ? (
+                <p className="px-3 py-8 text-center text-sm text-slate-500">
+                  No quotes yet. Download or save a quote and it will appear here.
+                </p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="text-left text-[11px] uppercase text-slate-400">
+                    <tr>
+                      <th className="px-2 py-1">Quote #</th>
+                      <th className="px-2 py-1">Customer</th>
+                      <th className="px-2 py-1 text-right">Total</th>
+                      <th className="px-2 py-1">Status</th>
+                      <th className="px-2 py-1"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myQuotes.map((q) => (
+                      <tr key={q.quote_number} className="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td className="px-2 py-2">
+                          <div className="font-mono text-[11px] font-semibold text-slate-800">{q.quote_number}</div>
+                          <div className="text-[10px] text-slate-400">{new Date(q.at).toLocaleDateString()}</div>
+                        </td>
+                        <td className="px-2 py-2 text-slate-600">{q.customer || "—"}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right text-slate-700">{q.currency} {fmt(q.grand_total)}</td>
+                        <td className="px-2 py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            q.status === "draft" ? "bg-amber-100 text-amber-700"
+                              : q.status === "approved" ? "bg-emerald-100 text-emerald-700"
+                              : "bg-sky-100 text-sky-700"}`}>{q.status}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right">
+                          <button className="mr-3 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => openQuote(q)}>Open</button>
+                          <button className="text-xs font-semibold text-slate-600 hover:underline" onClick={() => reDownloadQuote(q)}>PDF</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

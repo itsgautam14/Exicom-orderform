@@ -114,8 +114,12 @@ def order_preview(order_id: str, db: Session = Depends(get_db)):
     return HTMLResponse(render_order_html(data))
 
 
-def _build_order_data(payload: schemas.OrderCreate) -> dict:
-    """Shared computation for preview and pdf endpoints."""
+def _build_order_data(payload: schemas.OrderCreate, db: Session | None = None) -> dict:
+    """Shared computation for preview and pdf endpoints.
+
+    When ``db`` is given (the download path) the status also reflects a
+    below-pricebook price; the frequent live preview skips that DB lookup.
+    """
     items = []
     subtotal = 0.0
     input_cable_total = 0.0
@@ -131,10 +135,15 @@ def _build_order_data(payload: schemas.OrderCreate) -> dict:
     freight_charge = round(float(payload.freight_charge or 0), 2)
     insurance_charge = round(float(payload.insurance_charge or 0), 2)
     grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount, 2)
+
+    logistics_missing = crud.is_logistics_missing(payload.incoterms, freight_charge)
+    below = db is not None and crud.below_pricebook_items(db, payload.currency, payload.items)
+    status = "draft" if (logistics_missing or below) else "submitted"
+
     return {
         **payload.model_dump(exclude={"items"}),
         "id": "preview",
-        "status": crud.order_status_for(payload.incoterms, freight_charge),
+        "status": status,
         "items": items,
         "subtotal": round(subtotal, 2),
         "input_cable_total": input_cable_total,
@@ -152,9 +161,9 @@ def preview_unsaved(payload: schemas.OrderCreate):
 
 
 @router.post("/pdf")
-def pdf_unsaved(payload: schemas.OrderCreate):
+def pdf_unsaved(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
     """Generate a PDF for an in-progress order without persisting it."""
-    data = _build_order_data(payload)
+    data = _build_order_data(payload, db)
     pdf_bytes = render_order_pdf(data)
     filename = f"Exicom_{data['quote_number'] or 'order'}.pdf"
     return Response(
