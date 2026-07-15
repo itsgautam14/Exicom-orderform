@@ -7,7 +7,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
-from app.auth import require_admin
 from app.database import get_db
 from app.pdf.generator import render_order_pdf, render_order_html
 
@@ -40,9 +39,9 @@ def next_quote_number(db: Session = Depends(get_db)):
     return {"period": period, "sequence": value, "quote_number": f"{period}-{value:02d}"}
 
 
-# The saved-order collection is the admin "Orders" panel — reads and writes here
-# require the admin password. Only create (sales person saving a quote) is public.
-@router.get("", response_model=list[schemas.OrderOut], dependencies=[Depends(require_admin)])
+# The saved-order collection is the "Orders" / Approval panel. It is open (no admin
+# password) so the approval workflow is accessible to the team.
+@router.get("", response_model=list[schemas.OrderOut])
 def list_orders(db: Session = Depends(get_db)):
     return [crud.compute_totals(o) for o in crud.list_orders(db)]
 
@@ -53,7 +52,7 @@ def create_order(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.get("/{order_id}", response_model=schemas.OrderOut, dependencies=[Depends(require_admin)])
+@router.get("/{order_id}", response_model=schemas.OrderOut)
 def get_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -61,7 +60,7 @@ def get_order(order_id: str, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.put("/{order_id}", response_model=schemas.OrderOut, dependencies=[Depends(require_admin)])
+@router.put("/{order_id}", response_model=schemas.OrderOut)
 def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -70,10 +69,9 @@ def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depe
     return crud.compute_totals(obj)
 
 
-@router.post("/{order_id}/publish", response_model=schemas.OrderOut,
-             dependencies=[Depends(require_admin)])
+@router.post("/{order_id}/publish", response_model=schemas.OrderOut)
 def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = Depends(get_db)):
-    """Admin fills in the missing logistics and marks the draft as approved."""
+    """Fill in the missing logistics and mark the draft as approved."""
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
@@ -81,8 +79,7 @@ def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = De
     return crud.compute_totals(obj)
 
 
-@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(require_admin)])
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -90,7 +87,7 @@ def delete_order(order_id: str, db: Session = Depends(get_db)):
     crud.delete_order(db, obj)
 
 
-@router.get("/{order_id}/pdf", dependencies=[Depends(require_admin)])
+@router.get("/{order_id}/pdf")
 def order_pdf(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
@@ -105,7 +102,7 @@ def order_pdf(order_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{order_id}/preview", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
+@router.get("/{order_id}/preview", response_class=HTMLResponse)
 def order_preview(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:

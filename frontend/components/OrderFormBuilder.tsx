@@ -594,12 +594,15 @@ export default function OrderFormBuilder() {
       const quoteNumber = await ensureNumber();
       const issued = { ...order, quote_number: quoteNumber };
       setOrder(issued);
-      await persistOrder(issued); // must succeed to claim "saved"
-      const draft = isLogisticsDraft(issued);
-      const msg = draft
-        ? `Saved as DRAFT — ${quoteNumber}.\n\nTransport/logistics cost is missing, so this country has been sent to the Logistics tab for pricing and an admin needs to complete & approve it.\n\nDownload the draft PDF now?`
-        : `Order ${quoteNumber} saved.\n\nDownload PDF now?`;
-      if (confirm(msg)) await downloadPdf();
+      await persistOrder(issued); // send it to the Approval panel (no auto-download)
+      const needsApproval = isLogisticsDraft(issued) || belowPricebookAny;
+      alert(
+        needsApproval
+          ? `Order ${quoteNumber} has been sent to the Approval Admin.\n\nIt is a DRAFT and needs approval before it's final${
+              isLogisticsDraft(issued) ? " (the destination has also been sent to the Logistics tab for pricing)" : ""
+            }.`
+          : `Order ${quoteNumber} has been sent to the Approval Admin.`
+      );
     } catch (e) {
       alert("Could not save the order — is the backend running?\n\n" + (e as Error).message);
     } finally {
@@ -652,8 +655,8 @@ export default function OrderFormBuilder() {
             <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
               {busy ? "Working…" : "⤓  Download PDF"}
             </button>
-            <button className="btn flex-1" onClick={saveOrder} disabled={busy}>
-              Save Order
+            <button className="btn flex-1" onClick={saveOrder} disabled={busy} title="Save and send to the Approval Admin (no download)">
+              Save &amp; Send
             </button>
             <button
               className="btn flex-shrink-0 px-3 text-slate-500 hover:text-exicom-tealDark hover:bg-exicom-teal/5"

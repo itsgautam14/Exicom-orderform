@@ -45,7 +45,7 @@ export default function Home() {
       </header>
 
       {tab === "order" && <OrderFormBuilder />}
-      {tab === "orders" && <AdminGate><OrdersAdmin /></AdminGate>}
+      {tab === "orders" && <OrdersAdmin />}
       {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
       {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
     </main>
