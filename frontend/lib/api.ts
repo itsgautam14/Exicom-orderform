@@ -93,8 +93,12 @@ export const api = {
 
   // ---- saved orders (admin "Orders" panel) ----
 
-  listOrders: (): Promise<OrderOut[]> =>
-    fetch(`${BASE}/api/orders`, { headers: adminHeaders() }).then(json<OrderOut[]>),
+  // Pass createdBy to scope to one sales person's own quotes (Past Quotes);
+  // omit it for the admin Approvals view (all quotes).
+  listOrders: (createdBy?: string): Promise<OrderOut[]> =>
+    fetch(`${BASE}/api/orders${createdBy ? `?created_by=${encodeURIComponent(createdBy)}` : ""}`, {
+      headers: adminHeaders(),
+    }).then(json<OrderOut[]>),
 
   publishOrder: (id: string, body: OrderPublish): Promise<OrderOut> =>
     fetch(`${BASE}/api/orders/${id}/publish`, {

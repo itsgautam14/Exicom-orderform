@@ -10,6 +10,9 @@ from app import models, schemas
 # Input cable add-on: fixed price per unit (order currency).
 INPUT_CABLE_PRICE = 10
 
+# A line priced more than this fraction below the pricebook needs admin approval.
+APPROVAL_DISCOUNT = 0.05  # 5%
+
 
 # ----------------------------- Approval status -------------------------------
 
@@ -40,7 +43,7 @@ def pricebook_unit_price(product: "models.CatalogProduct", currency: str, qty: i
 
 
 def below_pricebook_items(db: Session, currency: str, items) -> bool:
-    """True if any line is priced below the catalog list price for its product."""
+    """True if any line is priced more than ``APPROVAL_DISCOUNT`` below pricebook."""
     for it in items:
         code = getattr(it, "product_code", "") or ""
         if not code:
@@ -53,11 +56,12 @@ def below_pricebook_items(db: Session, currency: str, items) -> bool:
         book = pricebook_unit_price(prod, currency, int(getattr(it, "quantity", 0) or 0))
         if book is None:
             continue
-        # Compare the *effective* price the customer pays (after any line discount).
+        # Compare the *effective* price the customer pays (after any line discount)
+        # against the pricebook, allowing up to APPROVAL_DISCOUNT (5%) before flagging.
         disc = float(getattr(it, "discount_pct", 0) or 0)
         effective = float(getattr(it, "unit_price", 0) or 0) * (1 - disc / 100.0)
-        # small epsilon so exact matches aren't flagged by float noise
-        if effective < book - 0.005:
+        threshold = book * (1 - APPROVAL_DISCOUNT)
+        if effective < threshold - 1e-6:  # epsilon so exactly 5% isn't flagged
             return True
     return False
 
@@ -136,6 +140,7 @@ def compute_totals(order: models.Order) -> dict:
         "po_amount": order.po_amount,
         "status": order.status or "submitted",
         "approval_reason": order.approval_reason or "",
+        "created_by": order.created_by or "",
         "items": items,
         "subtotal": round(subtotal, 2),
         "input_cable_total": input_cable_total,
@@ -224,8 +229,10 @@ def delete_logistics(db: Session, obj: models.LogisticsRate) -> None:
 
 # ----------------------------- Orders ----------------------------------------
 
-def list_orders(db: Session) -> list[models.Order]:
+def list_orders(db: Session, created_by: str | None = None) -> list[models.Order]:
     stmt = select(models.Order).order_by(models.Order.created_at.desc())
+    if created_by:
+        stmt = stmt.where(models.Order.created_by == created_by)
     return list(db.scalars(stmt))
 
 

@@ -288,7 +288,7 @@ html, body {
       <div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>
     </td>
     <td class="meta-cell">
-      <div class="doc-title">ORDER FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
+      <div class="doc-title">QUOTE FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
       {% if order.status == "draft" %}<div class="draft-note">Provisional — subject to internal approval.</div>{% endif %}
       <div class="meta-lines">
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
@@ -463,7 +463,7 @@ html, body {
 <!-- PURCHASE ORDER INFORMATION -->
 <div class="section-header">Purchase Order Information</div>
 <div class="po">
-  <div class="q">Is a Purchase Order (PO) required for the purchase of the products on this Order Form? (Customer to complete)</div>
+  <div class="q">Is a Purchase Order (PO) required for the purchase of the products on this Quote Form? (Customer to complete)</div>
   <div class="choice">
     {% if order.po_required %}&#9746;{% else %}&#9744;{% endif %} Yes
     &nbsp;&nbsp;&nbsp;

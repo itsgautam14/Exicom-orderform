@@ -86,6 +86,8 @@ def parse_ac(ws) -> list[dict]:
         code, name = clean(row[0]), clean(row[1])
         if not name:
             continue
+        if "black" in name.lower():   # "remove black": skip the Black-variant rows
+            continue
         prices = {}
         for cur, cols in (("USD", row[2:5]), ("INR", row[5:8]), ("EUR", row[8:11]), ("MYR", row[11:14])):
             t = build_tiers(list(cols), AC_TIERS)

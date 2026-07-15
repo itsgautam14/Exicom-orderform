@@ -136,6 +136,8 @@ class OrderBase(BaseModel):
     po_number: str = ""
     po_amount: str = ""
 
+    created_by: str = ""
+
 
 class OrderCreate(OrderBase):
     items: list[OrderItemIn] = []

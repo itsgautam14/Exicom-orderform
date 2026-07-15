@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { getCreatorId } from "@/lib/creator";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
 type StatusFilter = "all" | "draft" | "submitted" | "approved";
@@ -16,7 +17,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 const REASON_LABEL: Record<string, string> = {
   logistics: "logistics missing",
-  pricebook: "below pricebook",
+  pricebook: "discount > 5%",
 };
 function reasonText(reason?: string): string {
   return (reason || "")
@@ -32,7 +33,12 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
 }
 
-export default function OrdersAdmin() {
+/**
+ * mode="mine"  → each sales person's own Past Quotes (scoped by creator id, no approval actions).
+ * mode="admin" → the Approvals view: every quote, with Complete/Publish + Delete (behind the admin gate).
+ */
+export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin" }) {
+  const isAdmin = mode === "admin";
   const [orders, setOrders] = useState<OrderOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +52,7 @@ export default function OrdersAdmin() {
     setLoading(true);
     setError(null);
     try {
-      setOrders(await api.listOrders());
+      setOrders(await api.listOrders(isAdmin ? undefined : getCreatorId()));
     } catch (e) {
       setError((e as Error).message);
       setOrders([]);
@@ -144,16 +150,21 @@ export default function OrdersAdmin() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-lg font-bold text-slate-800">
-            Order Forms
-            {counts.draft > 0 && (
+            {isAdmin ? "Approvals" : "Past Quotes"}
+            {isAdmin && counts.draft > 0 && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
                 {counts.draft} draft{counts.draft > 1 ? "s" : ""} awaiting
               </span>
             )}
           </h1>
           <p className="hidden text-sm text-slate-500 sm:block">
-            Every quotation the team generates is recorded here. A <b>Draft</b> is missing its transport cost —
-            complete the logistics and publish it to <b>Approved</b>.
+            {isAdmin ? (
+              <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
+              discount over 5%) — review and publish it to <b>Approved</b>.</>
+            ) : (
+              <>Quotes you have generated. A <b>Draft</b> is awaiting admin approval; once <b>Approved</b> you can
+              download the final PDF again.</>
+            )}
           </p>
         </div>
         <button className="btn flex-shrink-0" onClick={reload}>↻ Refresh</button>
@@ -192,7 +203,7 @@ export default function OrdersAdmin() {
             <div className="mb-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
               Needs approval: {reasonText(publishing.approval_reason)}
               {publishing.approval_reason.includes("pricebook") && (
-                <span className="font-normal"> — one or more lines are priced below pricebook; review before approving.</span>
+                <span className="font-normal"> — one or more lines are more than 5% below pricebook; review before approving.</span>
               )}
             </div>
           )}
@@ -285,13 +296,17 @@ export default function OrdersAdmin() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {o.status === "draft" && (
+                    {isAdmin && o.status === "draft" && (
                       <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>
                         Complete
                       </button>
                     )}
-                    <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>PDF</button>
-                    <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
+                    <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
+                      {o.status === "approved" ? "Download again" : "PDF"}
+                    </button>
+                    {isAdmin && (
+                      <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
+                    )}
                   </td>
                 </tr>
               ))}

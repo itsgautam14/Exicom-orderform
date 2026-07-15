@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Exicom Order Form Builder",
-  description: "Generate Exicom Order Form PDFs",
+  title: "Exicom Quote Form Builder",
+  description: "Generate Exicom Quote Form PDFs",
 };
 
 export const viewport: Viewport = {

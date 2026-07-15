@@ -7,7 +7,7 @@ import CatalogAdmin from "@/components/CatalogAdmin";
 import LogisticsAdmin from "@/components/LogisticsAdmin";
 import OrdersAdmin from "@/components/OrdersAdmin";
 
-type Tab = "order" | "orders" | "catalog" | "logistics";
+type Tab = "order" | "orders" | "approvals" | "catalog" | "logistics";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("order");
@@ -21,17 +21,21 @@ export default function Home() {
             <img src="/logo.png" alt="Exicom" className="h-8 w-8 flex-shrink-0" />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[15px] font-extrabold tracking-tight text-slate-800">
-                exicom <span className="hidden font-light text-slate-400 sm:inline">| Order Form Builder</span>
+                exicom <span className="hidden font-light text-slate-400 sm:inline">| Quote Form Builder</span>
               </div>
             </div>
           </div>
           <nav className="flex flex-shrink-0 gap-1 rounded-xl bg-slate-100/70 p-1">
             <button onClick={() => setTab("order")} className={`tab ${tab === "order" ? "tab-active" : ""}`}>
-              <span className="hidden sm:inline">Order Form</span>
-              <span className="sm:hidden">Order</span>
+              <span className="hidden sm:inline">Quote Form</span>
+              <span className="sm:hidden">Quote</span>
             </button>
             <button onClick={() => setTab("orders")} className={`tab ${tab === "orders" ? "tab-active" : ""}`}>
-              Orders
+              <span className="hidden sm:inline">Past Quotes</span>
+              <span className="sm:hidden">Quotes</span>
+            </button>
+            <button onClick={() => setTab("approvals")} className={`tab ${tab === "approvals" ? "tab-active" : ""}`}>
+              Approvals
             </button>
             <button onClick={() => setTab("catalog")} className={`tab ${tab === "catalog" ? "tab-active" : ""}`}>
               <span className="hidden sm:inline">Catalog / Pricing</span>
@@ -45,7 +49,8 @@ export default function Home() {
       </header>
 
       {tab === "order" && <OrderFormBuilder />}
-      {tab === "orders" && <OrdersAdmin />}
+      {tab === "orders" && <OrdersAdmin mode="mine" />}
+      {tab === "approvals" && <AdminGate><OrdersAdmin mode="admin" /></AdminGate>}
       {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
       {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
     </main>

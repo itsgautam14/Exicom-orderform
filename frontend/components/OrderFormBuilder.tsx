@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem } from "@/lib/types";
 import { WORLD_COUNTRIES } from "@/lib/countries";
+import { getCreatorId } from "@/lib/creator";
 
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
@@ -92,6 +93,9 @@ const PAYMENT_PRESETS = [
 const STANDARD_LEAD_TIME = "Production lead time is 4-6 weeks from PO acceptance";
 
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
+// A line more than this fraction below pricebook needs admin approval (5%).
+const MAX_DISCOUNT = 0.05;
+
 function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
   const tiers = p.prices?.[currency];
   if (!tiers || tiers.length === 0) return null;
@@ -417,7 +421,7 @@ export default function OrderFormBuilder() {
     const book = pricebookFor(it);
     if (book == null) return false;
     const effective = it.unit_price * (1 - (it.discount_pct || 0) / 100);
-    return effective < book - 0.005;
+    return effective < book * (1 - MAX_DISCOUNT) - 1e-6;
   }
   const belowPricebookAny = order.items.some(isBelowPricebook);
 
@@ -552,9 +556,10 @@ export default function OrderFormBuilder() {
   // Throws on failure — callers decide whether that's fatal.
   async function persistOrder(o: OrderInput): Promise<void> {
     if (persistedId.current) return;
-    const saved = await api.createOrder(o);
+    const withCreator = { ...o, created_by: o.created_by || getCreatorId() };
+    const saved = await api.createOrder(withCreator);
     persistedId.current = saved.id;
-    saveMyQuote(o, { id: saved.id, status: saved.status }); // authoritative id + status
+    saveMyQuote(withCreator, { id: saved.id, status: saved.status }); // authoritative id + status
   }
 
   async function downloadPdf() {
@@ -675,7 +680,7 @@ export default function OrderFormBuilder() {
           </div>
           {belowPricebookAny && (
             <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
-              ⚠ One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+              ⚠ One or more prices are more than 5% below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
             </div>
           )}
         </div>
@@ -871,7 +876,7 @@ export default function OrderFormBuilder() {
               </div>
               {isBelowPricebook(it) && (
                 <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  ⚠ Below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
+                  ⚠ More than 5% below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
                 </div>
               )}
               {(() => {

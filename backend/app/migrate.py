@@ -28,6 +28,7 @@ _COLUMNS = [
     ("orders", "status", "VARCHAR(16) DEFAULT 'submitted'"),
     ("orders", "comments", "TEXT DEFAULT ''"),
     ("orders", "approval_reason", "VARCHAR(64) DEFAULT ''"),
+    ("orders", "created_by", "VARCHAR(64) DEFAULT ''"),
 ]
 
 

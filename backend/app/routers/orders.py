@@ -42,8 +42,9 @@ def next_quote_number(db: Session = Depends(get_db)):
 # The saved-order collection is the "Orders" / Approval panel. It is open (no admin
 # password) so the approval workflow is accessible to the team.
 @router.get("", response_model=list[schemas.OrderOut])
-def list_orders(db: Session = Depends(get_db)):
-    return [crud.compute_totals(o) for o in crud.list_orders(db)]
+def list_orders(created_by: str | None = None, db: Session = Depends(get_db)):
+    # `created_by` scopes the list to one sales person's own quotes (Past Quotes).
+    return [crud.compute_totals(o) for o in crud.list_orders(db, created_by=created_by)]
 
 
 @router.post("", response_model=schemas.OrderOut, status_code=status.HTTP_201_CREATED)

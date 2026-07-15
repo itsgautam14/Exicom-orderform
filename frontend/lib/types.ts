@@ -85,6 +85,9 @@ export interface OrderInput {
   po_number: string;
   po_amount: string;
 
+  /** Per-browser creator id (set when the quote is saved). */
+  created_by?: string;
+
   items: OrderItem[];
 }
 
