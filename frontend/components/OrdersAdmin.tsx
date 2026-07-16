@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getCreatorId } from "@/lib/creator";
+import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
-type StatusFilter = "all" | "draft" | "submitted" | "approved";
+type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created";
 
 const TRANSPORT_MODES = ["Airways", "Sea Freight"];
 
@@ -13,6 +14,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-amber-100 text-amber-700" },
   submitted: { label: "Submitted", cls: "bg-sky-100 text-sky-700" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
+  so_created: { label: "SO Created", cls: "bg-violet-100 text-violet-700" },
 };
 
 const REASON_LABEL: Record<string, string> = {
@@ -46,6 +48,7 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [publishing, setPublishing] = useState<OrderOut | null>(null); // the draft being completed
   const [draftEdits, setDraftEdits] = useState<OrderPublish>({});
+  const [publishPaymentCustom, setPublishPaymentCustom] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function reload() {
@@ -63,7 +66,7 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
   useEffect(() => { reload(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0 } as Record<StatusFilter, number>;
+    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0 } as Record<StatusFilter, number>;
     for (const o of orders) if (o.status in c) (c as Record<string, number>)[o.status]++;
     return c;
   }, [orders]);
@@ -93,6 +96,8 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
   }
 
   function openPublish(o: OrderOut) {
+    const paymentText = o.payment_term_text || o.payment_terms || "";
+    setPublishPaymentCustom(isCustomPaymentTerm(o.payment_term_type, paymentText));
     setPublishing(o);
     setDraftEdits({
       incoterms: o.incoterms,
@@ -101,6 +106,7 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
       port_of_loading: o.port_of_loading || "",
       port_of_destination: o.port_of_destination || "",
       freight_charge: o.freight_charge || 0,
+      payment_terms: paymentText,
     });
   }
 
@@ -111,7 +117,12 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
     }
     setBusy(true);
     try {
-      await api.publishOrder(publishing.id, draftEdits);
+      const payload: OrderPublish = {
+        ...draftEdits,
+        payment_term_type: publishPaymentCustom ? "custom" : "predefined",
+        payment_term_text: draftEdits.payment_terms || "",
+      };
+      await api.publishOrder(publishing.id, payload);
       setPublishing(null);
       reload();
     } catch (e) {
@@ -131,6 +142,16 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
     }
   }
 
+  async function markSoCreated(o: OrderOut) {
+    if (!confirm(`Mark ${o.quote_number} as SO Created?`)) return;
+    try {
+      await api.markSoCreated(o.id);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+
   function setE<K extends keyof OrderPublish>(k: K, v: OrderPublish[K]) {
     setDraftEdits((e) => ({ ...e, [k]: v }));
   }
@@ -143,6 +164,7 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
+    { key: "so_created", label: "SO Created" },
   ];
 
   return (
@@ -160,10 +182,9 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
           <p className="hidden text-sm text-slate-500 sm:block">
             {isAdmin ? (
               <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
-              discount over 5%) — review and publish it to <b>Approved</b>.</>
+              discount over 5%) — review and publish it to <b>Approved</b>, then mark it <b>SO Created</b>.</>
             ) : (
-              <>Quotes you have generated. A <b>Draft</b> is awaiting admin approval; once <b>Approved</b> you can
-              download the final PDF again.</>
+              <>Your historical quotations — search, view and download. Approval is handled by the admin.</>
             )}
           </p>
         </div>
@@ -246,6 +267,32 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
               <input className="inp" value={draftEdits.port_of_destination || ""} onChange={(e) => setE("port_of_destination", e.target.value)} />
             </div>
           </div>
+
+          {/* Payment Terms — same dropdown + Custom… behaviour as the Quote Form */}
+          <div className="mt-3">
+            <label className="lbl">Payment Terms</label>
+            <select
+              className="inp"
+              value={publishPaymentCustom ? "__custom__" : (draftEdits.payment_terms || "")}
+              onChange={(e) => {
+                if (e.target.value === "__custom__") setPublishPaymentCustom(true);
+                else { setPublishPaymentCustom(false); setE("payment_terms", e.target.value); }
+              }}
+            >
+              {PAYMENT_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="__custom__">Custom…</option>
+            </select>
+            {publishPaymentCustom && (
+              <textarea
+                className="inp mt-2"
+                rows={3}
+                value={draftEdits.payment_terms || ""}
+                onChange={(e) => setE("payment_terms", e.target.value)}
+                placeholder="Enter custom payment terms…"
+              />
+            )}
+          </div>
+
           <div className="mt-3 flex gap-2">
             <button className="btn btn-primary" onClick={publish} disabled={busy}>
               {busy ? "Publishing…" : "✓ Publish (Approve)"}
@@ -301,8 +348,13 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
                         Complete
                       </button>
                     )}
+                    {isAdmin && o.status === "approved" && (
+                      <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markSoCreated(o)}>
+                        Mark SO Created
+                      </button>
+                    )}
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
-                      {o.status === "approved" ? "Download again" : "PDF"}
+                      {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
                     </button>
                     {isAdmin && (
                       <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>

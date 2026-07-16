@@ -124,6 +124,8 @@ def compute_totals(order: models.Order) -> dict:
         "ship_to_address": order.ship_to_address,
         "ship_to_country": order.ship_to_country,
         "payment_terms": order.payment_terms,
+        "payment_term_type": order.payment_term_type or "predefined",
+        "payment_term_text": order.payment_term_text or order.payment_terms or "",
         "warranty": order.warranty,
         "validity": order.validity,
         "lead_time": order.lead_time,
@@ -314,6 +316,53 @@ def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) ->
     return obj
 
 
+def mark_so_created(db: Session, obj: models.Order) -> models.Order:
+    """Advance an approved quotation to the final ``so_created`` state."""
+    obj.status = "so_created"
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def delete_order(db: Session, obj: models.Order) -> None:
     db.delete(obj)
     db.commit()
+
+
+# ----------------------------- Order tracking --------------------------------
+
+def list_trackings(db: Session) -> list[models.OrderTracking]:
+    stmt = select(models.OrderTracking).order_by(models.OrderTracking.created_at.desc())
+    return list(db.scalars(stmt))
+
+
+def get_tracking(db: Session, tracking_id: str) -> models.OrderTracking | None:
+    return db.get(models.OrderTracking, tracking_id)
+
+
+def create_tracking(db: Session, data: schemas.OrderTrackingCreate) -> models.OrderTracking:
+    obj = models.OrderTracking(**data.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def update_tracking(db: Session, obj: models.OrderTracking, data: schemas.OrderTrackingUpdate):
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def delete_tracking(db: Session, obj: models.OrderTracking) -> None:
+    db.delete(obj)
+    db.commit()
+
+
+def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
+    objs = [models.OrderTracking(**r) for r in rows]
+    db.add_all(objs)
+    db.commit()
+    return len(objs)

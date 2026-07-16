@@ -68,6 +68,10 @@ export interface OrderInput {
   ship_to_country: string;
 
   payment_terms: string;
+  /** "predefined" | "custom" */
+  payment_term_type?: string;
+  /** Actual payment-terms text shown in the PDF. */
+  payment_term_text?: string;
   warranty: string;
   validity: string;
   lead_time: string;
@@ -103,7 +107,22 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
   grand_total: number;
 }
 
-/** Logistics fields an admin fills before publishing a draft. */
+export interface OrderTracking {
+  id: string;
+  partner: string;
+  market: string;
+  kam: string;
+  ordered: string;
+  specifications: string;
+  date_of_order: string;
+  value: number | null;
+  date_of_dispatch: string;
+  ex_date_of_delivery: string;
+  status: string;
+  notes: string;
+}
+
+/** Fields an admin can set while publishing a draft. */
 export interface OrderPublish {
   incoterms?: string;
   transport_mode?: string;
@@ -113,4 +132,7 @@ export interface OrderPublish {
   port_of_destination?: string;
   freight_charge?: number;
   insurance_charge?: number;
+  payment_terms?: string;
+  payment_term_type?: string;
+  payment_term_text?: string;
 }

@@ -1,4 +1,4 @@
-import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut, OrderPublish } from "./types";
+import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut, OrderPublish, OrderTracking } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -107,6 +107,10 @@ export const api = {
       body: JSON.stringify(body),
     }).then(json<OrderOut>),
 
+  // Advance an approved quotation to the final "SO Created" state.
+  markSoCreated: (id: string): Promise<OrderOut> =>
+    fetch(`${BASE}/api/orders/${id}/so-created`, { method: "POST", headers: adminHeaders() }).then(json<OrderOut>),
+
   deleteOrder: (id: string): Promise<void> =>
     fetch(`${BASE}/api/orders/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
@@ -135,6 +139,36 @@ export const api = {
       if (!r.ok) throw new Error("PDF generation failed");
       return r.blob();
     }),
+
+  // ---- order tracking ----
+
+  listTracking: (): Promise<OrderTracking[]> =>
+    fetch(`${BASE}/api/tracking`).then(json<OrderTracking[]>),
+
+  createTracking: (r: Partial<OrderTracking>): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(r),
+    }).then(json<OrderTracking>),
+
+  updateTracking: (id: string, r: Partial<OrderTracking>): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(r),
+    }).then(json<OrderTracking>),
+
+  deleteTracking: (id: string): Promise<void> =>
+    fetch(`${BASE}/api/tracking/${id}`, { method: "DELETE" }).then(() => undefined),
+
+  // Bulk import from an .xlsx file (sent as the raw request body).
+  importTracking: (file: File | Blob): Promise<{ imported: number }> =>
+    fetch(`${BASE}/api/tracking/import`, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file,
+    }).then(json<{ imported: number }>),
 };
 
 export const API_BASE = BASE;

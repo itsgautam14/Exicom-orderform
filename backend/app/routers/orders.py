@@ -80,6 +80,20 @@ def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = De
     return crud.compute_totals(obj)
 
 
+@router.post("/{order_id}/so-created", response_model=schemas.OrderOut)
+def mark_so_created(order_id: str, db: Session = Depends(get_db)):
+    """Advance an approved quotation to the final SO Created state."""
+    obj = crud.get_order(db, order_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if (obj.status or "") != "approved":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Only approved quotations can be marked SO Created"
+        )
+    obj = crud.mark_so_created(db, obj)
+    return crud.compute_totals(obj)
+
+
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)

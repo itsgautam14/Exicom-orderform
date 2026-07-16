@@ -70,6 +70,8 @@ class Order(Base):
 
     # Terms
     payment_terms: Mapped[str] = mapped_column(Text, default="")
+    payment_term_type: Mapped[str] = mapped_column(String(16), default="predefined")  # predefined | custom
+    payment_term_text: Mapped[str] = mapped_column(Text, default="")  # actual text shown in the PDF
     warranty: Mapped[str] = mapped_column(Text, default="")
     validity: Mapped[str] = mapped_column(Text, default="")
     lead_time: Mapped[str] = mapped_column(Text, default="")
@@ -157,3 +159,29 @@ class QuoteCounter(Base):
 
     period: Mapped[str] = mapped_column(String(16), primary_key=True)  # e.g. "2026-JUL"
     value: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class OrderTracking(Base):
+    """Post-sale order tracking rows (from the 'order tracking' sheet).
+
+    Filled in manually or bulk-imported from Excel, and shown on a dashboard.
+    """
+    __tablename__ = "order_trackings"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    partner: Mapped[str] = mapped_column(String(255), default="")
+    market: Mapped[str] = mapped_column(String(128), default="")
+    kam: Mapped[str] = mapped_column(String(128), default="")
+    ordered: Mapped[str] = mapped_column(Text, default="")
+    specifications: Mapped[str] = mapped_column(Text, default="")
+    date_of_order: Mapped[str] = mapped_column(String(64), default="")
+    value: Mapped[Optional[float]] = mapped_column(Numeric(16, 2), nullable=True)
+    date_of_dispatch: Mapped[str] = mapped_column(String(64), default="")
+    ex_date_of_delivery: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(64), default="", index=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

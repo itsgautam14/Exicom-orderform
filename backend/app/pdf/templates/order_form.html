@@ -449,12 +449,10 @@ html, body {
 <!-- TERMS & CONDITIONS -->
 <div class="section-header">Terms &amp; Conditions</div>
 <div class="terms">
-  {% set incoterm_names = {'EXW': 'Ex Works', 'FOB': 'Free On Board', 'CIF': 'Cost, Insurance & Freight', 'DDP': 'Delivered Duty Paid', 'DAP': 'Delivered At Place'} %}
-  <p><b>Incoterms:</b> {{ order.incoterms }}{% if incoterm_names.get(order.incoterms) %} ({{ incoterm_names[order.incoterms] }}){% endif %}</p>
-  <p><b>Payment Terms:</b> {{ order.payment_terms }}</p>
+  <p><b>Production Lead Times:</b> Standard is 4–6 weeks from PO acceptance.</p>
+  <p><b>Payment Terms:</b> {{ (order.payment_term_text or order.payment_terms) | replace('\n', '<br/>') | safe }}</p>
   <p><b>Warranty:</b> {{ order.warranty }}</p>
   <p><b>Validity:</b> {{ order.validity }}</p>
-  <p><b>Production Lead Times:</b> {{ order.lead_time }}</p>
   {% if order.comments %}<p><b>Comments:</b> {{ order.comments | replace('\n', '<br/>') | safe }}</p>{% endif %}
 </div>
 

@@ -118,6 +118,8 @@ class OrderBase(BaseModel):
     ship_to_country: str = ""
 
     payment_terms: str = ""
+    payment_term_type: str = "predefined"  # predefined | custom
+    payment_term_text: str = ""
     warranty: str = ""
     validity: str = ""
     lead_time: str = ""
@@ -148,7 +150,7 @@ class OrderUpdate(OrderCreate):
 
 
 class OrderPublish(BaseModel):
-    """Logistics fields an admin fills in before publishing a draft (all optional)."""
+    """Fields an admin can set while publishing a draft (all optional)."""
     incoterms: Optional[str] = None
     transport_mode: Optional[str] = None
     transport_country: Optional[str] = None
@@ -157,6 +159,9 @@ class OrderPublish(BaseModel):
     port_of_destination: Optional[str] = None
     freight_charge: Optional[float] = None
     insurance_charge: Optional[float] = None
+    payment_terms: Optional[str] = None
+    payment_term_type: Optional[str] = None
+    payment_term_text: Optional[str] = None
 
 
 class OrderOut(OrderBase):
@@ -169,3 +174,42 @@ class OrderOut(OrderBase):
     subtotal: float = 0
     tax_amount: float = 0
     grand_total: float = 0
+
+
+# ----------------------------- Order tracking --------------------------------
+
+class OrderTrackingBase(BaseModel):
+    partner: str = ""
+    market: str = ""
+    kam: str = ""
+    ordered: str = ""
+    specifications: str = ""
+    date_of_order: str = ""
+    value: Optional[float] = None
+    date_of_dispatch: str = ""
+    ex_date_of_delivery: str = ""
+    status: str = ""
+    notes: str = ""
+
+
+class OrderTrackingCreate(OrderTrackingBase):
+    pass
+
+
+class OrderTrackingUpdate(BaseModel):
+    partner: Optional[str] = None
+    market: Optional[str] = None
+    kam: Optional[str] = None
+    ordered: Optional[str] = None
+    specifications: Optional[str] = None
+    date_of_order: Optional[str] = None
+    value: Optional[float] = None
+    date_of_dispatch: Optional[str] = None
+    ex_date_of_delivery: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OrderTrackingOut(OrderTrackingBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: str

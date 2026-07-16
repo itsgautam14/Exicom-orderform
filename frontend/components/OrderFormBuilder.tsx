@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem } from "@/lib/types";
 import { WORLD_COUNTRIES } from "@/lib/countries";
 import { getCreatorId } from "@/lib/creator";
+import { PAYMENT_PRESETS } from "@/lib/payment";
 
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
@@ -83,11 +84,6 @@ function shippingSpace(items: OrderItem[], catalog: CatalogProduct[]): { pallets
   return { pallets, boxes };
 }
 
-/** Standard payment-term presets; "Custom…" opens a free-text box. */
-const PAYMENT_PRESETS = [
-  "100% advance",
-  "50% advance payment on PO release, 50% on material dispatch",
-];
 
 /** Fixed production lead time shown on every order form. */
 const STANDARD_LEAD_TIME = "Production lead time is 4-6 weeks from PO acceptance";
@@ -556,7 +552,13 @@ export default function OrderFormBuilder() {
   // Throws on failure — callers decide whether that's fatal.
   async function persistOrder(o: OrderInput): Promise<void> {
     if (persistedId.current) return;
-    const withCreator = { ...o, created_by: o.created_by || getCreatorId() };
+    const withCreator = {
+      ...o,
+      created_by: o.created_by || getCreatorId(),
+      // payment_terms already holds the text (preset value or custom text).
+      payment_term_type: paymentCustom ? "custom" : "predefined",
+      payment_term_text: o.payment_terms,
+    };
     const saved = await api.createOrder(withCreator);
     persistedId.current = saved.id;
     saveMyQuote(withCreator, { id: saved.id, status: saved.status }); // authoritative id + status
@@ -1207,7 +1209,7 @@ export default function OrderFormBuilder() {
                         </td>
                         <td className="whitespace-nowrap px-2 py-2 text-right">
                           <button className="mr-3 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => openQuote(q)}>Open</button>
-                          <button className="text-xs font-semibold text-slate-600 hover:underline" onClick={() => reDownloadQuote(q)}>PDF</button>
+                          <button className="text-xs font-semibold text-slate-600 hover:underline" onClick={() => reDownloadQuote(q)}>Download</button>
                         </td>
                       </tr>
                     ))}
