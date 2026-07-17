@@ -205,7 +205,8 @@ export default function CatalogAdmin() {
               </thead>
               <tbody>
                 {filtered.map((p) => {
-                  const curs = Object.keys(p.prices || {}).length ? Object.keys(p.prices) : [p.currency];
+                  const priceKeys = Object.keys(p.prices || {}).filter((k) => k !== "EUR_ND");
+                  const curs = priceKeys.length ? priceKeys : [p.currency];
                   return (
                     <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/70">
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-exicom-teal">{p.product_code}</td>

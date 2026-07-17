@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem } from "@/lib/types";
+import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem, OrderOut } from "@/lib/types";
 import { WORLD_COUNTRIES } from "@/lib/countries";
 import { getCreatorId } from "@/lib/creator";
-import { PAYMENT_PRESETS } from "@/lib/payment";
+import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 
 /** Currencies the pricebook carries. */
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
@@ -101,6 +101,19 @@ function priceFor(p: CatalogProduct, currency: string, qty: number): number | nu
   return tiers[0][2]; // qty below the lowest bracket → use the first tier
 }
 
+// EUR "without discount" list price (only some chargers have one).
+const EUR_ND_KEY = "EUR_ND";
+function hasEurNoDiscount(p?: CatalogProduct): boolean {
+  return !!p?.prices?.[EUR_ND_KEY]?.length;
+}
+// Pricebook price for a line, honouring the EUR with/without-discount choice.
+function catalogPrice(p: CatalogProduct, currency: string, qty: number, eurDiscount?: string): number | null {
+  if (currency === "EUR" && eurDiscount === "without" && hasEurNoDiscount(p)) {
+    return priceFor(p, EUR_ND_KEY, qty);
+  }
+  return priceFor(p, currency, qty);
+}
+
 /** Does the catalog product have pricing in the given currency? */
 function hasCurrency(p: CatalogProduct, currency: string): boolean {
   if (p.prices && Object.keys(p.prices).length) return Boolean(p.prices[currency]?.length);
@@ -138,53 +151,13 @@ const EMPTY_ITEM: OrderItem = {
   quantity: 1,
   unit: "Nos.",
   discount_pct: 0,
+  eur_discount: "",
   input_cable: "",
 };
 
 // Net line amount after the per-line discount.
 function lineNet(it: OrderItem): number {
   return it.unit_price * it.quantity * (1 - (it.discount_pct || 0) / 100);
-}
-
-// ---- My Quotes: per-browser history of quotes this sales person generated --------
-interface MyQuote {
-  id?: string;          // backend id once persisted
-  quote_number: string;
-  at: number;           // when first generated (ms)
-  customer: string;
-  currency: string;
-  grand_total: number;
-  status: string;
-  order: OrderInput;    // full snapshot → reopen / re-download
-}
-const MY_QUOTES_KEY = "my_quotes";
-function grandTotalOf(o: OrderInput): number {
-  const sub = o.items.reduce((s, it) => s + lineNet(it), 0);
-  const tax = (sub * (o.tax_rate || 0)) / 100;
-  return sub + (o.freight_charge || 0) + (o.insurance_charge || 0) + tax;
-}
-function loadMyQuotes(): MyQuote[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(MY_QUOTES_KEY) || "[]"); } catch { return []; }
-}
-function saveMyQuote(o: OrderInput, meta: { id?: string; status?: string }) {
-  if (typeof window === "undefined") return;
-  try {
-    const list = loadMyQuotes();
-    const idx = list.findIndex((q) => q.quote_number === o.quote_number);
-    const entry: MyQuote = {
-      id: meta.id ?? (idx >= 0 ? list[idx].id : undefined),
-      quote_number: o.quote_number,
-      at: idx >= 0 ? list[idx].at : Date.now(),
-      customer: o.prepared_for || o.bill_to_company || "",
-      currency: o.currency,
-      grand_total: grandTotalOf(o),
-      status: meta.status ?? (idx >= 0 ? list[idx].status : "submitted"),
-      order: o,
-    };
-    if (idx >= 0) list[idx] = entry; else list.unshift(entry);
-    localStorage.setItem(MY_QUOTES_KEY, JSON.stringify(list.slice(0, 200)));
-  } catch { /* ignore quota / serialization errors */ }
 }
 
 function today(): string {
@@ -262,7 +235,59 @@ const BLANK_ORDER = (): OrderInput => ({
   items: [{ ...EMPTY_ITEM }],
 });
 
-export default function OrderFormBuilder() {
+// Map a saved quote (OrderOut) back into an editable OrderInput.
+function orderOutToInput(o: OrderOut): OrderInput {
+  return {
+    quote_number: o.quote_number,
+    prepared_for: o.prepared_for,
+    proposed_by: o.proposed_by,
+    quote_date: o.quote_date,
+    offer_valid_through: o.offer_valid_through,
+    incoterms: o.incoterms,
+    currency: o.currency,
+    tax_rate: o.tax_rate,
+    bill_to_company: o.bill_to_company,
+    bill_to_gst: o.bill_to_gst,
+    bill_to_address: o.bill_to_address,
+    bill_to_country: o.bill_to_country,
+    ship_to_company: o.ship_to_company,
+    ship_to_gst: o.ship_to_gst,
+    ship_to_address: o.ship_to_address,
+    ship_to_country: o.ship_to_country,
+    payment_terms: o.payment_terms,
+    payment_term_type: o.payment_term_type,
+    payment_term_text: o.payment_term_text,
+    warranty: o.warranty,
+    validity: o.validity,
+    lead_time: o.lead_time,
+    comments: o.comments,
+    transport_mode: o.transport_mode,
+    transport_country: o.transport_country,
+    transport_qty: o.transport_qty,
+    port_of_loading: o.port_of_loading,
+    port_of_destination: o.port_of_destination,
+    freight_charge: o.freight_charge,
+    insurance_charge: o.insurance_charge,
+    po_required: o.po_required,
+    po_number: o.po_number,
+    po_amount: o.po_amount,
+    created_by: o.created_by,
+    items: o.items.map((it) => ({
+      product_code: it.product_code,
+      code_note: it.code_note,
+      product_name: it.product_name,
+      description: it.description,
+      unit_price: it.unit_price,
+      quantity: it.quantity,
+      unit: it.unit,
+      discount_pct: it.discount_pct,
+      eur_discount: it.eur_discount,
+      input_cable: it.input_cable,
+    })),
+  };
+}
+
+export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: OrderOut | null; onLoaded?: () => void } = {}) {
   const [order, setOrder] = useState<OrderInput>(BLANK_ORDER);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [logisticsRates, setLogisticsRates] = useState<LogisticsRate[]>([]);
@@ -273,11 +298,23 @@ export default function OrderFormBuilder() {
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
-  const [showQuotes, setShowQuotes] = useState(false);
-  const [myQuotes, setMyQuotes] = useState<MyQuote[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
   const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
+
+  // Load an existing quote into the form for editing (from Past Quotes → Edit).
+  useEffect(() => {
+    if (!loadOrder) return;
+    finalizedNumber.current = loadOrder.quote_number; // keep its number
+    persistedId.current = loadOrder.id;               // re-save updates this record
+    setOrder(orderOutToInput(loadOrder));
+    setPaymentCustom(isCustomPaymentTerm(loadOrder.payment_term_type, loadOrder.payment_term_text || loadOrder.payment_terms));
+    setShipSameAsBill(false);
+    setItemFilters({});
+    setMobileView("edit");
+    onLoaded?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadOrder]);
 
   // Approved logistics rates from the DB, keyed by country → auto-fill map.
   const logistics = useMemo(() => {
@@ -411,7 +448,7 @@ export default function OrderFormBuilder() {
       : it.product_code
         ? catalog.find((c) => c.product_code === it.product_code)
         : undefined;
-    return p ? priceFor(p, order.currency, it.quantity) : null;
+    return p ? catalogPrice(p, order.currency, it.quantity, it.eur_discount) : null;
   }
   function isBelowPricebook(it: OrderItem): boolean {
     const book = pricebookFor(it);
@@ -450,7 +487,11 @@ export default function OrderFormBuilder() {
     const p = catalog.find((c) => c.id === productId);
     if (!p) return;
     const qty = order.items[i]?.quantity || 1;
-    const price = priceFor(p, order.currency, qty);
+    // Default EUR products that offer a no-discount price to "with"; others have no choice.
+    const eurDisc = order.currency === "EUR" && hasEurNoDiscount(p)
+      ? (order.items[i]?.eur_discount || "with")
+      : "";
+    const price = catalogPrice(p, order.currency, qty, eurDisc);
     setItem(i, {
       product_code: p.product_code,
       code_note: p.code_note,
@@ -459,7 +500,20 @@ export default function OrderFormBuilder() {
       unit_price: price ?? p.unit_price,
       unit: p.unit,
       catalog_id: p.id,
+      eur_discount: eurDisc,
     });
+  }
+  // EUR only: switch a line between the discounted (MoQ) and without-discount price.
+  function setEurDiscount(i: number, mode: string) {
+    setOrder((o) => ({
+      ...o,
+      items: o.items.map((it, idx) => {
+        if (idx !== i) return it;
+        const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+        const price = p ? catalogPrice(p, o.currency, it.quantity, mode) : null;
+        return { ...it, eur_discount: mode, ...(price != null ? { unit_price: price } : {}) };
+      }),
+    }));
   }
   // Quantity changes can move a line into a different MoQ price tier.
   function setQuantity(i: number, qty: number) {
@@ -470,7 +524,7 @@ export default function OrderFormBuilder() {
         const next = { ...it, quantity: qty };
         if (it.catalog_id) {
           const p = catalog.find((c) => c.id === it.catalog_id);
-          const price = p ? priceFor(p, o.currency, qty) : null;
+          const price = p ? catalogPrice(p, o.currency, qty, it.eur_discount) : null;
           if (price != null) next.unit_price = price;
         }
         return next;
@@ -502,8 +556,12 @@ export default function OrderFormBuilder() {
       items: o.items.map((it) => {
         if (!it.catalog_id) return it;
         const p = catalog.find((c) => c.id === it.catalog_id);
-        const price = p ? priceFor(p, currency, it.quantity) : null;
-        return price != null ? { ...it, unit_price: price } : it;
+        // The EUR with/without choice only applies while EUR is the currency.
+        const eurDisc = currency === "EUR" && hasEurNoDiscount(p)
+          ? (it.eur_discount || "with")
+          : "";
+        const price = p ? catalogPrice(p, currency, it.quantity, eurDisc) : null;
+        return { ...it, eur_discount: eurDisc, ...(price != null ? { unit_price: price } : {}) };
       }),
     }));
   }
@@ -551,17 +609,18 @@ export default function OrderFormBuilder() {
   // (and, for a missing-logistics draft, routes the country into the Logistics tab).
   // Throws on failure — callers decide whether that's fatal.
   async function persistOrder(o: OrderInput): Promise<void> {
-    if (persistedId.current) return;
-    const withCreator = {
+    const payload = {
       ...o,
       created_by: o.created_by || getCreatorId(),
       // payment_terms already holds the text (preset value or custom text).
       payment_term_type: paymentCustom ? "custom" : "predefined",
       payment_term_text: o.payment_terms,
     };
-    const saved = await api.createOrder(withCreator);
+    // Update the existing draft if this quote was already saved; otherwise create it.
+    const saved = persistedId.current
+      ? await api.updateOrder(persistedId.current, payload)
+      : await api.createOrder(payload);
     persistedId.current = saved.id;
-    saveMyQuote(withCreator, { id: saved.id, status: saved.status }); // authoritative id + status
   }
 
   async function downloadPdf() {
@@ -579,8 +638,6 @@ export default function OrderFormBuilder() {
       a.download = `Exicom_${quoteNumber}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      // Record it in this browser's "My Quotes" history immediately (works offline).
-      saveMyQuote(issued, { status: isLogisticsDraft(issued) || belowPricebookAny ? "draft" : "submitted" });
       // File it under the admin Orders panel (draft/submitted). Best-effort here —
       // the PDF already downloaded, so a persist failure only warns.
       persistOrder(issued).catch((e) =>
@@ -602,7 +659,7 @@ export default function OrderFormBuilder() {
       const issued = { ...order, quote_number: quoteNumber };
       setOrder(issued);
       await persistOrder(issued); // send it to the Approval panel (no auto-download)
-      const needsApproval = isLogisticsDraft(issued) || belowPricebookAny;
+      const needsApproval = isLogisticsDraft(issued) || belowPricebookAny || paymentCustom;
       alert(
         needsApproval
           ? `Order ${quoteNumber} has been sent to the Approval Admin.\n\nIt is a DRAFT and needs approval before it's final${
@@ -614,34 +671,6 @@ export default function OrderFormBuilder() {
       alert("Could not save the order — is the backend running?\n\n" + (e as Error).message);
     } finally {
       setBusy(false);
-    }
-  }
-
-  // ---- My Quotes: reopen or re-download a past quote (keeps its original number) ----
-  function openMyQuotes() {
-    setMyQuotes(loadMyQuotes());
-    setShowQuotes(true);
-  }
-  function openQuote(q: MyQuote) {
-    finalizedNumber.current = q.quote_number; // reuse the original number
-    persistedId.current = q.id || null;       // don't create a duplicate on re-save
-    setOrder(q.order);
-    setPaymentCustom(!PAYMENT_PRESETS.includes(q.order.payment_terms));
-    setShipSameAsBill(false);
-    setItemFilters({});
-    setShowQuotes(false);
-  }
-  async function reDownloadQuote(q: MyQuote) {
-    try {
-      const blob = await api.pdfBlob(q.order);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Exicom_${q.quote_number}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert((e as Error).message);
     }
   }
 
@@ -666,13 +695,6 @@ export default function OrderFormBuilder() {
               Save &amp; Send
             </button>
             <button
-              className="btn flex-shrink-0 px-3 text-slate-500 hover:text-exicom-tealDark hover:bg-exicom-teal/5"
-              title="My past quotes"
-              onClick={openMyQuotes}
-            >
-              🕘 <span className="hidden sm:inline">Quotes</span>
-            </button>
-            <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
               onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { finalizedNumber.current = null; persistedId.current = null; setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
@@ -683,6 +705,11 @@ export default function OrderFormBuilder() {
           {belowPricebookAny && (
             <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
               ⚠ One or more prices are more than 5% below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+            </div>
+          )}
+          {paymentCustom && (
+            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
+              ⚠ Custom payment terms — this quote will be saved as a <b>DRAFT</b> for admin approval.
             </div>
           )}
         </div>
@@ -852,6 +879,21 @@ export default function OrderFormBuilder() {
               </div>
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
+              {order.currency === "EUR" && (() => {
+                const p = it.catalog_id
+                  ? catalog.find((c) => c.id === it.catalog_id)
+                  : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
+                if (!hasEurNoDiscount(p)) return null;
+                return (
+                  <div className="mb-2">
+                    <label className="lbl">EUR Pricing</label>
+                    <select className="inp" value={it.eur_discount || "with"} onChange={(e) => setEurDiscount(i, e.target.value)}>
+                      <option value="with">With discount (MoQ tiers)</option>
+                      <option value="without">Without discount (list price)</option>
+                    </select>
+                  </div>
+                );
+              })()}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="lbl">Qty *</label>
@@ -885,7 +927,7 @@ export default function OrderFormBuilder() {
                 if (!it.catalog_id) return null;
                 const p = catalog.find((c) => c.id === it.catalog_id);
                 if (!p) return null;
-                const avail = Object.keys(p.prices || {});
+                const avail = Object.keys(p.prices || {}).filter((k) => k !== EUR_ND_KEY);
                 const hasCur = avail.includes(order.currency);
                 const tiers = p.prices?.[order.currency];
                 return (
@@ -1165,61 +1207,6 @@ export default function OrderFormBuilder() {
           👁 Preview
         </button>
       </div>
-
-      {/* ---------- MY QUOTES (per-browser history) ---------- */}
-      {showQuotes && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-16" onClick={() => setShowQuotes(false)}>
-          <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <h2 className="text-base font-bold text-slate-800">
-                My Quotes <span className="text-xs font-normal text-slate-400">({myQuotes.length})</span>
-              </h2>
-              <button className="text-slate-400 hover:text-slate-700" onClick={() => setShowQuotes(false)}>✕</button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto p-2">
-              {myQuotes.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-slate-500">
-                  No quotes yet. Download or save a quote and it will appear here.
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="text-left text-[11px] uppercase text-slate-400">
-                    <tr>
-                      <th className="px-2 py-1">Quote #</th>
-                      <th className="px-2 py-1">Customer</th>
-                      <th className="px-2 py-1 text-right">Total</th>
-                      <th className="px-2 py-1">Status</th>
-                      <th className="px-2 py-1"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myQuotes.map((q) => (
-                      <tr key={q.quote_number} className="border-t border-slate-100 hover:bg-slate-50/70">
-                        <td className="px-2 py-2">
-                          <div className="font-mono text-[11px] font-semibold text-slate-800">{q.quote_number}</div>
-                          <div className="text-[10px] text-slate-400">{new Date(q.at).toLocaleDateString()}</div>
-                        </td>
-                        <td className="px-2 py-2 text-slate-600">{q.customer || "—"}</td>
-                        <td className="whitespace-nowrap px-2 py-2 text-right text-slate-700">{q.currency} {fmt(q.grand_total)}</td>
-                        <td className="px-2 py-2">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            q.status === "draft" ? "bg-amber-100 text-amber-700"
-                              : q.status === "approved" ? "bg-emerald-100 text-emerald-700"
-                              : "bg-sky-100 text-sky-700"}`}>{q.status}</span>
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-2 text-right">
-                          <button className="mr-3 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => openQuote(q)}>Open</button>
-                          <button className="text-xs font-semibold text-slate-600 hover:underline" onClick={() => reDownloadQuote(q)}>Download</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

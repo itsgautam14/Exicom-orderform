@@ -35,6 +35,8 @@ export interface OrderItem {
   unit: string;
   /** Per-line discount percentage (0–100). */
   discount_pct?: number;
+  /** EUR only: which pricebook price to use — "with" (MoQ tiers) / "without" (list) / "". */
+  eur_discount?: string;
   /** Whether the input cable is included ("Yes" / "No" / ""). */
   input_cable?: string;
   /** Links the line back to its catalog product so currency/qty can re-price it. */

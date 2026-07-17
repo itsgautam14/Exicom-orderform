@@ -93,6 +93,14 @@ export const api = {
 
   // ---- saved orders (admin "Orders" panel) ----
 
+  // Update an existing saved quote (re-save after an edit).
+  updateOrder: (id: string, o: OrderInput): Promise<OrderOut> =>
+    fetch(`${BASE}/api/orders/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(o),
+    }).then(json<OrderOut>),
+
   // Pass createdBy to scope to one sales person's own quotes (Past Quotes);
   // omit it for the admin Approvals view (all quotes).
   listOrders: (createdBy?: string): Promise<OrderOut[]> =>
@@ -140,35 +148,35 @@ export const api = {
       return r.blob();
     }),
 
-  // ---- order tracking ----
+  // ---- order tracking (Approvals → SO Created; admin only) ----
 
   listTracking: (): Promise<OrderTracking[]> =>
-    fetch(`${BASE}/api/tracking`).then(json<OrderTracking[]>),
+    fetch(`${BASE}/api/tracking`, { headers: adminHeaders() }).then(json<OrderTracking[]>),
 
   createTracking: (r: Partial<OrderTracking>): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify(r),
     }).then(json<OrderTracking>),
 
   updateTracking: (id: string, r: Partial<OrderTracking>): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify(r),
     }).then(json<OrderTracking>),
 
   deleteTracking: (id: string): Promise<void> =>
-    fetch(`${BASE}/api/tracking/${id}`, { method: "DELETE" }).then(() => undefined),
+    fetch(`${BASE}/api/tracking/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
   // Bulk import from an .xlsx file (sent as the raw request body).
-  importTracking: (file: File | Blob): Promise<{ imported: number }> =>
+  importTracking: (file: File | Blob): Promise<{ imported: number; skipped: number; errors: string[] }> =>
     fetch(`${BASE}/api/tracking/import`, {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: { "Content-Type": "application/octet-stream", ...adminHeaders() },
       body: file,
-    }).then(json<{ imported: number }>),
+    }).then(json<{ imported: number; skipped: number; errors: string[] }>),
 };
 
 export const API_BASE = BASE;

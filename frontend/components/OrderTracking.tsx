@@ -100,9 +100,12 @@ export default function OrderTracking() {
     if (!file) return;
     setBusy(true);
     try {
-      const { imported } = await api.importTracking(file);
-      alert(`Imported ${imported} row${imported === 1 ? "" : "s"} from ${file.name}.`);
-      reload();
+      const { imported, skipped, errors } = await api.importTracking(file);
+      const lines = [`Imported ${imported} row${imported === 1 ? "" : "s"} from ${file.name}.`];
+      if (skipped) lines.push(`Skipped ${skipped} duplicate${skipped === 1 ? "" : "s"} (already in the system).`);
+      if (errors?.length) lines.push("", "Rows with errors:", ...errors.slice(0, 20).map((e) => "• " + e));
+      alert(lines.join("\n"));
+      reload(); // refresh the table
     } catch (err) {
       alert("Import failed: " + (err as Error).message);
     } finally {
@@ -172,7 +175,7 @@ export default function OrderTracking() {
               <datalist id="track-status">{STATUS_OPTIONS.map((s) => <option key={s} value={s} />)}</datalist>
             </div>
             {dateField("Date of Dispatch", "date_of_dispatch")}
-            {dateField("EX-Date of Delivery", "ex_date_of_delivery")}
+            {dateField("Expected Delivery", "ex_date_of_delivery")}
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {areaField("Ordered", "ordered")}
@@ -217,7 +220,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Dispatch</th>
-                <th className="px-3 py-2">EX-Delivery</th>
+                <th className="px-3 py-2">Expected Delivery</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Notes</th>
                 <th className="px-3 py-2"></th>

@@ -150,7 +150,8 @@ def _build_order_data(payload: schemas.OrderCreate, db: Session | None = None) -
 
     logistics_missing = crud.is_logistics_missing(payload.incoterms, freight_charge)
     below = db is not None and crud.below_pricebook_items(db, payload.currency, payload.items)
-    status = "draft" if (logistics_missing or below) else "submitted"
+    custom_payment = (payload.payment_term_type or "") == "custom"
+    status = "draft" if (logistics_missing or below or custom_payment) else "submitted"
 
     return {
         **payload.model_dump(exclude={"items"}),

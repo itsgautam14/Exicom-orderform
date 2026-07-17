@@ -94,6 +94,7 @@ def compute_totals(order: models.Order) -> dict:
             "quantity": int(it.quantity),
             "unit": it.unit,
             "discount_pct": disc,
+            "eur_discount": it.eur_discount or "",
             "input_cable": it.input_cable or "",
             "line_total": line_total,
         })
@@ -272,13 +273,15 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     _apply_items(obj, data.items)
 
     # The server decides whether a quote needs admin sign-off — never the client.
-    # Two independent reasons: missing CIF logistics, and/or a price below pricebook.
+    # Reasons: missing CIF logistics, a price below pricebook, or custom payment terms.
     reasons = []
     logistics_missing = is_logistics_missing(obj.incoterms, obj.freight_charge)
     if logistics_missing:
         reasons.append("logistics")
     if below_pricebook_items(db, obj.currency, data.items):
         reasons.append("pricebook")
+    if (obj.payment_term_type or "") == "custom":
+        reasons.append("payment")
     obj.status = "draft" if reasons else "submitted"
     obj.approval_reason = ",".join(reasons)
 
@@ -297,6 +300,23 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
     for k, v in data.model_dump(exclude={"items"}).items():
         setattr(obj, k, v)
     _apply_items(obj, data.items)
+    # A finalized quote (approved / SO Created) keeps its status; an editable
+    # draft/submitted quote re-evaluates approval from the edited data.
+    if (obj.status or "") not in ("approved", "so_created"):
+        reasons = []
+        logistics_missing = is_logistics_missing(obj.incoterms, obj.freight_charge)
+        if logistics_missing:
+            reasons.append("logistics")
+        if below_pricebook_items(db, obj.currency, data.items):
+            reasons.append("pricebook")
+        if (obj.payment_term_type or "") == "custom":
+            reasons.append("payment")
+        obj.status = "draft" if reasons else "submitted"
+        obj.approval_reason = ",".join(reasons)
+        if logistics_missing:
+            _ensure_pending_logistics(
+                db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
+            )
     db.commit()
     db.refresh(obj)
     return obj
@@ -316,9 +336,37 @@ def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) ->
     return obj
 
 
+def _order_items_summary(order: models.Order) -> str:
+    parts = []
+    for it in order.items:
+        name = (it.product_name or it.product_code or "").strip()
+        if name:
+            parts.append(f"{int(it.quantity or 0)} x {name}")
+    return "; ".join(parts)
+
+
 def mark_so_created(db: Session, obj: models.Order) -> models.Order:
-    """Advance an approved quotation to the final ``so_created`` state."""
+    """Advance an approved quotation to ``so_created`` and graduate it into a
+    tracking record shown under Approvals → SO Created."""
     obj.status = "so_created"
+    total = compute_totals(obj)["grand_total"]
+    # Don't double-create if a tracking row for this quote already exists.
+    ref = f"Quote: {obj.quote_number}"
+    exists = db.query(models.OrderTracking).filter(models.OrderTracking.notes == ref).first()
+    if not exists and obj.quote_number:
+        db.add(models.OrderTracking(
+            partner=obj.bill_to_company or obj.prepared_for or "",
+            market=obj.bill_to_country or "",
+            kam=obj.proposed_by or "",
+            ordered=_order_items_summary(obj),
+            specifications="",
+            date_of_order=obj.quote_date or "",
+            value=total,
+            date_of_dispatch="",
+            ex_date_of_delivery="",
+            status="SO Created",
+            notes=ref,
+        ))
     db.commit()
     db.refresh(obj)
     return obj

@@ -80,19 +80,60 @@ def first_tier_price(prices: dict) -> tuple[float, str]:
     return 0.0, "USD"
 
 
+_CUR_RE = re.compile(r"in\s+(USD|INR|EUR|MYR)", re.IGNORECASE)
+
+
+def currency_tier_columns(header) -> dict:
+    """Map each currency to its ordered list of MoQ tier-price column indices.
+
+    Driven by the header text, so inserted/reordered columns don't break the
+    mapping. Columns without "MoQ" in the header (e.g. "EUR without discount")
+    are skipped so they don't shift the tier brackets.
+    """
+    groups: dict[str, list[int]] = {}
+    for idx, h in enumerate(header):
+        if not h or "moq" not in str(h).lower():
+            continue
+        m = _CUR_RE.search(str(h))
+        if m:
+            groups.setdefault(m.group(1).upper(), []).append(idx)
+    return groups
+
+
+def eur_no_discount_column(header):
+    """Index of the 'Price (in EUR) without discount' column, if present."""
+    for idx, h in enumerate(header):
+        text = str(h or "").lower()
+        if "eur" in text and "without discount" in text:
+            return idx
+    return None
+
+
 def parse_ac(ws) -> list[dict]:
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+    groups = currency_tier_columns(rows[0])
+    eur_nd_col = eur_no_discount_column(rows[0])
     out = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
+    for row in rows[1:]:
         code, name = clean(row[0]), clean(row[1])
         if not name:
             continue
         if "black" in name.lower():   # "remove black": skip the Black-variant rows
             continue
         prices = {}
-        for cur, cols in (("USD", row[2:5]), ("INR", row[5:8]), ("EUR", row[8:11]), ("MYR", row[11:14])):
-            t = build_tiers(list(cols), AC_TIERS)
+        for cur, cols in groups.items():
+            values = [row[i] if i < len(row) else None for i in cols]
+            t = build_tiers(values, AC_TIERS)
             if t:
                 prices[cur] = t
+        # EUR "without discount" single price — only present for some chargers.
+        # Stored under the EUR_ND key so the order form can offer it as an option.
+        if eur_nd_col is not None and eur_nd_col < len(row):
+            v = num(row[eur_nd_col])
+            if v is not None:
+                prices["EUR_ND"] = [[1, None, v]]
         out.append(make_product(code, name, prices, "AC Charger"))
     return out
 

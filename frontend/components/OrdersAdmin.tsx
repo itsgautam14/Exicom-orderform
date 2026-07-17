@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getCreatorId } from "@/lib/creator";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
+import OrderTracking from "@/components/OrderTracking";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
 type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created";
@@ -20,6 +21,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 const REASON_LABEL: Record<string, string> = {
   logistics: "logistics missing",
   pricebook: "discount > 5%",
+  payment: "custom payment terms",
 };
 function reasonText(reason?: string): string {
   return (reason || "")
@@ -39,7 +41,7 @@ function StatusBadge({ status }: { status: string }) {
  * mode="mine"  → each sales person's own Past Quotes (scoped by creator id, no approval actions).
  * mode="admin" → the Approvals view: every quote, with Complete/Publish + Delete (behind the admin gate).
  */
-export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin" }) {
+export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" | "admin"; onEdit?: (o: OrderOut) => void }) {
   const isAdmin = mode === "admin";
   const [orders, setOrders] = useState<OrderOut[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,13 +208,21 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
             </button>
           ))}
         </div>
-        <input
-          className="inp max-w-xs flex-1"
-          placeholder="Search quote #, customer, country, KAM…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        {!(isAdmin && filter === "so_created") && (
+          <input
+            className="inp max-w-xs flex-1"
+            placeholder="Search quote #, customer, country, KAM…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        )}
       </div>
+
+      {/* The "SO Created" tab embeds the full Order Tracking interface. */}
+      {isAdmin && filter === "so_created" ? (
+        <OrderTracking />
+      ) : (
+      <>
 
       {/* publish editor */}
       {publishing && (
@@ -343,6 +353,11 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
+                    {onEdit && (isAdmin || o.status === "draft" || o.status === "submitted") && (
+                      <button className="mr-2 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => onEdit(o)}>
+                        Edit
+                      </button>
+                    )}
                     {isAdmin && o.status === "draft" && (
                       <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>
                         Complete
@@ -365,6 +380,8 @@ export default function OrdersAdmin({ mode = "admin" }: { mode?: "mine" | "admin
             </tbody>
           </table>
         </div>
+      )}
+      </>
       )}
     </div>
   );
