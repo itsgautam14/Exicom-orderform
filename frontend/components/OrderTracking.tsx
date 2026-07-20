@@ -5,10 +5,11 @@ import { api } from "@/lib/api";
 import type { OrderTracking } from "@/lib/types";
 
 const STATUS_OPTIONS = ["Pending", "In Production", "Dispatched", "Delivered", "On Hold", "Cancelled"];
+const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
-  date_of_order: "", value: null, date_of_dispatch: "", ex_date_of_delivery: "",
+  date_of_order: "", value: null, currency: "", date_of_dispatch: "", ex_date_of_delivery: "",
   status: "", notes: "",
 };
 
@@ -170,6 +171,13 @@ export default function OrderTracking() {
             {dateField("Date of Order", "date_of_order")}
             {numField("Value", "value")}
             <div>
+              <label className="lbl">Currency</label>
+              <select className="inp" value={editing.currency || ""} onChange={(e) => setF("currency", e.target.value)}>
+                <option value="">—</option>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="lbl">Status</label>
               <input className="inp" list="track-status" value={editing.status || ""} onChange={(e) => setF("status", e.target.value)} />
               <datalist id="track-status">{STATUS_OPTIONS.map((s) => <option key={s} value={s} />)}</datalist>
@@ -235,7 +243,9 @@ export default function OrderTracking() {
                   <td className="px-3 py-2 text-slate-600">{r.ordered || "—"}</td>
                   <td className="max-w-[200px] px-3 py-2 text-slate-600">{r.specifications || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order || "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">{r.value == null ? "—" : fmtNum(r.value)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
+                    {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_dispatch || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.ex_date_of_delivery || "—"}</td>
                   <td className="px-3 py-2">

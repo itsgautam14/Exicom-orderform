@@ -120,6 +120,7 @@ export interface OrderTracking {
   specifications: string;
   date_of_order: string;
   value: number | null;
+  currency: string;
   date_of_dispatch: string;
   ex_date_of_delivery: string;
   status: string;

@@ -75,6 +75,8 @@ def _field_for(header) -> str | None:
         return "date_of_order"
     if key == "value" or "amount" in key:
         return "value"
+    if key.startswith("currency") or key in ("curr", "ccy"):
+        return "currency"
     if "dispatch" in key:
         return "date_of_dispatch"
     # "Expected Delivery" / "EX-Date of delivery" / any "…delivery"
@@ -140,7 +142,7 @@ async def import_tracking(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "No recognisable columns. Expected: Partner, Market, KAM, Ordered, Specifications, "
-            "Date of Order, Value, Date of Dispatch, Expected Delivery, Status, Remarks.",
+            "Date of Order, Value, Currency, Date of Dispatch, Expected Delivery, Status, Remarks.",
         )
     if "partner" not in mapped:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing required column: Partner.")

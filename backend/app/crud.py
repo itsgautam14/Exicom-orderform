@@ -368,6 +368,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     ordered = _order_items_summary(obj)
     date_of_order = obj.quote_date or ""
     value = compute_totals(obj)["grand_total"]
+    currency = obj.currency or ""
     if row is None:
         db.add(models.OrderTracking(
             quote_number=obj.quote_number,
@@ -377,6 +378,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             ordered=ordered,
             date_of_order=date_of_order,
             value=value,
+            currency=currency,
         ))
     else:
         row.partner = partner
@@ -385,6 +387,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
         row.ordered = ordered
         row.date_of_order = date_of_order
         row.value = value
+        row.currency = currency
 
 
 def mark_so_created(db: Session, obj: models.Order) -> models.Order:

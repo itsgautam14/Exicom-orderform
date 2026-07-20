@@ -188,6 +188,7 @@ class OrderTrackingBase(BaseModel):
     specifications: str = ""
     date_of_order: str = ""
     value: Optional[float] = None
+    currency: str = ""
     date_of_dispatch: str = ""
     ex_date_of_delivery: str = ""
     status: str = ""
@@ -207,6 +208,7 @@ class OrderTrackingUpdate(BaseModel):
     specifications: Optional[str] = None
     date_of_order: Optional[str] = None
     value: Optional[float] = None
+    currency: Optional[str] = None
     date_of_dispatch: Optional[str] = None
     ex_date_of_delivery: Optional[str] = None
     status: Optional[str] = None

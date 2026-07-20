@@ -182,6 +182,7 @@ class OrderTracking(Base):
     specifications: Mapped[str] = mapped_column(Text, default="")
     date_of_order: Mapped[str] = mapped_column(String(64), default="")
     value: Mapped[Optional[float]] = mapped_column(Numeric(16, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(8), default="")
     date_of_dispatch: Mapped[str] = mapped_column(String(64), default="")
     ex_date_of_delivery: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[str] = mapped_column(String(64), default="", index=True)
