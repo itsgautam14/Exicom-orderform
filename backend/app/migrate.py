@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
-from app.database import engine
+from app.database import engine, SessionLocal
 
 # (table, column, SQL type + default) tuples
 _COLUMNS = [
@@ -36,12 +36,33 @@ _COLUMNS = [
 ]
 
 
+def _backfill_tracking() -> None:
+    """Give every already-saved quotation its SO Order Tracking row.
+
+    New quotations get this automatically at save time (see
+    crud._sync_tracking_from_order); this catches quotations that were saved
+    before that existed. Idempotent — matches by quote_number, so re-running
+    on every startup just refreshes partner/market/kam/date/value, never
+    duplicates a row or touches the manual dispatch/delivery/status fields.
+    """
+    from app import crud, models  # local import: crud isn't needed at module load
+
+    db = SessionLocal()
+    try:
+        for obj in db.query(models.Order).all():
+            crud._sync_tracking_from_order(db, obj)
+        db.commit()
+    finally:
+        db.close()
+
+
 def run() -> None:
     with engine.begin() as conn:
         for table, column, ddl in _COLUMNS:
             conn.execute(text(
                 f'ALTER TABLE IF EXISTS {table} ADD COLUMN IF NOT EXISTS {column} {ddl}'
             ))
+    _backfill_tracking()
     print("Schema migration complete.")
 
 
