@@ -89,8 +89,6 @@ function shippingSpace(items: OrderItem[], catalog: CatalogProduct[]): { pallets
 const STANDARD_LEAD_TIME = "Production lead time is 4-6 weeks from PO acceptance";
 
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
-// A line more than this fraction below pricebook needs admin approval (5%).
-const MAX_DISCOUNT = 0.05;
 
 function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
   const tiers = p.prices?.[currency];
@@ -272,6 +270,7 @@ function orderOutToInput(o: OrderOut): OrderInput {
     po_number: o.po_number,
     po_amount: o.po_amount,
     created_by: o.created_by,
+    approval_note: o.approval_note,
     items: o.items.map((it) => ({
       product_code: it.product_code,
       code_note: it.code_note,
@@ -454,7 +453,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     const book = pricebookFor(it);
     if (book == null) return false;
     const effective = it.unit_price * (1 - (it.discount_pct || 0) / 100);
-    return effective < book * (1 - MAX_DISCOUNT) - 1e-6;
+    return effective < book - 1e-6;
   }
   const belowPricebookAny = order.items.some(isBelowPricebook);
 
@@ -582,6 +581,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       if (!it.quantity || it.quantity <= 0) miss.push(`Item ${i + 1} · Quantity`);
       if (!it.unit_price || it.unit_price <= 0) miss.push(`Item ${i + 1} · Unit Price`);
     });
+    if (belowPricebookAny && !(order.approval_note || "").trim())
+      miss.push("Reason for quoting below pricebook");
     return miss.length ? "Please complete these required fields:\n\n•  " + miss.join("\n•  ") : null;
   }
 
@@ -703,8 +704,21 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             </button>
           </div>
           {belowPricebookAny && (
-            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
-              ⚠ One or more prices are more than 5% below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700">
+              <div className="font-semibold">
+                ⚠ One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+              </div>
+              <label className="lbl mt-2 text-amber-800">Reason for quoting below pricebook *</label>
+              <textarea
+                className="inp"
+                rows={2}
+                value={order.approval_note || ""}
+                onChange={(e) => set("approval_note", e.target.value)}
+                placeholder="Explain why this is priced below the pricebook…"
+              />
+              <div className="mt-1 text-[10px] font-normal text-amber-600">
+                Internal only — visible to you and the admin. Never shown on the quotation PDF.
+              </div>
             </div>
           )}
           {paymentCustom && (
@@ -920,7 +934,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               </div>
               {isBelowPricebook(it) && (
                 <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  ⚠ More than 5% below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
+                  ⚠ Below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
                 </div>
               )}
               {(() => {

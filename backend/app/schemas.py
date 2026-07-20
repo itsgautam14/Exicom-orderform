@@ -140,6 +140,8 @@ class OrderBase(BaseModel):
     po_amount: str = ""
 
     created_by: str = ""
+    # Internal justification for quoting below pricebook — never rendered in the PDF.
+    approval_note: str = ""
 
 
 class OrderCreate(OrderBase):

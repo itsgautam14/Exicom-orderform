@@ -20,7 +20,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
 
 const REASON_LABEL: Record<string, string> = {
   logistics: "logistics missing",
-  pricebook: "discount > 5%",
+  pricebook: "below pricebook",
   payment: "custom payment terms",
 };
 function reasonText(reason?: string): string {
@@ -184,7 +184,7 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
           <p className="hidden text-sm text-slate-500 sm:block">
             {isAdmin ? (
               <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
-              discount over 5%) — review and publish it to <b>Approved</b>, then mark it <b>SO Created</b>.</>
+              price below pricebook) — review and publish it to <b>Approved</b>.</>
             ) : (
               <>Your historical quotations — search, view and download. Approval is handled by the admin.</>
             )}
@@ -234,8 +234,14 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
             <div className="mb-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
               Needs approval: {reasonText(publishing.approval_reason)}
               {publishing.approval_reason.includes("pricebook") && (
-                <span className="font-normal"> — one or more lines are more than 5% below pricebook; review before approving.</span>
+                <span className="font-normal"> — one or more lines are priced below pricebook; review before approving.</span>
               )}
+            </div>
+          )}
+          {publishing.approval_note && (
+            <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+              <span className="font-semibold text-slate-700">Sales reason (internal):</span>{" "}
+              <span className="whitespace-pre-wrap">{publishing.approval_note}</span>
             </div>
           )}
           <p className="mb-3 text-xs text-slate-500">

@@ -98,6 +98,8 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(16), default="submitted", index=True)
     # Why a draft needs admin sign-off: comma list of "logistics" / "pricebook".
     approval_reason: Mapped[str] = mapped_column(String(64), default="")
+    # Why the sales person quoted below pricebook. Internal only — never in the PDF.
+    approval_note: Mapped[str] = mapped_column(Text, default="")
     # Per-browser creator id so a sales person sees only the quotes they made.
     created_by: Mapped[str] = mapped_column(String(64), default="", index=True)
 

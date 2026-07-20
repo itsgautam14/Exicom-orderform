@@ -93,6 +93,8 @@ export interface OrderInput {
 
   /** Per-browser creator id (set when the quote is saved). */
   created_by?: string;
+  /** Internal reason for quoting below pricebook — never shown on the PDF. */
+  approval_note?: string;
 
   items: OrderItem[];
 }

@@ -29,6 +29,7 @@ _COLUMNS = [
     ("orders", "status", "VARCHAR(16) DEFAULT 'submitted'"),
     ("orders", "comments", "TEXT DEFAULT ''"),
     ("orders", "approval_reason", "VARCHAR(64) DEFAULT ''"),
+    ("orders", "approval_note", "TEXT DEFAULT ''"),
     ("orders", "created_by", "VARCHAR(64) DEFAULT ''"),
     ("orders", "payment_term_type", "VARCHAR(16) DEFAULT 'predefined'"),
     ("orders", "payment_term_text", "TEXT DEFAULT ''"),
