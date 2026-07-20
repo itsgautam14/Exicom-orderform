@@ -166,7 +166,7 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
-    { key: "so_created", label: "SO Created" },
+    { key: "so_created", label: "SO Order Tracking" },
   ];
 
   return (
