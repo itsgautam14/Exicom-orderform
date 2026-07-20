@@ -291,6 +291,7 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
         _ensure_pending_logistics(
             db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
         )
+    _sync_tracking_from_order(db, obj)
     db.commit()
     db.refresh(obj)
     return obj
@@ -317,6 +318,7 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
             _ensure_pending_logistics(
                 db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
             )
+    _sync_tracking_from_order(db, obj)
     db.commit()
     db.refresh(obj)
     return obj
@@ -331,6 +333,7 @@ def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) ->
     for k, v in data.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
     obj.status = "approved"
+    _sync_tracking_from_order(db, obj)
     db.commit()
     db.refresh(obj)
     return obj
@@ -345,28 +348,53 @@ def _order_items_summary(order: models.Order) -> str:
     return "; ".join(parts)
 
 
-def mark_so_created(db: Session, obj: models.Order) -> models.Order:
-    """Advance an approved quotation to ``so_created`` and graduate it into a
-    tracking record shown under Approvals → SO Created."""
-    obj.status = "so_created"
-    total = compute_totals(obj)["grand_total"]
-    # Don't double-create if a tracking row for this quote already exists.
-    ref = f"Quote: {obj.quote_number}"
-    exists = db.query(models.OrderTracking).filter(models.OrderTracking.notes == ref).first()
-    if not exists and obj.quote_number:
+def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
+    """Create or refresh the SO Order Tracking row generated from this quotation.
+
+    Runs every time a quotation is saved (created or edited) so every quote made
+    from the Order Form shows up under SO Order Tracking right away — no manual
+    step required. Partner, market, KAM, order date and value always mirror the
+    quotation; dispatch date, expected delivery, shipment status and remarks are
+    operational fields ops fills in by hand and are never overwritten here.
+    """
+    if not obj.quote_number:
+        return
+    row = db.query(models.OrderTracking).filter(
+        models.OrderTracking.quote_number == obj.quote_number
+    ).first()
+    partner = obj.bill_to_company or obj.prepared_for or ""
+    market = obj.bill_to_country or ""
+    kam = obj.proposed_by or ""
+    ordered = _order_items_summary(obj)
+    date_of_order = obj.quote_date or ""
+    value = compute_totals(obj)["grand_total"]
+    if row is None:
         db.add(models.OrderTracking(
-            partner=obj.bill_to_company or obj.prepared_for or "",
-            market=obj.bill_to_country or "",
-            kam=obj.proposed_by or "",
-            ordered=_order_items_summary(obj),
-            specifications="",
-            date_of_order=obj.quote_date or "",
-            value=total,
-            date_of_dispatch="",
-            ex_date_of_delivery="",
-            status="SO Created",
-            notes=ref,
+            quote_number=obj.quote_number,
+            partner=partner,
+            market=market,
+            kam=kam,
+            ordered=ordered,
+            date_of_order=date_of_order,
+            value=value,
         ))
+    else:
+        row.partner = partner
+        row.market = market
+        row.kam = kam
+        row.ordered = ordered
+        row.date_of_order = date_of_order
+        row.value = value
+
+
+def mark_so_created(db: Session, obj: models.Order) -> models.Order:
+    """Advance an approved quotation to ``so_created``.
+
+    The tracking row already exists (created when the quotation was first
+    saved) — this just flips the order's own approval status.
+    """
+    obj.status = "so_created"
+    _sync_tracking_from_order(db, obj)
     db.commit()
     db.refresh(obj)
     return obj

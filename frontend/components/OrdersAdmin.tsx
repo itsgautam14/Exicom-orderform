@@ -218,7 +218,7 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
         )}
       </div>
 
-      {/* The "SO Created" tab embeds the full Order Tracking interface. */}
+      {/* The "SO Order Tracking" tab embeds the full Order Tracking interface. */}
       {isAdmin && filter === "so_created" ? (
         <OrderTracking />
       ) : (

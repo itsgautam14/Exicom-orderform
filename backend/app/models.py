@@ -165,11 +165,16 @@ class QuoteCounter(Base):
 class OrderTracking(Base):
     """Post-sale order tracking rows (from the 'order tracking' sheet).
 
-    Filled in manually or bulk-imported from Excel, and shown on a dashboard.
+    Auto-created/refreshed from a quotation's data as soon as it's saved from the
+    Order Form (see crud._sync_tracking_from_order), and also filled in manually
+    or bulk-imported from Excel for partners with no quotation on file.
     """
     __tablename__ = "order_trackings"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    # Links back to Order.quote_number when this row was generated from a quotation.
+    # Blank for rows added manually or imported from Excel.
+    quote_number: Mapped[str] = mapped_column(String(64), default="", index=True)
     partner: Mapped[str] = mapped_column(String(255), default="")
     market: Mapped[str] = mapped_column(String(128), default="")
     kam: Mapped[str] = mapped_column(String(128), default="")

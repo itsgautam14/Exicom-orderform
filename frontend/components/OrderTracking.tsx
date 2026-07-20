@@ -180,7 +180,7 @@ export default function OrderTracking() {
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {areaField("Ordered", "ordered")}
             {areaField("Specifications", "specifications")}
-            {areaField("Notes (pending / blocker)", "notes")}
+            {areaField("Remarks (pending / blocker)", "notes")}
           </div>
           <div className="mt-3 flex gap-2">
             <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
@@ -191,7 +191,7 @@ export default function OrderTracking() {
 
       {/* filters */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, notes…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="inp w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All statuses</option>
           {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -222,7 +222,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Dispatch</th>
                 <th className="px-3 py-2">Expected Delivery</th>
                 <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Notes</th>
+                <th className="px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>

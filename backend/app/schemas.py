@@ -180,6 +180,7 @@ class OrderOut(OrderBase):
 # ----------------------------- Order tracking --------------------------------
 
 class OrderTrackingBase(BaseModel):
+    quote_number: str = ""
     partner: str = ""
     market: str = ""
     kam: str = ""
@@ -198,6 +199,7 @@ class OrderTrackingCreate(OrderTrackingBase):
 
 
 class OrderTrackingUpdate(BaseModel):
+    quote_number: Optional[str] = None
     partner: Optional[str] = None
     market: Optional[str] = None
     kam: Optional[str] = None

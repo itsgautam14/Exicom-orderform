@@ -111,6 +111,8 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
 
 export interface OrderTracking {
   id: string;
+  /** Links back to the quotation this row was generated from; blank if added manually. */
+  quote_number?: string;
   partner: string;
   market: string;
   kam: string;

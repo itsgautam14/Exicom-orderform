@@ -1,7 +1,8 @@
 """Order-tracking endpoints: manual CRUD + bulk Excel import.
 
-Lives under the Approvals module's "SO Created" section. Writes require the admin
-password. The Excel import reads the raw request body (no python-multipart needed).
+Lives under the Approvals module's "SO Order Tracking" tab. Writes require the
+admin password. The Excel import reads the raw request body (no python-multipart
+needed).
 """
 from __future__ import annotations
 
@@ -81,7 +82,7 @@ def _field_for(header) -> str | None:
         return "ex_date_of_delivery"
     if key.startswith("status"):
         return "status"
-    if key.startswith("note"):
+    if key.startswith("note") or key.startswith("remark"):
         return "notes"
     return None
 
@@ -139,7 +140,7 @@ async def import_tracking(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "No recognisable columns. Expected: Partner, Market, KAM, Ordered, Specifications, "
-            "Date of Order, Value, Date of Dispatch, Expected Delivery, Status, Notes.",
+            "Date of Order, Value, Date of Dispatch, Expected Delivery, Status, Remarks.",
         )
     if "partner" not in mapped:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing required column: Partner.")
