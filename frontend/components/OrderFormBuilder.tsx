@@ -85,7 +85,7 @@ function shippingSpace(items: OrderItem[], catalog: CatalogProduct[]): { pallets
 }
 
 
-/** Fixed production lead time shown on every order form. */
+/** Default production lead time pre-filled on a new order form; editable per quote. */
 const STANDARD_LEAD_TIME = "Production lead time is 4-6 weeks from PO acceptance";
 
 /** Resolve the catalog price for a given currency + quantity (MoQ tier). */
@@ -1101,10 +1101,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
           )}
           <Area label="Warranty" v={order.warranty} on={(v) => set("warranty", v)} rows={2} />
           <Field label="Validity" v={order.validity} on={(v) => set("validity", v)} />
-          <div className="mb-2">
-            <label className="lbl">Production Lead Time (standard)</label>
-            <input className="inp cursor-not-allowed bg-slate-100 text-slate-500" readOnly value={order.lead_time} />
-          </div>
+          <Area label="Production Lead Time" v={order.lead_time} on={(v) => set("lead_time", v)} rows={2} />
           <Area label="Comments (shown in Terms & Conditions)" v={order.comments} on={(v) => set("comments", v)} rows={2} />
           <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[10px] leading-relaxed text-slate-500">
             <b className="text-slate-600">Standard Terms</b> are automatically included on the order form:
