@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getCreatorId } from "@/lib/creator";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
-import OrderTracking from "@/components/OrderTracking";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
 type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created";
@@ -166,7 +165,6 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
-    { key: "so_created", label: "SO Order Tracking" },
   ];
 
   return (
@@ -208,21 +206,13 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
             </button>
           ))}
         </div>
-        {!(isAdmin && filter === "so_created") && (
-          <input
-            className="inp max-w-xs flex-1"
-            placeholder="Search quote #, customer, country, KAM…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        )}
+        <input
+          className="inp max-w-xs flex-1"
+          placeholder="Search quote #, customer, country, KAM…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
-
-      {/* The "SO Order Tracking" tab embeds the full Order Tracking interface. */}
-      {isAdmin && filter === "so_created" ? (
-        <OrderTracking />
-      ) : (
-      <>
 
       {/* publish editor */}
       {publishing && (
@@ -386,8 +376,6 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
             </tbody>
           </table>
         </div>
-      )}
-      </>
       )}
     </div>
   );
