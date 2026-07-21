@@ -112,6 +112,30 @@ function catalogPrice(p: CatalogProduct, currency: string, qty: number, eurDisco
   return priceFor(p, currency, qty);
 }
 
+/**
+ * Resolve pricing for a catalog line, surfacing the EUR MoQ discount as an actual
+ * percentage instead of baking it silently into the unit price. For EUR products
+ * with a list (no-discount) price: unit_price is set to that list price and
+ * discount_pct to the tier's real % off — so the Discount % field, the order-item
+ * table and the PDF's Disc % column all show the discount being given. discount_pct
+ * is `null` when this line isn't part of the EUR with/without mechanic at all,
+ * meaning the caller should leave whatever discount_pct is already there alone.
+ */
+function resolveCatalogPricing(
+  p: CatalogProduct, currency: string, qty: number, requestedMode?: string
+): { eur_discount: string; unit_price: number | null; discount_pct: number | null } {
+  const eurCapable = currency === "EUR" && hasEurNoDiscount(p);
+  if (!eurCapable) {
+    return { eur_discount: "", unit_price: catalogPrice(p, currency, qty, ""), discount_pct: null };
+  }
+  const mode = requestedMode || "with";
+  const msrp = p.prices?.[EUR_ND_KEY]?.[0]?.[2] ?? null;
+  if (mode === "without") return { eur_discount: mode, unit_price: msrp, discount_pct: 0 };
+  const tierPrice = priceFor(p, "EUR", qty);
+  const pct = msrp && tierPrice != null ? Math.round((1 - tierPrice / msrp) * 1000) / 10 : 0;
+  return { eur_discount: mode, unit_price: msrp, discount_pct: pct };
+}
+
 /** Does the catalog product have pricing in the given currency? */
 function hasCurrency(p: CatalogProduct, currency: string): boolean {
   if (p.prices && Object.keys(p.prices).length) return Boolean(p.prices[currency]?.length);
@@ -486,20 +510,17 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     const p = catalog.find((c) => c.id === productId);
     if (!p) return;
     const qty = order.items[i]?.quantity || 1;
-    // Default EUR products that offer a no-discount price to "with"; others have no choice.
-    const eurDisc = order.currency === "EUR" && hasEurNoDiscount(p)
-      ? (order.items[i]?.eur_discount || "with")
-      : "";
-    const price = catalogPrice(p, order.currency, qty, eurDisc);
+    const r = resolveCatalogPricing(p, order.currency, qty, order.items[i]?.eur_discount);
     setItem(i, {
       product_code: p.product_code,
       code_note: p.code_note,
       product_name: p.product_name,
       description: p.description,
-      unit_price: price ?? p.unit_price,
+      unit_price: r.unit_price ?? p.unit_price,
       unit: p.unit,
       catalog_id: p.id,
-      eur_discount: eurDisc,
+      eur_discount: r.eur_discount,
+      discount_pct: r.discount_pct ?? 0,
     });
   }
   // EUR only: switch a line between the discounted (MoQ) and without-discount price.
@@ -509,8 +530,14 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       items: o.items.map((it, idx) => {
         if (idx !== i) return it;
         const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
-        const price = p ? catalogPrice(p, o.currency, it.quantity, mode) : null;
-        return { ...it, eur_discount: mode, ...(price != null ? { unit_price: price } : {}) };
+        if (!p) return { ...it, eur_discount: mode };
+        const r = resolveCatalogPricing(p, o.currency, it.quantity, mode);
+        return {
+          ...it,
+          eur_discount: r.eur_discount,
+          ...(r.unit_price != null ? { unit_price: r.unit_price } : {}),
+          ...(r.discount_pct != null ? { discount_pct: r.discount_pct } : {}),
+        };
       }),
     }));
   }
@@ -523,8 +550,11 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
         const next = { ...it, quantity: qty };
         if (it.catalog_id) {
           const p = catalog.find((c) => c.id === it.catalog_id);
-          const price = p ? catalogPrice(p, o.currency, qty, it.eur_discount) : null;
-          if (price != null) next.unit_price = price;
+          if (p) {
+            const r = resolveCatalogPricing(p, o.currency, qty, it.eur_discount);
+            if (r.unit_price != null) next.unit_price = r.unit_price;
+            if (r.discount_pct != null) next.discount_pct = r.discount_pct;
+          }
         }
         return next;
       }),
@@ -555,12 +585,18 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       items: o.items.map((it) => {
         if (!it.catalog_id) return it;
         const p = catalog.find((c) => c.id === it.catalog_id);
-        // The EUR with/without choice only applies while EUR is the currency.
-        const eurDisc = currency === "EUR" && hasEurNoDiscount(p)
-          ? (it.eur_discount || "with")
-          : "";
-        const price = p ? catalogPrice(p, currency, it.quantity, eurDisc) : null;
-        return { ...it, eur_discount: eurDisc, ...(price != null ? { unit_price: price } : {}) };
+        if (!p) return it;
+        const r = resolveCatalogPricing(p, currency, it.quantity, it.eur_discount);
+        // A product with a EUR list price always has its discount_pct driven by the
+        // EUR with/without choice — reset to 0 when leaving EUR so a stale tier %
+        // doesn't silently apply to the new currency's price.
+        const ownsDiscount = hasEurNoDiscount(p);
+        return {
+          ...it,
+          eur_discount: r.eur_discount,
+          ...(r.unit_price != null ? { unit_price: r.unit_price } : {}),
+          ...(ownsDiscount ? { discount_pct: r.discount_pct ?? 0 } : {}),
+        };
       }),
     }));
   }
@@ -900,10 +936,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 if (!hasEurNoDiscount(p)) return null;
                 const mode = it.eur_discount || "with";
                 const msrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
-                const tierPrice = mode === "with" ? priceFor(p!, "EUR", it.quantity) : null;
-                const discountPct = msrp && tierPrice != null
-                  ? Math.round((1 - tierPrice / msrp) * 1000) / 10
-                  : null;
                 return (
                   <div className="mb-2">
                     <label className="lbl">EUR Pricing</label>
@@ -911,9 +943,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                       <option value="with">With discount (MoQ tiers)</option>
                       <option value="without">Without discount (list price)</option>
                     </select>
-                    {discountPct != null && (
+                    {mode === "with" && !!it.discount_pct && (
                       <p className="mt-1 text-[10px] font-semibold text-emerald-600">
-                        {discountPct}% off list price (MSRP €{msrp!.toFixed(2)})
+                        {it.discount_pct}% off list price (MSRP €{msrp!.toFixed(2)})
                       </p>
                     )}
                   </div>
