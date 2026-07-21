@@ -326,12 +326,17 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
   const approvalNoteRef = useRef<HTMLTextAreaElement>(null);
 
-  // Jump to the approval-reason box and focus it — used by a line's "Request
-  // Pricing" button so a sales person can request approval right where they
-  // changed the price, instead of only finding out at Save & Send time.
+  // A line's "Request Pricing" button. If the approval reason is still empty,
+  // jump to it and focus it so the sales person can fill it in; otherwise
+  // actually send the quote to the admin (same as Save & Send), so the button
+  // isn't just a scroll helper.
   function requestPricing() {
-    approvalNoteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    approvalNoteRef.current?.focus();
+    if (!(order.approval_note || "").trim()) {
+      approvalNoteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      approvalNoteRef.current?.focus();
+      return;
+    }
+    saveOrder();
   }
 
   // Load an existing quote into the form for editing (from Past Quotes → Edit).
@@ -975,10 +980,11 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                   </span>
                   <button
                     type="button"
-                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300"
+                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
                     onClick={requestPricing}
+                    disabled={busy}
                   >
-                    Request Pricing
+                    {busy ? "Sending…" : "Request Pricing"}
                   </button>
                 </div>
               )}
