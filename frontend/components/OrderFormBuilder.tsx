@@ -324,6 +324,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   const debounce = useRef<ReturnType<typeof setTimeout>>();
   const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
+  const approvalNoteRef = useRef<HTMLTextAreaElement>(null);
+
+  // Jump to the approval-reason box and focus it — used by a line's "Request
+  // Pricing" button so a sales person can request approval right where they
+  // changed the price, instead of only finding out at Save & Send time.
+  function requestPricing() {
+    approvalNoteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    approvalNoteRef.current?.focus();
+  }
 
   // Load an existing quote into the form for editing (from Past Quotes → Edit).
   useEffect(() => {
@@ -527,24 +536,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       eur_discount: r.eur_discount,
       discount_pct: r.discount_pct ?? 0,
     });
-  }
-  // EUR only: switch a line between the discounted (MoQ) and without-discount price.
-  function setEurDiscount(i: number, mode: string) {
-    setOrder((o) => ({
-      ...o,
-      items: o.items.map((it, idx) => {
-        if (idx !== i) return it;
-        const p = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
-        if (!p) return { ...it, eur_discount: mode };
-        const r = resolveCatalogPricing(p, o.currency, it.quantity, mode);
-        return {
-          ...it,
-          eur_discount: r.eur_discount,
-          ...(r.unit_price != null ? { unit_price: r.unit_price } : {}),
-          ...(r.discount_pct != null ? { discount_pct: r.discount_pct } : {}),
-        };
-      }),
-    }));
   }
   // Quantity changes can move a line into a different MoQ price tier.
   function setQuantity(i: number, qty: number) {
@@ -751,6 +742,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               </div>
               <label className="lbl mt-2 text-amber-800">Reason for quoting below pricebook *</label>
               <textarea
+                ref={approvalNoteRef}
                 className="inp"
                 rows={2}
                 value={order.approval_note || ""}
@@ -939,21 +931,12 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                   ? catalog.find((c) => c.id === it.catalog_id)
                   : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
                 if (!hasEurNoDiscount(p)) return null;
-                const mode = it.eur_discount || "with";
                 const msrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
+                if (!it.discount_pct) return null;
                 return (
-                  <div className="mb-2">
-                    <label className="lbl">EUR Pricing</label>
-                    <select className="inp" value={mode} onChange={(e) => setEurDiscount(i, e.target.value)}>
-                      <option value="with">With discount (MoQ tiers)</option>
-                      <option value="without">Without discount (list price)</option>
-                    </select>
-                    {mode === "with" && !!it.discount_pct && (
-                      <p className="mt-1 text-[10px] font-semibold text-emerald-600">
-                        {it.discount_pct}% off list price (MSRP €{msrp!.toFixed(2)})
-                      </p>
-                    )}
-                  </div>
+                  <p className="mb-2 text-[10px] font-semibold text-emerald-600">
+                    {it.discount_pct}% off list price (MSRP €{msrp!.toFixed(2)})
+                  </p>
                 );
               })()}
               <div className="grid grid-cols-2 gap-2">
@@ -981,13 +964,22 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 )}
               </div>
               {isBelowPricebook(it) && (
-                <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  {(() => {
-                    const book = pricebookFor(it);
-                    return book == null
-                      ? `⚠ No pricebook price in ${cur} for this product. This quote will need admin approval.`
-                      : `⚠ Below pricebook (${cur} ${fmt(book)}). This quote will need admin approval.`;
-                  })()}
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                  <span>
+                    {(() => {
+                      const book = pricebookFor(it);
+                      return book == null
+                        ? `⚠ No pricebook price in ${cur} for this product. This quote will need admin approval.`
+                        : `⚠ Below pricebook (${cur} ${fmt(book)}). This quote will need admin approval.`;
+                    })()}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300"
+                    onClick={requestPricing}
+                  >
+                    Request Pricing
+                  </button>
                 </div>
               )}
               {(() => {
