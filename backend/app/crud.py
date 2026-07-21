@@ -42,7 +42,10 @@ def pricebook_unit_price(product: "models.CatalogProduct", currency: str, qty: i
 
 
 def below_pricebook_items(db: Session, currency: str, items) -> bool:
-    """True if any line is priced below its pricebook price."""
+    """True if any line is priced below its pricebook price, or is a catalog
+    product with no pricebook price at all in the quote's currency — that case
+    can't be verified against anything, so it's routed to admin review too
+    rather than silently waved through."""
     for it in items:
         code = getattr(it, "product_code", "") or ""
         if not code:
@@ -54,7 +57,7 @@ def below_pricebook_items(db: Session, currency: str, items) -> bool:
             continue
         book = pricebook_unit_price(prod, currency, int(getattr(it, "quantity", 0) or 0))
         if book is None:
-            continue
+            return True  # no pricebook reference in this currency — can't verify
         # Compare the *effective* price the customer pays (after any line discount)
         # against the pricebook. Any shortfall needs approval.
         disc = float(getattr(it, "discount_pct", 0) or 0)

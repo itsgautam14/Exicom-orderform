@@ -465,17 +465,22 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   // Pricebook comparison → a line whose effective (post-discount) price is below the
   // catalog list price makes the whole quote require admin approval.
-  function pricebookFor(it: OrderItem): number | null {
-    const p = it.catalog_id
+  function catalogProductFor(it: OrderItem): CatalogProduct | undefined {
+    return it.catalog_id
       ? catalog.find((c) => c.id === it.catalog_id)
       : it.product_code
         ? catalog.find((c) => c.product_code === it.product_code)
         : undefined;
+  }
+  function pricebookFor(it: OrderItem): number | null {
+    const p = catalogProductFor(it);
     return p ? catalogPrice(p, order.currency, it.quantity, it.eur_discount) : null;
   }
   function isBelowPricebook(it: OrderItem): boolean {
-    const book = pricebookFor(it);
-    if (book == null) return false;
+    const p = catalogProductFor(it);
+    if (!p) return false; // free-text line, nothing to verify against
+    const book = catalogPrice(p, order.currency, it.quantity, it.eur_discount);
+    if (book == null) return true; // catalog product with no price in this currency — can't verify
     const effective = it.unit_price * (1 - (it.discount_pct || 0) / 100);
     return effective < book - 1e-6;
   }
@@ -977,7 +982,12 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               </div>
               {isBelowPricebook(it) && (
                 <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  ⚠ Below pricebook ({cur} {fmt(pricebookFor(it) as number)}). This quote will need admin approval.
+                  {(() => {
+                    const book = pricebookFor(it);
+                    return book == null
+                      ? `⚠ No pricebook price in ${cur} for this product. This quote will need admin approval.`
+                      : `⚠ Below pricebook (${cur} ${fmt(book)}). This quote will need admin approval.`;
+                  })()}
                 </div>
               )}
               {(() => {
