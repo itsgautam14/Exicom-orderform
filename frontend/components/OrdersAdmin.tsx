@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { getCreatorId } from "@/lib/creator";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
@@ -36,12 +35,17 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
 }
 
+// Reuses the same sessionStorage key as AdminGate (Catalog/Logistics) so unlocking
+// once in a session unlocks admin actions everywhere.
+const ADMIN_PW_KEY = "catalog_admin_pw";
+
 /**
- * mode="mine"  → each sales person's own Past Quotes (scoped by creator id, no approval actions).
- * mode="admin" → the Approvals view: every quote, with Complete/Publish + Delete (behind the admin gate).
+ * Past Quotes: every quotation the team has made (every creator, every status,
+ * including drafts) is visible to anyone — no password needed to browse. The
+ * approval actions (Complete/Publish, Mark SO Created, Delete) stay behind an
+ * inline admin-password unlock instead of gating the whole page.
  */
-export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" | "admin"; onEdit?: (o: OrderOut) => void }) {
-  const isAdmin = mode === "admin";
+export default function OrdersAdmin({ onEdit }: { onEdit?: (o: OrderOut) => void }) {
   const [orders, setOrders] = useState<OrderOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +56,47 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
   const [publishPaymentCustom, setPublishPaymentCustom] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const [unlocked, setUnlocked] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+
+  useEffect(() => {
+    if (sessionStorage.getItem(ADMIN_PW_KEY)) setUnlocked(true);
+  }, []);
+
+  async function submitUnlock(e: React.FormEvent) {
+    e.preventDefault();
+    setPwBusy(true);
+    setPwError("");
+    try {
+      const ok = await api.verifyAdmin(pw);
+      if (ok) {
+        sessionStorage.setItem(ADMIN_PW_KEY, pw);
+        setUnlocked(true);
+        setShowUnlock(false);
+        setPw("");
+      } else {
+        setPwError("Incorrect password.");
+      }
+    } catch {
+      setPwError("Could not reach the server.");
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
+  function lock() {
+    sessionStorage.removeItem(ADMIN_PW_KEY);
+    setUnlocked(false);
+  }
+
   async function reload() {
     setLoading(true);
     setError(null);
     try {
-      setOrders(await api.listOrders(isAdmin ? undefined : getCreatorId()));
+      setOrders(await api.listOrders());
     } catch (e) {
       setError((e as Error).message);
       setOrders([]);
@@ -169,27 +209,55 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-lg font-bold text-slate-800">
-            {isAdmin ? "Approvals" : "Past Quotes"}
-            {isAdmin && counts.draft > 0 && (
+            Past Quotes
+            {unlocked && counts.draft > 0 && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
                 {counts.draft} draft{counts.draft > 1 ? "s" : ""} awaiting
               </span>
             )}
           </h1>
           <p className="hidden text-sm text-slate-500 sm:block">
-            {isAdmin ? (
+            {unlocked ? (
               <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
               price below pricebook) — review and publish it to <b>Approved</b>.</>
             ) : (
-              <>Your historical quotations — search, view and download. Approval is handled by the admin.</>
+              <>Every quotation the team has made — search, view and download. Unlock to complete drafts or delete a quote.</>
             )}
           </p>
         </div>
-        <button className="btn flex-shrink-0" onClick={reload}>↻ Refresh</button>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {unlocked ? (
+            <button className="text-xs font-semibold text-slate-400 hover:text-red-500" onClick={lock}>
+              🔒 Lock admin
+            </button>
+          ) : (
+            <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setShowUnlock((v) => !v)}>
+              🔓 Unlock admin
+            </button>
+          )}
+          <button className="btn flex-shrink-0" onClick={reload}>↻ Refresh</button>
+        </div>
       </div>
+
+      {showUnlock && !unlocked && (
+        <form onSubmit={submitUnlock} className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+          <input
+            className="inp max-w-[220px]"
+            type="password"
+            autoFocus
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); setPwError(""); }}
+            placeholder="Admin password"
+          />
+          <button type="submit" className="btn btn-primary" disabled={pwBusy || !pw}>
+            {pwBusy ? "Checking…" : "Unlock"}
+          </button>
+          {pwError && <span className="text-xs font-semibold text-red-500">{pwError}</span>}
+        </form>
+      )}
 
       {/* filters + search */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -349,17 +417,17 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {onEdit && (isAdmin || o.status === "draft" || o.status === "submitted") && (
+                    {onEdit && (unlocked || o.status === "draft" || o.status === "submitted") && (
                       <button className="mr-2 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => onEdit(o)}>
                         Edit
                       </button>
                     )}
-                    {isAdmin && o.status === "draft" && (
+                    {unlocked && o.status === "draft" && (
                       <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>
                         Complete
                       </button>
                     )}
-                    {isAdmin && o.status === "approved" && (
+                    {unlocked && o.status === "approved" && (
                       <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markSoCreated(o)}>
                         Mark SO Created
                       </button>
@@ -367,7 +435,7 @@ export default function OrdersAdmin({ mode = "admin", onEdit }: { mode?: "mine" 
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
                       {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
                     </button>
-                    {isAdmin && (
+                    {unlocked && (
                       <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                     )}
                   </td>
