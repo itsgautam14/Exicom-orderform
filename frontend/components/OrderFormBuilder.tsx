@@ -898,13 +898,24 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                   ? catalog.find((c) => c.id === it.catalog_id)
                   : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
                 if (!hasEurNoDiscount(p)) return null;
+                const mode = it.eur_discount || "with";
+                const msrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
+                const tierPrice = mode === "with" ? priceFor(p!, "EUR", it.quantity) : null;
+                const discountPct = msrp && tierPrice != null
+                  ? Math.round((1 - tierPrice / msrp) * 1000) / 10
+                  : null;
                 return (
                   <div className="mb-2">
                     <label className="lbl">EUR Pricing</label>
-                    <select className="inp" value={it.eur_discount || "with"} onChange={(e) => setEurDiscount(i, e.target.value)}>
+                    <select className="inp" value={mode} onChange={(e) => setEurDiscount(i, e.target.value)}>
                       <option value="with">With discount (MoQ tiers)</option>
                       <option value="without">Without discount (list price)</option>
                     </select>
+                    {discountPct != null && (
+                      <p className="mt-1 text-[10px] font-semibold text-emerald-600">
+                        {discountPct}% off list price (MSRP €{msrp!.toFixed(2)})
+                      </p>
+                    )}
                   </div>
                 );
               })()}
