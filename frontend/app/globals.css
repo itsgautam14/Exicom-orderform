@@ -3,10 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --teal: #1ea8a0;
-  --teal-2: #16c0a0;
+  --teal: #27bdbe;
+  --neon: #94f440;
   --teal-dark: #0c7d77;
-  --ink: #0c1b22;
+  --gray: #b5b5b5;
+  --ink: #343a42;
 }
 
 @layer base {
@@ -22,10 +23,10 @@
 @layer components {
   /* ---- form controls ---- */
   .inp {
-    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800
+    @apply w-full rounded-lg border border-transparent bg-exicom-gray/20 px-3 py-2 text-sm text-slate-800
            shadow-sm outline-none transition
            placeholder:text-slate-400
-           focus:border-exicom-teal focus:ring-4 focus:ring-exicom-teal/15;
+           focus:border-exicom-teal focus:bg-white focus:ring-4 focus:ring-exicom-teal/15;
   }
   textarea.inp { @apply leading-relaxed; }
 
@@ -41,8 +42,8 @@
            disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply border-transparent bg-gradient-to-b from-exicom-teal to-exicom-tealDark text-white
-           shadow-md shadow-exicom-teal/20 hover:from-[#1a958e] hover:to-[#0a6b66];
+    @apply border-transparent bg-gradient-to-r from-exicom-teal to-exicom-neon text-white
+           shadow-md shadow-exicom-teal/20 hover:brightness-95;
   }
   .btn-ghost {
     @apply border-transparent bg-transparent text-slate-500 shadow-none hover:bg-slate-100;
@@ -57,14 +58,14 @@
   }
   .section-badge {
     @apply flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md
-           bg-gradient-to-br from-exicom-teal to-exicom-tealDark text-[10px] font-bold text-white;
+           bg-gradient-to-r from-exicom-teal to-exicom-neon text-[10px] font-bold text-white;
   }
 
   /* ---- exicom "e" logo chip ---- */
   .logo-chip {
     @apply relative inline-flex h-7 w-7 items-center justify-center rounded-full
            text-sm font-black text-white;
-    background: linear-gradient(135deg, #16b8b0 0%, #2ec48f 50%, #57c62f 100%);
+    background: linear-gradient(90deg, #27bdbe 0%, #94f440 100%);
   }
 
   /* ---- pill tabs ---- */
@@ -73,8 +74,8 @@
            hover:bg-slate-100 hover:text-slate-700;
   }
   .tab-active {
-    @apply bg-gradient-to-b from-exicom-teal to-exicom-tealDark text-white shadow-md shadow-exicom-teal/25
-           hover:from-exicom-teal hover:to-exicom-tealDark hover:text-white;
+    @apply bg-gradient-to-r from-exicom-teal to-exicom-neon text-white shadow-md shadow-exicom-teal/25
+           hover:from-exicom-teal hover:to-exicom-neon hover:text-white;
   }
 
   /* ---- line-item block ---- */

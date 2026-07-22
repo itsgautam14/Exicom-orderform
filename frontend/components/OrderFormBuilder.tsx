@@ -1023,7 +1023,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               <Row k={`Transportation (${order.transport_mode || order.incoterms})`} v={`${cur} ${fmt(totals.freight)}`} />
             )}
             <Row k={`Tax (${order.tax_rate}%)`} v={`${cur} ${fmt(totals.tax)}`} />
-            <div className="mt-1 flex items-center justify-between rounded-md bg-gradient-to-r from-exicom-teal to-exicom-tealDark px-3 py-2 text-white">
+            <div className="mt-1 flex items-center justify-between rounded-md bg-gradient-to-r from-exicom-teal to-exicom-neon px-3 py-2 text-white">
               <span className="text-xs font-bold uppercase tracking-wide">Total</span>
               <span className="text-sm font-extrabold">{cur} {fmt(totals.grand)}</span>
             </div>
