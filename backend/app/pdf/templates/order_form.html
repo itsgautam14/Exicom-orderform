@@ -447,8 +447,16 @@ html, body {
 <hr class="hr-thick"/>
 
 <!-- TERMS & CONDITIONS -->
+{% set INCOTERM_DESC = {
+  "EXW": "Ex Works — the buyer bears all costs and risks of transporting the goods from the seller's premises.",
+  "FOB": "Free On Board — the seller delivers the goods on board the vessel; risk and cost transfer to the buyer from that point.",
+  "CIF": "Cost, Insurance and Freight — the seller pays the cost, insurance and freight to the named port of destination; risk transfers once the goods are on board.",
+  "DDP": "Delivered Duty Paid — the seller bears all costs and risks, including duties and taxes, delivering to the buyer's named place.",
+  "DAP": "Delivered At Place — the seller delivers when the goods are placed at the buyer's disposal at the named destination, ready for unloading; the buyer handles import duties."
+} %}
 <div class="section-header">Terms &amp; Conditions</div>
 <div class="terms">
+  <p><b>Incoterms:</b> {{ order.incoterms }} — {{ INCOTERM_DESC.get(order.incoterms, "") }}</p>
   <p><b>Production Lead Times:</b> Standard is 4–6 weeks from PO acceptance.</p>
   <p><b>Payment Terms:</b> {{ (order.payment_term_text or order.payment_terms) | replace('\n', '<br/>') | safe }}</p>
   <p><b>Warranty:</b> {{ order.warranty }}</p>
