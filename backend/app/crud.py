@@ -405,6 +405,14 @@ def mark_so_created(db: Session, obj: models.Order) -> models.Order:
     return obj
 
 
+def reject_order(db: Session, obj: models.Order) -> models.Order:
+    """Reject a draft quotation — the sales person sees it as Rejected in Past Quotes."""
+    obj.status = "rejected"
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def delete_order(db: Session, obj: models.Order) -> None:
     db.delete(obj)
     db.commit()

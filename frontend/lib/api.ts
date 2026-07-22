@@ -119,6 +119,10 @@ export const api = {
   markSoCreated: (id: string): Promise<OrderOut> =>
     fetch(`${BASE}/api/orders/${id}/so-created`, { method: "POST", headers: adminHeaders() }).then(json<OrderOut>),
 
+  // Reject a draft quotation awaiting pricing approval.
+  rejectOrder: (id: string): Promise<OrderOut> =>
+    fetch(`${BASE}/api/orders/${id}/reject`, { method: "POST", headers: adminHeaders() }).then(json<OrderOut>),
+
   deleteOrder: (id: string): Promise<void> =>
     fetch(`${BASE}/api/orders/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 

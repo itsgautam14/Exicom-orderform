@@ -94,6 +94,18 @@ def mark_so_created(order_id: str, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
+@router.post("/{order_id}/reject", response_model=schemas.OrderOut)
+def reject_order(order_id: str, db: Session = Depends(get_db)):
+    """Reject a draft quotation awaiting pricing approval."""
+    obj = crud.get_order(db, order_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if (obj.status or "") != "draft":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Only draft quotations can be rejected")
+    obj = crud.reject_order(db, obj)
+    return crud.compute_totals(obj)
+
+
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)

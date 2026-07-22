@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
-import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
-import type { OrderOut, OrderPublish } from "@/lib/types";
+import { api, API_BASE } from "@/lib/api";
+import type { OrderOut } from "@/lib/types";
 
 type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pricing";
-
-const TRANSPORT_MODES = ["Airways", "Sea Freight"];
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-amber-100 text-amber-700" },
   submitted: { label: "Submitted", cls: "bg-sky-100 text-sky-700" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
   so_created: { label: "SO Created", cls: "bg-violet-100 text-violet-700" },
+  rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700" },
 };
+
+// The last 6 digits of a quote number are the HHMMSS the quote was issued at
+// (e.g. "2026-july-22-135527" → 13:55).
+function quoteTime(quoteNumber: string): string {
+  const m = quoteNumber.match(/(\d{2})(\d{2})\d{2}$/);
+  return m ? `${m[1]}:${m[2]}` : "—";
+}
 
 const REASON_LABEL: Record<string, string> = {
   logistics: "logistics missing",
@@ -60,9 +65,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pricing" : "all");
-  const [publishing, setPublishing] = useState<OrderOut | null>(null); // the draft being completed
-  const [draftEdits, setDraftEdits] = useState<OrderPublish>({});
-  const [publishPaymentCustom, setPublishPaymentCustom] = useState(false);
+  const [reviewing, setReviewing] = useState<OrderOut | null>(null); // the draft being reviewed
   const [busy, setBusy] = useState(false);
 
   async function reload() {
@@ -116,35 +119,25 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     }
   }
 
-  function openPublish(o: OrderOut) {
-    const paymentText = o.payment_term_text || o.payment_terms || "";
-    setPublishPaymentCustom(isCustomPaymentTerm(o.payment_term_type, paymentText));
-    setPublishing(o);
-    setDraftEdits({
-      incoterms: o.incoterms,
-      transport_mode: o.transport_mode || "Sea Freight",
-      transport_country: o.transport_country || o.ship_to_country || o.bill_to_country || "",
-      port_of_loading: o.port_of_loading || "",
-      port_of_destination: o.port_of_destination || "",
-      freight_charge: o.freight_charge || 0,
-      payment_terms: paymentText,
-    });
-  }
-
-  async function publish() {
-    if (!publishing) return;
-    if (!draftEdits.freight_charge || draftEdits.freight_charge <= 0) {
-      if (!confirm("Transportation cost is still 0. Publish anyway?")) return;
-    }
+  async function approve(o: OrderOut) {
     setBusy(true);
     try {
-      const payload: OrderPublish = {
-        ...draftEdits,
-        payment_term_type: publishPaymentCustom ? "custom" : "predefined",
-        payment_term_text: draftEdits.payment_terms || "",
-      };
-      await api.publishOrder(publishing.id, payload);
-      setPublishing(null);
+      await api.publishOrder(o.id, {});
+      setReviewing(null);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reject(o: OrderOut) {
+    if (!confirm(`Reject quote ${o.quote_number}? The sales person will see it as Rejected.`)) return;
+    setBusy(true);
+    try {
+      await api.rejectOrder(o.id);
+      setReviewing(null);
       reload();
     } catch (e) {
       alert((e as Error).message);
@@ -161,10 +154,6 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     } catch (e) {
       alert((e as Error).message);
     }
-  }
-
-  function setE<K extends keyof OrderPublish>(k: K, v: OrderPublish[K]) {
-    setDraftEdits((e) => ({ ...e, [k]: v }));
   }
 
   const money = (n: number, cur: string) =>
@@ -226,96 +215,69 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         />
       </div>
 
-      {/* publish editor */}
-      {publishing && (
+      {/* pricing review card */}
+      {reviewing && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
           <div className="section-title">
-            Complete &amp; Publish — <span className="text-slate-500">{publishing.quote_number}</span>
+            Review Quotation — <span className="text-slate-500">{reviewing.quote_number}</span>
           </div>
-          {publishing.approval_reason && (
+          {reviewing.approval_reason && (
             <div className="mb-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
-              Needs approval: {reasonText(publishing.approval_reason)}
-              {publishing.approval_reason.includes("pricebook") && (
-                <span className="font-normal"> — one or more lines are priced below pricebook; review before approving.</span>
-              )}
+              Needs approval: {reasonText(reviewing.approval_reason)}
             </div>
           )}
-          {publishing.approval_note && (
-            <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+          {reviewing.approval_note && (
+            <div className="mb-3 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
               <span className="font-semibold text-slate-700">Sales reason (internal):</span>{" "}
-              <span className="whitespace-pre-wrap">{publishing.approval_note}</span>
+              <span className="whitespace-pre-wrap">{reviewing.approval_note}</span>
             </div>
           )}
-          <p className="mb-3 text-xs text-slate-500">
-            Fill in the transport cost for <b>{publishing.bill_to_country || "the destination"}</b>{" "}
-            (in {publishing.currency}), then publish. This marks the order <b>Approved</b>.
-            <br />
-            <span className="text-slate-400">
-              Tip: this country was added to the <b>Logistics</b> tab as <i>pending</i> — set its
-              standing rates there so future quotes auto-fill.
-            </span>
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
-              <label className="lbl">Transport Mode</label>
-              <select className="inp" value={draftEdits.transport_mode || ""} onChange={(e) => setE("transport_mode", e.target.value)}>
-                {TRANSPORT_MODES.map((m) => <option key={m}>{m}</option>)}
-              </select>
+              <div className="text-[11px] font-semibold uppercase text-slate-400">Customer</div>
+              <div className="font-semibold text-slate-800">{reviewing.prepared_for || reviewing.bill_to_company || "—"}</div>
             </div>
             <div>
-              <label className="lbl">Destination Country</label>
-              <input className="inp" value={draftEdits.transport_country || ""} onChange={(e) => setE("transport_country", e.target.value)} />
+              <div className="text-[11px] font-semibold uppercase text-slate-400">Country</div>
+              <div className="text-slate-700">{reviewing.bill_to_country || "—"}</div>
             </div>
             <div>
-              <label className="lbl">Transportation Cost ({publishing.currency})</label>
-              <input
-                className="inp"
-                type="number"
-                step="0.01"
-                value={draftEdits.freight_charge ?? 0}
-                onChange={(e) => setE("freight_charge", e.target.value === "" ? 0 : parseFloat(e.target.value))}
-              />
+              <div className="text-[11px] font-semibold uppercase text-slate-400">KAM Name</div>
+              <div className="text-slate-700">{reviewing.proposed_by || "—"}</div>
             </div>
             <div>
-              <label className="lbl">Port of Loading</label>
-              <input className="inp" value={draftEdits.port_of_loading || ""} onChange={(e) => setE("port_of_loading", e.target.value)} />
+              <div className="text-[11px] font-semibold uppercase text-slate-400">Total</div>
+              <div className="font-semibold text-slate-800">{money(reviewing.grand_total, reviewing.currency)}</div>
             </div>
             <div>
-              <label className="lbl">Port of Destination</label>
-              <input className="inp" value={draftEdits.port_of_destination || ""} onChange={(e) => setE("port_of_destination", e.target.value)} />
+              <div className="text-[11px] font-semibold uppercase text-slate-400">Date</div>
+              <div className="text-slate-700">{reviewing.quote_date || "—"}</div>
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold uppercase text-slate-400">Time</div>
+              <div className="text-slate-700">{quoteTime(reviewing.quote_number)}</div>
             </div>
           </div>
-
-          {/* Payment Terms — same dropdown + Custom… behaviour as the Quote Form */}
-          <div className="mt-3">
-            <label className="lbl">Payment Terms</label>
-            <select
-              className="inp"
-              value={publishPaymentCustom ? "__custom__" : (draftEdits.payment_terms || "")}
-              onChange={(e) => {
-                if (e.target.value === "__custom__") setPublishPaymentCustom(true);
-                else { setPublishPaymentCustom(false); setE("payment_terms", e.target.value); }
-              }}
-            >
-              {PAYMENT_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
-              <option value="__custom__">Custom…</option>
-            </select>
-            {publishPaymentCustom && (
-              <textarea
-                className="inp mt-2"
-                rows={3}
-                value={draftEdits.payment_terms || ""}
-                onChange={(e) => setE("payment_terms", e.target.value)}
-                placeholder="Enter custom payment terms…"
-              />
-            )}
-          </div>
-
-          <div className="mt-3 flex gap-2">
-            <button className="btn btn-primary" onClick={publish} disabled={busy}>
-              {busy ? "Publishing…" : "✓ Publish (Approve)"}
+          <a
+            className="mt-3 inline-block text-xs font-semibold text-exicom-tealDark hover:underline"
+            href={`${API_BASE}/api/orders/${reviewing.id}/preview`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Quotation ↗
+          </a>
+          <div className="mt-4 flex gap-2">
+            <button className="btn btn-primary" onClick={() => approve(reviewing)} disabled={busy}>
+              {busy ? "Working…" : "✓ Approve"}
             </button>
-            <button className="btn" onClick={() => setPublishing(null)}>Cancel</button>
+            <button
+              className="btn bg-rose-50 text-rose-700 hover:bg-rose-100"
+              onClick={() => reject(reviewing)}
+              disabled={busy}
+            >
+              ✕ Reject
+            </button>
+            <button className="btn" onClick={() => setReviewing(null)}>Cancel</button>
           </div>
         </div>
       )}
@@ -369,8 +331,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                       </button>
                     )}
                     {isAdmin && o.status === "draft" && (
-                      <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>
-                        Complete
+                      <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => setReviewing(o)}>
+                        Review
                       </button>
                     )}
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
