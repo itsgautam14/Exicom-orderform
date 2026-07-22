@@ -1293,10 +1293,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 /* ---- small field helpers ---- */
 function Field({ label, v, on, disabled }: { label: string; v: string; on: (v: string) => void; disabled?: boolean }) {
   return (
-    <div className="mb-2">
+    <div className="mb-2 flex h-full flex-col">
       <label className="lbl">{label}</label>
       <input
-        className={`inp ${disabled ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""}`}
+        className={`inp mt-auto ${disabled ? "cursor-not-allowed bg-slate-100 text-slate-400" : ""}`}
         value={v}
         disabled={disabled}
         onChange={(e) => on(e.target.value)}

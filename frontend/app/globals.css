@@ -31,7 +31,7 @@
   textarea.inp { @apply leading-relaxed; }
 
   .lbl {
-    @apply mb-1.5 block text-[10.5px] font-semibold uppercase tracking-wider text-slate-500;
+    @apply mb-1.5 block text-[12px] font-semibold text-slate-500;
   }
 
   /* ---- buttons ---- */
