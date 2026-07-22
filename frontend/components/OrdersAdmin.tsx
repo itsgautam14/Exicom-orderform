@@ -186,7 +186,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
               <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
               price below pricebook) — review and publish it to <b>Approved</b>.</>
             ) : (
-              <>Every quotation the team has made — search, view and download. Approval work happens in the Approvals tab.</>
+              <>Quotation history for the whole team — every status, including <b>Drafts</b>. Search, view and download.</>
             )}
           </p>
         </div>
