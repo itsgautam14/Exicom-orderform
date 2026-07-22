@@ -335,7 +335,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {onEdit && (isAdmin || o.status === "draft" || o.status === "submitted") && (
+                    {onEdit && (
                       <button className="mr-2 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => onEdit(o)}>
                         Edit
                       </button>
@@ -348,9 +348,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
                       {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
                     </button>
-                    {isAdmin && (
-                      <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
-                    )}
+                    <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                   </td>
                 </tr>
               ))}
