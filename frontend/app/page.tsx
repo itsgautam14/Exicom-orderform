@@ -24,7 +24,7 @@ export default function Home() {
             <img src="/logo.png" alt="Exicom" className="h-8 w-8 flex-shrink-0" />
             <div className="min-w-0 leading-tight">
               <div className="truncate text-[15px] font-extrabold tracking-tight text-slate-800">
-                exicom <span className="hidden font-light text-slate-400 sm:inline">| Quote Form Builder</span>
+                exicom <span className="hidden font-light text-slate-400 sm:inline">| beautifully engineered · Quote Form Builder</span>
               </div>
             </div>
           </div>
@@ -45,8 +45,8 @@ export default function Home() {
               <span className="sm:hidden">Tracking</span>
             </button>
             <button onClick={() => setTab("catalog")} className={`tab ${tab === "catalog" ? "tab-active" : ""}`}>
-              <span className="hidden sm:inline">Catalog / Pricing</span>
-              <span className="sm:hidden">Catalog</span>
+              <span className="hidden sm:inline">Catalogue|Pricing</span>
+              <span className="sm:hidden">Catalogue</span>
             </button>
             <button onClick={() => setTab("logistics")} className={`tab ${tab === "logistics" ? "tab-active" : ""}`}>
               Logistics
