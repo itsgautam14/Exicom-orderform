@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
-type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pricing" | "logistics";
+type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pricing";
 
 const TRANSPORT_MODES = ["Airways", "Sea Freight"];
 
@@ -31,12 +31,9 @@ function reasonText(reason?: string): string {
 }
 
 // A draft's approval_reason is a comma list of "logistics" / "pricebook" / "payment".
-// Approvals splits drafts into two work queues by why they need sign-off.
+// Approvals handles the pricing side; logistics sign-off happens in the Logistics tab.
 function reasonList(reason?: string): string[] {
   return (reason || "").split(",").map((r) => r.trim()).filter(Boolean);
-}
-function isLogisticsDraft(reason?: string): boolean {
-  return reasonList(reason).includes("logistics");
 }
 function isPricingDraft(reason?: string): boolean {
   return reasonList(reason).some((r) => r === "pricebook" || r === "payment");
@@ -51,9 +48,10 @@ function StatusBadge({ status }: { status: string }) {
  * mode="mine"  → Past Quotes: every quotation the team has made, every status
  *                including drafts, open to anyone — browse, download, edit a
  *                draft/submitted quote. No approval actions here.
- * mode="admin" → Approvals: split into two work queues by why a draft needs
- *                sign-off — Pricing Approval (below pricebook / custom payment
- *                terms) and Logistic Approval (missing CIF transport cost).
+ * mode="admin" → Approvals: Pricing Approval — drafts needing sign-off for a
+ *                price below pricebook or custom payment terms. Logistics
+ *                sign-off (missing CIF transport cost) is handled in the
+ *                Logistics tab instead.
  */
 export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" | "admin"; onEdit?: (o: OrderOut) => void }) {
   const isAdmin = mode === "admin";
@@ -82,13 +80,10 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   useEffect(() => { reload(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0, pricing: 0, logistics: 0 } as Record<StatusFilter, number>;
+    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0, pricing: 0 } as Record<StatusFilter, number>;
     for (const o of orders) {
       if (o.status in c) (c as Record<string, number>)[o.status]++;
-      if (o.status === "draft") {
-        if (isPricingDraft(o.approval_reason)) c.pricing++;
-        if (isLogisticsDraft(o.approval_reason)) c.logistics++;
-      }
+      if (o.status === "draft" && isPricingDraft(o.approval_reason)) c.pricing++;
     }
     return c;
   }, [orders]);
@@ -97,9 +92,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     const needle = q.trim().toLowerCase();
     return orders.filter((o) => {
       if (isAdmin) {
-        if (o.status !== "draft") return false;
-        if (filter === "pricing" && !isPricingDraft(o.approval_reason)) return false;
-        if (filter === "logistics" && !isLogisticsDraft(o.approval_reason)) return false;
+        if (o.status !== "draft" || !isPricingDraft(o.approval_reason)) return false;
       } else if (filter !== "all" && o.status !== filter) {
         return false;
       }
@@ -183,28 +176,23 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
   ];
-  const ADMIN_FILTERS: { key: StatusFilter; label: string }[] = [
-    { key: "pricing", label: "Pricing Approval" },
-    { key: "logistics", label: "Logistic Approval" },
-  ];
-  const FILTERS = isAdmin ? ADMIN_FILTERS : MINE_FILTERS;
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-lg font-bold text-slate-800">
-            {isAdmin ? "Approvals" : "Past Quotes"}
-            {isAdmin && counts.draft > 0 && (
+            {isAdmin ? "Pricing Approval" : "Past Quotes"}
+            {isAdmin && counts.pricing > 0 && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
-                {counts.draft} draft{counts.draft > 1 ? "s" : ""} awaiting
+                {counts.pricing} awaiting
               </span>
             )}
           </h1>
           <p className="hidden text-sm text-slate-500 sm:block">
             {isAdmin ? (
-              <>Drafts needing sign-off, split by why: <b>Pricing Approval</b> for a price below pricebook or custom
-              payment terms, <b>Logistic Approval</b> for a missing CIF transport cost.</>
+              <>Drafts needing sign-off for a price below pricebook or custom payment terms. Logistics sign-off
+              (missing CIF transport cost) is handled in the <b>Logistics</b> tab.</>
             ) : (
               <>Quotation history for the whole team — every status, including <b>Drafts</b>. Search, view and download.</>
             )}
@@ -215,19 +203,21 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
 
       {/* filters + search */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl bg-slate-100/70 p-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                filter === f.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {f.label} <span className="text-xs text-slate-400">{counts[f.key]}</span>
-            </button>
-          ))}
-        </div>
+        {!isAdmin && (
+          <div className="flex gap-1 rounded-xl bg-slate-100/70 p-1">
+            {MINE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  filter === f.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {f.label} <span className="text-xs text-slate-400">{counts[f.key]}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <input
           className="inp max-w-xs flex-1"
           placeholder="Search quote #, customer, country, KAM…"
@@ -337,7 +327,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
       ) : visible.length === 0 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
           {isAdmin
-            ? `No drafts waiting on ${filter === "logistics" ? "logistic" : "pricing"} approval.`
+            ? "No drafts waiting on pricing approval."
             : `No orders ${filter !== "all" ? `with status "${filter}"` : "yet"}.`}
         </p>
       ) : (
