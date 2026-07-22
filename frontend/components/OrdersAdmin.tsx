@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 import type { OrderOut, OrderPublish } from "@/lib/types";
 
-type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created";
+type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pricing" | "logistics";
 
 const TRANSPORT_MODES = ["Airways", "Sea Freight"];
 
@@ -30,6 +30,18 @@ function reasonText(reason?: string): string {
     .join(" · ");
 }
 
+// A draft's approval_reason is a comma list of "logistics" / "pricebook" / "payment".
+// Approvals splits drafts into two work queues by why they need sign-off.
+function reasonList(reason?: string): string[] {
+  return (reason || "").split(",").map((r) => r.trim()).filter(Boolean);
+}
+function isLogisticsDraft(reason?: string): boolean {
+  return reasonList(reason).includes("logistics");
+}
+function isPricingDraft(reason?: string): boolean {
+  return reasonList(reason).some((r) => r === "pricebook" || r === "payment");
+}
+
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] || { label: status || "—", cls: "bg-slate-100 text-slate-600" };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
@@ -39,8 +51,9 @@ function StatusBadge({ status }: { status: string }) {
  * mode="mine"  → Past Quotes: every quotation the team has made, every status
  *                including drafts, open to anyone — browse, download, edit a
  *                draft/submitted quote. No approval actions here.
- * mode="admin" → Approvals: the same data, but behind the admin gate, with the
- *                actual approval work — Complete a draft, Mark SO Created, Delete.
+ * mode="admin" → Approvals: split into two work queues by why a draft needs
+ *                sign-off — Pricing Approval (below pricebook / custom payment
+ *                terms) and Logistic Approval (missing CIF transport cost).
  */
 export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" | "admin"; onEdit?: (o: OrderOut) => void }) {
   const isAdmin = mode === "admin";
@@ -48,7 +61,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pricing" : "all");
   const [publishing, setPublishing] = useState<OrderOut | null>(null); // the draft being completed
   const [draftEdits, setDraftEdits] = useState<OrderPublish>({});
   const [publishPaymentCustom, setPublishPaymentCustom] = useState(false);
@@ -69,20 +82,32 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   useEffect(() => { reload(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0 } as Record<StatusFilter, number>;
-    for (const o of orders) if (o.status in c) (c as Record<string, number>)[o.status]++;
+    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0, pricing: 0, logistics: 0 } as Record<StatusFilter, number>;
+    for (const o of orders) {
+      if (o.status in c) (c as Record<string, number>)[o.status]++;
+      if (o.status === "draft") {
+        if (isPricingDraft(o.approval_reason)) c.pricing++;
+        if (isLogisticsDraft(o.approval_reason)) c.logistics++;
+      }
+    }
     return c;
   }, [orders]);
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return orders.filter((o) => {
-      if (filter !== "all" && o.status !== filter) return false;
+      if (isAdmin) {
+        if (o.status !== "draft") return false;
+        if (filter === "pricing" && !isPricingDraft(o.approval_reason)) return false;
+        if (filter === "logistics" && !isLogisticsDraft(o.approval_reason)) return false;
+      } else if (filter !== "all" && o.status !== filter) {
+        return false;
+      }
       if (!needle) return true;
       return [o.quote_number, o.prepared_for, o.bill_to_company, o.bill_to_country, o.proposed_by]
         .some((v) => (v || "").toLowerCase().includes(needle));
     });
-  }, [orders, q, filter]);
+  }, [orders, q, filter, isAdmin]);
 
   async function downloadPdf(o: OrderOut) {
     try {
@@ -145,16 +170,6 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     }
   }
 
-  async function markSoCreated(o: OrderOut) {
-    if (!confirm(`Mark ${o.quote_number} as SO Created?`)) return;
-    try {
-      await api.markSoCreated(o.id);
-      reload();
-    } catch (e) {
-      alert((e as Error).message);
-    }
-  }
-
   function setE<K extends keyof OrderPublish>(k: K, v: OrderPublish[K]) {
     setDraftEdits((e) => ({ ...e, [k]: v }));
   }
@@ -162,12 +177,17 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const money = (n: number, cur: string) =>
     `${cur} ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const FILTERS: { key: StatusFilter; label: string }[] = [
+  const MINE_FILTERS: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "All" },
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
   ];
+  const ADMIN_FILTERS: { key: StatusFilter; label: string }[] = [
+    { key: "pricing", label: "Pricing Approval" },
+    { key: "logistics", label: "Logistic Approval" },
+  ];
+  const FILTERS = isAdmin ? ADMIN_FILTERS : MINE_FILTERS;
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-6">
@@ -183,8 +203,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
           </h1>
           <p className="hidden text-sm text-slate-500 sm:block">
             {isAdmin ? (
-              <>Every quotation the team generates is here. A <b>Draft</b> needs sign-off (missing logistics or a
-              price below pricebook) — review and publish it to <b>Approved</b>.</>
+              <>Drafts needing sign-off, split by why: <b>Pricing Approval</b> for a price below pricebook or custom
+              payment terms, <b>Logistic Approval</b> for a missing CIF transport cost.</>
             ) : (
               <>Quotation history for the whole team — every status, including <b>Drafts</b>. Search, view and download.</>
             )}
@@ -316,7 +336,9 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         <p className="text-slate-500">Loading…</p>
       ) : visible.length === 0 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
-          No orders {filter !== "all" ? `with status "${filter}"` : "yet"}.
+          {isAdmin
+            ? `No drafts waiting on ${filter === "logistics" ? "logistic" : "pricing"} approval.`
+            : `No orders ${filter !== "all" ? `with status "${filter}"` : "yet"}.`}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -359,11 +381,6 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     {isAdmin && o.status === "draft" && (
                       <button className="mr-2 text-xs font-semibold text-emerald-600 hover:text-emerald-800" onClick={() => openPublish(o)}>
                         Complete
-                      </button>
-                    )}
-                    {isAdmin && o.status === "approved" && (
-                      <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markSoCreated(o)}>
-                        Mark SO Created
                       </button>
                     )}
                     <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
