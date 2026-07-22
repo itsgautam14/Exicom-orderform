@@ -258,6 +258,16 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
               <div className="text-slate-700">{quoteTime(reviewing.quote_number)}</div>
             </div>
           </div>
+          <div className="mt-3">
+            <div className="text-[11px] font-semibold uppercase text-slate-400">Products</div>
+            <ul className="mt-0.5 text-sm text-slate-700">
+              {reviewing.items.map((it, i) => (
+                <li key={i}>
+                  {it.product_name || it.product_code || "—"} <span className="text-slate-400">× {it.quantity}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <a
             className="mt-3 inline-block text-xs font-semibold text-exicom-tealDark hover:underline"
             href={`${API_BASE}/api/orders/${reviewing.id}/preview`}
