@@ -1,4 +1,4 @@
-import type { CatalogProduct, LogisticsRate, OrderInput, OrderOut, OrderPublish, OrderTracking } from "./types";
+import type { AuthUser, CatalogProduct, LogisticsRate, OrderInput, OrderOut, OrderPublish, OrderTracking } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -6,6 +6,22 @@ async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`${res.status} ${res.statusText}: ${text}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// FastAPI error bodies are {"detail": "..."} — surface that directly instead
+// of a raw "400 Bad Request: {...}" string in user-facing login errors.
+async function jsonOrDetail<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = body.detail;
+    } catch {
+      // non-JSON error body — fall back to statusText
+    }
+    throw new Error(detail);
   }
   return res.json() as Promise<T>;
 }
@@ -19,6 +35,33 @@ function adminHeaders(): Record<string, string> {
   const pw = typeof window !== "undefined" ? sessionStorage.getItem(ADMIN_PW_KEY) : null;
   return pw ? { "X-Admin-Password": pw } : {};
 }
+
+// ---- user auth (passwordless email OTP) -------------------------------------
+
+export const AUTH_TOKEN_KEY = "exicom_session_token";
+
+export const authApi = {
+  requestOtp: (email: string, phone: string): Promise<{ message: string }> =>
+    fetch(`${BASE}/api/auth/request-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, phone }),
+    }).then(jsonOrDetail<{ message: string }>),
+
+  verifyOtp: (email: string, otp: string): Promise<{ token: string; user: AuthUser }> =>
+    fetch(`${BASE}/api/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    }).then(jsonOrDetail<{ token: string; user: AuthUser }>),
+
+  me: (token: string): Promise<AuthUser> =>
+    fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } }).then(jsonOrDetail<AuthUser>),
+
+  logout: (token: string): Promise<void> =>
+    fetch(`${BASE}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })
+      .then(() => undefined),
+};
 
 // ---- catalog ----------------------------------------------------------------
 

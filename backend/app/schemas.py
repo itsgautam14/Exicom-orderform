@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 
 
 # ----------------------------- Admin auth ------------------------------------
@@ -220,3 +220,29 @@ class OrderTrackingUpdate(BaseModel):
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
+
+
+# ----------------------------- User auth (email OTP) -------------------------
+
+class RequestOtpIn(BaseModel):
+    email: EmailStr
+    phone: str = ""
+
+
+class VerifyOtpIn(BaseModel):
+    email: EmailStr
+    otp: str
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    email: str
+    phone: str
+    name: str
+    role: str
+
+
+class AuthOut(BaseModel):
+    token: str
+    user: UserOut

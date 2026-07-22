@@ -2,6 +2,15 @@
 export type PriceTier = [number, number | null, number];
 export type PriceMatrix = Record<string, PriceTier[]>;
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  phone: string;
+  name: string;
+  /** "admin" | "member" — nothing branches on this yet. */
+  role: string;
+}
+
 export interface CatalogProduct {
   id: string;
   product_code: string;

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import Base, engine
 from app import migrate
-from app.routers import orders, catalog, logistics, tracking
+from app.routers import orders, catalog, logistics, tracking, user_auth
 
 # Create missing tables, then apply idempotent column migrations to existing ones.
 # Wrapped so a transient DB blip (e.g. Neon DNS hiccup) never blocks startup — the
@@ -30,6 +30,7 @@ app.include_router(orders.router)
 app.include_router(catalog.router)
 app.include_router(logistics.router)
 app.include_router(tracking.router)
+app.include_router(user_auth.router)
 
 
 @app.get("/health")

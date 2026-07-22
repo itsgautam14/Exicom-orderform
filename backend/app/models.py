@@ -194,3 +194,34 @@ class OrderTracking(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class User(Base):
+    """A team member's account. Passwordless — login is via an emailed OTP code.
+
+    role is "admin" or "member"; nothing currently branches on it (the actual
+    admin/member permission split is still to be defined), it's just captured
+    here so it's ready once that's decided.
+    """
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    phone: Mapped[str] = mapped_column(String(32), default="")
+    name: Mapped[str] = mapped_column(String(255), default="")
+    role: Mapped[str] = mapped_column(String(16), default="member")
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Current one-time code, if a login is in progress. Cleared once used.
+    otp_code: Mapped[str] = mapped_column(String(8), default="")
+    otp_expires_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Opaque bearer token issued on successful verification; looked up directly
+    # (no JWT signing) since it's stored server-side and can be revoked by clearing it.
+    session_token: Mapped[str] = mapped_column(String(64), default="", index=True)
+    session_expires_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
