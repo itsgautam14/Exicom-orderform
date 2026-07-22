@@ -3,7 +3,6 @@
 import { useState } from "react";
 import OrderFormBuilder from "@/components/OrderFormBuilder";
 import AdminGate from "@/components/AdminGate";
-import AuthGate from "@/components/AuthGate";
 import CatalogAdmin from "@/components/CatalogAdmin";
 import LogisticsAdmin from "@/components/LogisticsAdmin";
 import OrdersAdmin from "@/components/OrdersAdmin";
@@ -13,14 +12,6 @@ import type { OrderOut } from "@/lib/types";
 type Tab = "order" | "orders" | "approvals" | "tracking" | "catalog" | "logistics";
 
 export default function Home() {
-  return (
-    <AuthGate>
-      <QuoteFormApp />
-    </AuthGate>
-  );
-}
-
-function QuoteFormApp() {
   const [tab, setTab] = useState<Tab>("order");
   const [editOrder, setEditOrder] = useState<OrderOut | null>(null);
 
