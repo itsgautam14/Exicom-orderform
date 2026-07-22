@@ -38,7 +38,7 @@ export default function Home() {
               <span className="sm:hidden">Quotes</span>
             </button>
             <button onClick={() => setTab("approvals")} className={`tab ${tab === "approvals" ? "tab-active" : ""}`}>
-              Approvals
+              Pricing Approval
             </button>
             <button onClick={() => setTab("tracking")} className={`tab ${tab === "tracking" ? "tab-active" : ""}`}>
               <span className="hidden sm:inline">Order Tracking</span>

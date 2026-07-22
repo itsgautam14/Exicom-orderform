@@ -15,8 +15,8 @@ const BLANK: Partial<LogisticsRate> = {
 const TRANSPORT_MODES = ["Airways", "Sea Freight"];
 
 // A draft's approval_reason is a comma list of "logistics" / "pricebook" / "payment".
-// Logistic Pricing only ever handles the logistics side; pricing sign-off happens
-// in the Approvals tab instead.
+// Logistic Approval only ever handles the logistics side; pricing sign-off happens
+// in the Pricing Approval tab instead.
 function isLogisticsDraft(reason?: string): boolean {
   return (reason || "").split(",").map((r) => r.trim()).includes("logistics");
 }
@@ -167,7 +167,7 @@ export default function LogisticsAdmin() {
             subTab === "pricing" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
           }`}
         >
-          Logistic Pricing
+          Logistic Approval
           {logisticsDrafts.length > 0 && (
             <span className="ml-1.5 text-xs text-slate-400">{logisticsDrafts.length}</span>
           )}
@@ -267,7 +267,7 @@ export default function LogisticsAdmin() {
         <>
           <div className="mb-4">
             <h1 className="text-lg font-bold text-slate-800">
-              Logistic Pricing
+              Logistic Approval
               {logisticsDrafts.length > 0 && (
                 <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
                   {logisticsDrafts.length} awaiting

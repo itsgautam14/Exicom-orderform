@@ -1126,6 +1126,23 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
             </div>
 
+            {isLogisticsDraft(order) && (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">
+                <span>
+                  ⚠ No transportation cost set for {order.transport_country || "the destination"} — this quote will
+                  need logistic approval.
+                </span>
+                <button
+                  type="button"
+                  className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
+                  onClick={saveOrder}
+                  disabled={busy}
+                >
+                  {busy ? "Sending…" : "Request Logistic Approval"}
+                </button>
+              </div>
+            )}
+
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Field
                 label={order.transport_mode === "Airways" ? "Airport of Loading" : "Port of Loading"}
