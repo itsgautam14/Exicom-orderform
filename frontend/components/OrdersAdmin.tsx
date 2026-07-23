@@ -379,7 +379,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Review
                       </button>
                     )}
-                    {!isAdmin && o.status === "submitted" && (
+                    {!isAdmin && filter === "submitted" && o.status === "submitted" && (
                       <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markOrderReceived(o)}>
                         Order Received
                       </button>
