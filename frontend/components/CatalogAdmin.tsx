@@ -193,7 +193,7 @@ export default function CatalogAdmin() {
           </div>
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
             <table className="w-full min-w-[680px] text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
                 <tr>
                   <Th onClick={() => toggleSort("product_code")} sort={sort} k="product_code">Code</Th>
                   <Th onClick={() => toggleSort("product_name")} sort={sort} k="product_name">Name</Th>

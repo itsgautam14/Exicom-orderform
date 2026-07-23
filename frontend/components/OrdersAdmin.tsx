@@ -333,7 +333,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[820px] text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
               <tr>
                 <th className="px-4 py-2">Quote #</th>
                 <th className="px-4 py-2">Customer</th>
@@ -379,7 +379,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Review
                       </button>
                     )}
-                    {!isAdmin && (o.status === "submitted" || o.status === "approved") && (
+                    {!isAdmin && o.status === "submitted" && (
                       <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markOrderReceived(o)}>
                         Order Received
                       </button>

@@ -136,8 +136,15 @@ function resolveCatalogPricing(
   return { eur_discount: mode, unit_price: msrp, discount_pct: pct };
 }
 
+/** EUR doesn't offer the UL-certified or "Free" (DC free-standing) charger variants. */
+function isEurExcluded(p: CatalogProduct): boolean {
+  const n = p.product_name || "";
+  return /\bUL\b/i.test(n) || /\bFree\b/i.test(n);
+}
+
 /** Does the catalog product have pricing in the given currency? */
 function hasCurrency(p: CatalogProduct, currency: string): boolean {
+  if (currency === "EUR" && isEurExcluded(p)) return false;
   if (p.prices && Object.keys(p.prices).length) return Boolean(p.prices[currency]?.length);
   return p.currency === currency; // fallback for products without a price matrix
 }
@@ -332,7 +339,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   // A line's "Request Pricing" button. If the approval reason is still empty,
   // jump to it and focus it so the sales person can fill it in; otherwise
-  // actually send the quote to the admin (same as Save & Send), so the button
+  // actually send the quote to the admin (same as Save & Submit), so the button
   // isn't just a scroll helper.
   function requestPricing() {
     if (!(order.approval_note || "").trim()) {
@@ -760,8 +767,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
               {busy ? "Working…" : "⤓  Generate PDF"}
             </button>
-            <button className="btn flex-1" onClick={saveOrder} disabled={busy} title="Save and send to the Approval Admin (no download)">
-              Save &amp; Send
+            <button className="btn flex-1" onClick={saveOrder} disabled={busy} title="Save and submit to the Approval Admin (no download)">
+              Save &amp; Submit
             </button>
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
