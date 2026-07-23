@@ -21,6 +21,8 @@ export default function PendingLogistic() {
   const [orders, setOrders] = useState<OrderOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState<OrderOut | null>(null);
+  // The review card only makes sense on the Pending sub-tab — close it on switching away.
+  useEffect(() => { if (subTab !== "pending") setReviewing(null); }, [subTab]);
   const [draftEdits, setDraftEdits] = useState<OrderPublish>({});
   const [paymentCustom, setPaymentCustom] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -129,8 +131,11 @@ export default function PendingLogistic() {
 
       {reviewing && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
-          <div className="section-title">
-            Logistic Request — <span className="text-slate-500">{reviewing.quote_number}</span>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="section-title mb-0">
+              Logistic Request — <span className="text-slate-500">{reviewing.quote_number}</span>
+            </div>
+            <button className="btn flex-shrink-0" onClick={() => setReviewing(null)}>✕ Close</button>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -254,12 +259,11 @@ export default function PendingLogistic() {
             <button className="btn btn-primary" onClick={publish} disabled={busy}>
               {busy ? "Approving…" : "✓ Approve"}
             </button>
-            <button className="btn" onClick={() => setReviewing(null)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {loading ? (
+      {reviewing ? null : loading ? (
         <p className="text-slate-500">Loading…</p>
       ) : visible.length === 0 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
