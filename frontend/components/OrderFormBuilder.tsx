@@ -951,13 +951,23 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 )}
               </div>
               {isBelowPricebook(it) && (
-                <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  {(() => {
-                    const book = pricebookFor(it);
-                    return book == null
-                      ? `⚠ No pricebook price in ${cur} for this product.`
-                      : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
-                  })()}
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                  <span>
+                    {(() => {
+                      const book = pricebookFor(it);
+                      return book == null
+                        ? `⚠ No pricebook price in ${cur} for this product.`
+                        : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
+                    })()}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
+                    onClick={requestPricing}
+                    disabled={busy}
+                  >
+                    {busy ? "Sending…" : "Request Pricing"}
+                  </button>
                 </div>
               )}
               {(() => {
