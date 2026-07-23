@@ -393,7 +393,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
 
 
 def mark_so_created(db: Session, obj: models.Order) -> models.Order:
-    """Advance an approved quotation to ``so_created``.
+    """Mark Order Received: advance a submitted or approved quotation to ``so_created``.
 
     The tracking row already exists (created when the quotation was first
     saved) — this just flips the order's own approval status.

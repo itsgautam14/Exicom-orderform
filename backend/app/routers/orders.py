@@ -82,13 +82,15 @@ def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = De
 
 @router.post("/{order_id}/so-created", response_model=schemas.OrderOut)
 def mark_so_created(order_id: str, db: Session = Depends(get_db)):
-    """Advance an approved quotation to the final SO Created state."""
+    """Mark a quotation as Order Received — the customer confirmed the PO
+    against it, so it graduates to the final SO Created state. Allowed from
+    either Submitted (no sign-off was needed) or Approved (sign-off is done)."""
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
-    if (obj.status or "") != "approved":
+    if (obj.status or "") not in ("submitted", "approved"):
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "Only approved quotations can be marked SO Created"
+            status.HTTP_409_CONFLICT, "Only submitted or approved quotations can be marked Order Received"
         )
     obj = crud.mark_so_created(db, obj)
     return crud.compute_totals(obj)

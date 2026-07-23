@@ -164,6 +164,19 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     }
   }
 
+  // The customer confirmed the PO against this quotation — graduates it into
+  // SO Order Tracking (a tracking row already exists from when it was first
+  // saved; this just flips the order's own status to reflect it's a real order).
+  async function markOrderReceived(o: OrderOut) {
+    if (!confirm(`Mark ${o.quote_number} as Order Received? It'll show in SO Order Tracking.`)) return;
+    try {
+      await api.markSoCreated(o.id);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }
+
   const money = (n: number, cur: string) =>
     `${cur} ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -367,10 +380,15 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Review
                       </button>
                     )}
+                    {!isAdmin && (o.status === "submitted" || o.status === "approved") && (
+                      <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markOrderReceived(o)}>
+                        Order Received
+                      </button>
+                    )}
                     {!isAdmin && (
                       <>
                         <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
-                          {o.status === "approved" || o.status === "so_created" ? "Generate PDF again" : "Generate PDF"}
+                          Generate PDF
                         </button>
                         <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                       </>
