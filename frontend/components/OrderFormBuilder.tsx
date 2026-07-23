@@ -350,12 +350,18 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     saveOrder();
   }
 
-  // Load an existing quote into the form for editing (from Past Quotes → Edit).
+  // Load an existing quote into the form — for editing (from Past Quotes →
+  // Edit, keeps its number and id so re-saving updates the same record) or
+  // duplicating (id/quote_number arrive blank → treated as a brand-new order
+  // that gets its own fresh number and record on first save/download).
   useEffect(() => {
     if (!loadOrder) return;
-    finalizedNumber.current = loadOrder.quote_number; // keep its number
-    persistedId.current = loadOrder.id;               // re-save updates this record
-    setOrder(orderOutToInput(loadOrder));
+    finalizedNumber.current = loadOrder.quote_number || null;
+    persistedId.current = loadOrder.id || null;
+    setOrder({
+      ...orderOutToInput(loadOrder),
+      quote_number: loadOrder.quote_number || draftQuoteNumber(),
+    });
     setPaymentCustom(isCustomPaymentTerm(loadOrder.payment_term_type, loadOrder.payment_term_text || loadOrder.payment_terms));
     setShipSameAsBill(false);
     setItemFilters({});

@@ -384,6 +384,15 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Order Received
                       </button>
                     )}
+                    {!isAdmin && onEdit && (
+                      <button
+                        className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                        title="Create a new order pre-filled from this one"
+                        onClick={() => onEdit({ ...o, id: "", quote_number: "", created_by: "" })}
+                      >
+                        Duplicate
+                      </button>
+                    )}
                     {!isAdmin && (
                       <>
                         <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
