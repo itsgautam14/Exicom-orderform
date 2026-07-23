@@ -91,6 +91,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pending" : "all");
   const [reviewing, setReviewing] = useState<OrderOut | null>(null); // the draft being reviewed
+  // The review card only makes sense on the Pending tab — close it on switching away.
+  useEffect(() => { if (filter !== "pending") setReviewing(null); }, [filter]);
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -267,8 +269,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         />
       </div>
 
-      {/* pricing review card */}
-      {reviewing && (
+      {/* pricing review card — Pending tab only */}
+      {reviewing && filter === "pending" && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
           <div className="mb-3 flex items-center justify-between">
             <div className="section-title mb-0">
@@ -370,7 +372,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         </div>
       )}
 
-      {reviewing ? null : error ? (
+      {reviewing && filter === "pending" ? null : error ? (
         <p className="rounded-lg bg-red-50 px-3 py-3 text-sm text-red-600">{error}</p>
       ) : loading ? (
         <p className="text-slate-500">Loading…</p>
