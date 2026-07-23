@@ -740,31 +740,36 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               ✕ New
             </button>
           </div>
-          {belowPricebookAny && (
-            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] text-amber-700">
-              <div className="font-semibold">
-                ⚠ One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
-              </div>
-              <label className="lbl mt-2 text-amber-800">Reason for quoting below pricebook *</label>
-              <textarea
-                ref={approvalNoteRef}
-                className="inp"
-                rows={2}
-                value={order.approval_note || ""}
-                onChange={(e) => set("approval_note", e.target.value)}
-                placeholder="Explain why this is priced below the pricebook…"
-              />
-              <div className="mt-1 text-[10px] font-normal text-amber-600">
-                Internal only — visible to you and the admin. Never shown on the quotation PDF.
-              </div>
-            </div>
-          )}
-          {paymentCustom && (
-            <div className="mt-2 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
-              ⚠ Custom payment terms — this quote will be saved as a <b>DRAFT</b> for admin approval.
-            </div>
-          )}
         </div>
+
+        {belowPricebookAny && (
+          <div className="card mb-4 border-amber-200 bg-amber-50/40">
+            <div className="section-title text-amber-700">⚠ Pricing Needs Approval</div>
+            <p className="mb-3 text-xs text-amber-700">
+              One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+            </p>
+            <label className="lbl">Reason for quoting below pricebook *</label>
+            <textarea
+              ref={approvalNoteRef}
+              className="inp"
+              rows={2}
+              value={order.approval_note || ""}
+              onChange={(e) => set("approval_note", e.target.value)}
+              placeholder="Explain why this is priced below the pricebook…"
+            />
+            <p className="mt-1 text-[10px] text-slate-500">
+              Internal only — visible to you and the admin. Never shown on the quotation PDF.
+            </p>
+            <button type="button" className="btn btn-primary mt-3" onClick={requestPricing} disabled={busy}>
+              {busy ? "Sending…" : "Request Pricing"}
+            </button>
+          </div>
+        )}
+        {paymentCustom && (
+          <div className="mb-4 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
+            ⚠ Custom payment terms — this quote will be saved as a <b>DRAFT</b> for admin approval.
+          </div>
+        )}
 
         {/* Header fields */}
         <div className="card mb-4">
@@ -969,23 +974,13 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 )}
               </div>
               {isBelowPricebook(it) && (
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  <span>
-                    {(() => {
-                      const book = pricebookFor(it);
-                      return book == null
-                        ? `⚠ No pricebook price in ${cur} for this product. This quote will need admin approval.`
-                        : `⚠ Below pricebook (${cur} ${fmt(book)}). This quote will need admin approval.`;
-                    })()}
-                  </span>
-                  <button
-                    type="button"
-                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
-                    onClick={requestPricing}
-                    disabled={busy}
-                  >
-                    {busy ? "Sending…" : "Request Pricing"}
-                  </button>
+                <div className="mt-1 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                  {(() => {
+                    const book = pricebookFor(it);
+                    return book == null
+                      ? `⚠ No pricebook price in ${cur} for this product.`
+                      : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
+                  })()}
                 </div>
               )}
               {(() => {

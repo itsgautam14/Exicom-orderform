@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, API_BASE } from "@/lib/api";
 import type { OrderOut } from "@/lib/types";
 
-type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pricing";
+type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pending" | "pricingApproved" | "rejected";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-amber-100 text-amber-700" },
@@ -64,7 +64,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pricing" : "all");
+  const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pending" : "all");
   const [reviewing, setReviewing] = useState<OrderOut | null>(null); // the draft being reviewed
   const [busy, setBusy] = useState(false);
 
@@ -83,10 +83,16 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   useEffect(() => { reload(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0, pricing: 0 } as Record<StatusFilter, number>;
+    const c = {
+      all: orders.length, draft: 0, submitted: 0, approved: 0, so_created: 0,
+      pending: 0, pricingApproved: 0, rejected: 0,
+    } as Record<StatusFilter, number>;
     for (const o of orders) {
       if (o.status in c) (c as Record<string, number>)[o.status]++;
-      if (o.status === "draft" && isPricingDraft(o.approval_reason)) c.pricing++;
+      if (isPricingDraft(o.approval_reason)) {
+        if (o.status === "draft") c.pending++;
+        if (o.status === "approved" || o.status === "so_created") c.pricingApproved++;
+      }
     }
     return c;
   }, [orders]);
@@ -95,7 +101,9 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     const needle = q.trim().toLowerCase();
     return orders.filter((o) => {
       if (isAdmin) {
-        if (o.status !== "draft" || !isPricingDraft(o.approval_reason)) return false;
+        if (filter === "pending" && !(o.status === "draft" && isPricingDraft(o.approval_reason))) return false;
+        if (filter === "pricingApproved" && !((o.status === "approved" || o.status === "so_created") && isPricingDraft(o.approval_reason))) return false;
+        if (filter === "rejected" && o.status !== "rejected") return false;
       } else if (filter !== "all" && o.status !== filter) {
         return false;
       }
@@ -165,6 +173,12 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     { key: "submitted", label: "Submitted" },
     { key: "approved", label: "Approved" },
   ];
+  const ADMIN_FILTERS: { key: StatusFilter; label: string }[] = [
+    { key: "pending", label: "Pending" },
+    { key: "pricingApproved", label: "Approved" },
+    { key: "rejected", label: "Reject" },
+  ];
+  const FILTERS = isAdmin ? ADMIN_FILTERS : MINE_FILTERS;
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-6">
@@ -172,9 +186,9 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         <div className="min-w-0">
           <h1 className="text-lg font-bold text-slate-800">
             {isAdmin ? "Pricing Approval" : "Past Quotes"}
-            {isAdmin && counts.pricing > 0 && (
+            {isAdmin && counts.pending > 0 && (
               <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-700">
-                {counts.pricing} awaiting
+                {counts.pending} awaiting
               </span>
             )}
           </h1>
@@ -192,21 +206,19 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
 
       {/* filters + search */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {!isAdmin && (
-          <div className="flex gap-1 rounded-xl bg-slate-100/70 p-1">
-            {MINE_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                  filter === f.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {f.label} <span className="text-xs text-slate-400">{counts[f.key]}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex gap-1 rounded-xl bg-slate-100/70 p-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                filter === f.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {f.label} <span className="text-xs text-slate-400">{counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
         <input
           className="inp max-w-xs flex-1"
           placeholder="Search quote #, customer, country, KAM…"
@@ -299,7 +311,11 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
       ) : visible.length === 0 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
           {isAdmin
-            ? "No drafts waiting on pricing approval."
+            ? filter === "pending"
+              ? "No drafts waiting on pricing approval."
+              : filter === "pricingApproved"
+                ? "No approved quotations yet."
+                : "No rejected quotations."
             : `No orders ${filter !== "all" ? `with status "${filter}"` : "yet"}.`}
         </p>
       ) : (
@@ -311,6 +327,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                 <th className="px-4 py-2">Customer</th>
                 <th className="px-4 py-2">Country</th>
                 <th className="px-4 py-2">Incoterms</th>
+                {isAdmin && <th className="px-4 py-2">Products</th>}
                 <th className="px-4 py-2 text-right">Total</th>
                 <th className="px-4 py-2">KAM</th>
                 <th className="px-4 py-2">Status</th>
@@ -324,6 +341,11 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                   <td className="px-4 py-2 text-slate-700">{o.prepared_for || o.bill_to_company || "—"}</td>
                   <td className="px-4 py-2 text-slate-600">{o.bill_to_country || "—"}</td>
                   <td className="px-4 py-2 text-slate-600">{o.incoterms}</td>
+                  {isAdmin && (
+                    <td className="max-w-[220px] px-4 py-2 text-slate-600">
+                      {o.items.map((it) => it.product_name || it.product_code).filter(Boolean).join(", ") || "—"}
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-4 py-2 text-right text-slate-700">{money(o.grand_total, o.currency)}</td>
                   <td className="px-4 py-2 text-slate-600">{o.proposed_by || "—"}</td>
                   <td className="px-4 py-2">
@@ -345,10 +367,14 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Review
                       </button>
                     )}
-                    <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
-                      {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
-                    </button>
-                    <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
+                    {!isAdmin && (
+                      <>
+                        <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
+                          {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
+                        </button>
+                        <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
