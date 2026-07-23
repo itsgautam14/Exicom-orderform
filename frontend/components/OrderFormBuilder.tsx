@@ -681,9 +681,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   }
 
   // Quietly persists the draft in the background as the sales person edits, so
-  // work isn't lost if they navigate away before clicking Generate PDF / Save /
-  // Submit. Skipped until there's at least a customer name, so opening a blank
-  // form doesn't immediately create an empty record.
+  // work isn't lost if they navigate away before clicking Save / Submit.
+  // Skipped until there's at least a customer name, so opening a blank form
+  // doesn't immediately create an empty record.
   async function autoSave() {
     if (!order.prepared_for.trim() && !order.bill_to_company.trim()) return;
     setAutoSaveStatus("saving");
@@ -726,33 +726,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     }
   }
 
-  async function downloadPdf() {
-    const err = validate();
-    if (err) { alert(err); return; }
-    setBusy(true);
-    try {
-      const quoteNumber = await ensureNumber();
-      const issued = { ...order, quote_number: quoteNumber };
-      setOrder(issued); // show the issued number in the (locked) field
-      const blob = await api.pdfBlob(issued);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Exicom_${quoteNumber}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      // File it under the admin Orders panel (draft/submitted). Best-effort here —
-      // the PDF already downloaded, so a persist failure only warns.
-      persistOrder(issued).catch((e) =>
-        console.warn("Order not recorded on the server (is the backend running?):", e)
-      );
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function saveOrder() {
     const err = validate();
     if (err) { alert(err); return; }
@@ -790,14 +763,11 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       >
         <div className="z-10 -mx-4 -mt-4 mb-4 border-b border-slate-100 bg-white/85 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:-mx-5 lg:-mt-5 lg:px-5">
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-primary flex-1 min-w-[130px]" onClick={downloadPdf} disabled={busy}>
-              {busy ? "Working…" : "⤓  Generate PDF"}
-            </button>
-            <button className="btn flex-1 min-w-[80px]" onClick={quickSave} disabled={busy} title="Save quietly, no download, keep editing">
+            <button className="btn flex-1 min-w-[80px]" onClick={quickSave} disabled={busy} title="Save quietly, keep editing">
               {busy ? "Saving…" : "Save"}
             </button>
-            <button className="btn flex-1 min-w-[80px]" onClick={saveOrder} disabled={busy} title="Submit to the Approval Admin (no download)">
-              Submit
+            <button className="btn btn-primary flex-1 min-w-[80px]" onClick={saveOrder} disabled={busy} title="Submit to the Approval Admin">
+              {busy ? "Working…" : "Submit"}
             </button>
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
@@ -1090,7 +1060,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <p className="mb-3 text-xs text-slate-600">
               One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
             </p>
-            <label className="lbl">Reason for quoting below pricebook *</label>
+            <button type="button" className="btn btn-primary" onClick={requestPricing} disabled={busy}>
+              {busy ? "Sending…" : "Request Pricing"}
+            </button>
+            <label className="lbl mt-3">Reason for quoting below pricebook *</label>
             <textarea
               ref={approvalNoteRef}
               className="inp"
@@ -1102,9 +1075,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <p className="mt-1 text-[10px] text-slate-500">
               Internal only — visible to you and the admin. Never shown on the quotation PDF.
             </p>
-            <button type="button" className="btn btn-primary mt-3" onClick={requestPricing} disabled={busy}>
-              {busy ? "Sending…" : "Request Pricing"}
-            </button>
+            <p className="mt-2 text-[10px] font-semibold text-amber-600">
+              ⚠ Once approved, this quote can no longer be edited — double-check every other detail
+              before requesting approval.
+            </p>
           </div>
         )}
 
@@ -1205,19 +1179,24 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             </div>
 
             {isLogisticsDraft(order) && (
-              <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">
-                <span>
-                  ⚠ No transportation cost set for {order.transport_country || "the destination"} — this quote will
-                  need logistic approval.
-                </span>
-                <button
-                  type="button"
-                  className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
-                  onClick={saveOrder}
-                  disabled={busy}
-                >
-                  {busy ? "Sending…" : "Request Logistic Approval"}
-                </button>
+              <div className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    ⚠ No transportation cost set for {order.transport_country || "the destination"} — this quote will
+                    need logistic approval.
+                  </span>
+                  <button
+                    type="button"
+                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
+                    onClick={saveOrder}
+                    disabled={busy}
+                  >
+                    {busy ? "Sending…" : "Request Logistic Approval"}
+                  </button>
+                </div>
+                <p className="mt-1 font-normal text-amber-600">
+                  Once approved, this quote can no longer be edited — double-check every other detail first.
+                </p>
               </div>
             )}
 

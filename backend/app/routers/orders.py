@@ -66,6 +66,10 @@ def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depe
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if (obj.status or "") in ("approved", "so_created"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Approved quotations can no longer be edited — duplicate it instead."
+        )
     obj = crud.update_order(db, obj, payload)
     return crud.compute_totals(obj)
 

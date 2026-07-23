@@ -44,6 +44,12 @@ function isPricingDraft(reason?: string): boolean {
   return reasonList(reason).some((r) => r === "pricebook" || r === "payment");
 }
 
+// Once approved (or graduated to SO Created) a quote is final — no more edits.
+// Duplicate it instead to reuse its details on a new quote.
+function isLocked(status: string): boolean {
+  return status === "approved" || status === "so_created";
+}
+
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] || { label: status || "—", cls: "bg-slate-100 text-slate-600" };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
@@ -369,7 +375,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {onEdit && (
+                    {!isAdmin && onEdit && !isLocked(o.status) && (
                       <button className="mr-2 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => onEdit(o)}>
                         Edit
                       </button>
