@@ -2,7 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, API_BASE } from "@/lib/api";
-import type { OrderOut } from "@/lib/types";
+import type { CatalogProduct, OrderOut } from "@/lib/types";
+
+// Same tier-lookup logic as the Order Form, so the review card can show what
+// the pricebook says a line should cost (for comparison against what was quoted).
+const EUR_ND_KEY = "EUR_ND";
+function priceFor(p: CatalogProduct, currency: string, qty: number): number | null {
+  const tiers = p.prices?.[currency];
+  if (!tiers || tiers.length === 0) return null;
+  for (const [min, max, price] of tiers) {
+    if (qty >= min && (max == null || qty <= max)) return price;
+  }
+  return tiers[0][2];
+}
+function pricebookPrice(p: CatalogProduct | undefined, currency: string, qty: number, eurDiscount?: string): number | null {
+  if (!p) return null;
+  if (currency === "EUR" && eurDiscount === "without" && p.prices?.[EUR_ND_KEY]?.length) {
+    return priceFor(p, EUR_ND_KEY, qty);
+  }
+  return priceFor(p, currency, qty);
+}
 
 type StatusFilter = "all" | "draft" | "submitted" | "approved" | "so_created" | "pending" | "pricingApproved" | "rejected";
 
@@ -72,6 +91,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>(isAdmin ? "pending" : "all");
   const [reviewing, setReviewing] = useState<OrderOut | null>(null); // the draft being reviewed
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function reload() {
@@ -87,6 +107,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     }
   }
   useEffect(() => { reload(); }, []);
+  // Only the review card needs it, but it's a small, rarely-changing list.
+  useEffect(() => { if (isAdmin) api.listCatalog().then(setCatalog).catch(() => setCatalog([])); }, [isAdmin]);
 
   const counts = useMemo(() => {
     const c = {
@@ -248,8 +270,11 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
       {/* pricing review card */}
       {reviewing && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
-          <div className="section-title">
-            Review Quotation — <span className="text-slate-500">{reviewing.quote_number}</span>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="section-title mb-0">
+              Review Quotation — <span className="text-slate-500">{reviewing.quote_number}</span>
+            </div>
+            <button className="btn flex-shrink-0" onClick={() => setReviewing(null)}>✕ Close</button>
           </div>
           {reviewing.approval_reason && (
             <div className="mb-2 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
@@ -289,14 +314,38 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-[11px] font-semibold uppercase text-slate-400">Products</div>
-            <ul className="mt-0.5 text-sm text-slate-700">
-              {reviewing.items.map((it, i) => (
-                <li key={i}>
-                  {it.product_name || it.product_code || "—"} <span className="text-slate-400">× {it.quantity}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="mb-1 text-[11px] font-semibold uppercase text-slate-400">Products</div>
+            <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+              <table className="w-full min-w-[420px] text-sm">
+                <thead className="text-left text-[10px] font-semibold text-slate-400">
+                  <tr>
+                    <th className="px-2 py-1.5">Product</th>
+                    <th className="px-2 py-1.5 text-right">Qty</th>
+                    <th className="px-2 py-1.5 text-right">Quoted Price</th>
+                    <th className="px-2 py-1.5 text-right">Pricebook Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviewing.items.map((it, i) => {
+                    const p = catalog.find((c) => c.product_code === it.product_code);
+                    const book = pricebookPrice(p, reviewing.currency, it.quantity, it.eur_discount);
+                    const below = book != null && it.unit_price < book - 1e-6;
+                    return (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-2 py-1.5 text-slate-700">{it.product_name || it.product_code || "—"}</td>
+                        <td className="px-2 py-1.5 text-right text-slate-600">{it.quantity}</td>
+                        <td className={`px-2 py-1.5 text-right font-semibold ${below ? "text-rose-600" : "text-slate-700"}`}>
+                          {reviewing.currency} {Math.round(it.unit_price).toLocaleString("en-US")}
+                        </td>
+                        <td className="px-2 py-1.5 text-right text-slate-500">
+                          {book == null ? "—" : `${reviewing.currency} ${Math.round(book).toLocaleString("en-US")}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
           <a
             className="mt-3 inline-block text-xs font-semibold text-exicom-tealDark hover:underline"
@@ -317,12 +366,11 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
             >
               ✕ Reject
             </button>
-            <button className="btn" onClick={() => setReviewing(null)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {error ? (
+      {reviewing ? null : error ? (
         <p className="rounded-lg bg-red-50 px-3 py-3 text-sm text-red-600">{error}</p>
       ) : loading ? (
         <p className="text-slate-500">Loading…</p>
