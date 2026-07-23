@@ -44,10 +44,10 @@ function isPricingDraft(reason?: string): boolean {
   return reasonList(reason).some((r) => r === "pricebook" || r === "payment");
 }
 
-// Once approved (or graduated to SO Created) a quote is final — no more edits.
-// Duplicate it instead to reuse its details on a new quote.
-function isLocked(status: string): boolean {
-  return status === "approved" || status === "so_created";
+// Only a still-editable quote can be changed in place — once it's Submitted
+// (or later Approved / SO Created), Duplicate is the way to reuse its details.
+function isEditable(status: string): boolean {
+  return status === "draft" || status === "rejected";
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -375,7 +375,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
-                    {!isAdmin && onEdit && !isLocked(o.status) && (
+                    {!isAdmin && onEdit && isEditable(o.status) && (
                       <button className="mr-2 text-xs font-semibold text-exicom-tealDark hover:underline" onClick={() => onEdit(o)}>
                         Edit
                       </button>
@@ -390,7 +390,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Order Received
                       </button>
                     )}
-                    {!isAdmin && onEdit && (
+                    {!isAdmin && onEdit && filter === "submitted" && o.status === "submitted" && (
                       <button
                         className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
                         title="Create a new order pre-filled from this one"
