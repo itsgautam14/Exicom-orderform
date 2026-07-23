@@ -197,7 +197,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
               <>Drafts needing sign-off for a price below pricebook or custom payment terms. Logistics sign-off
               (missing CIF transport cost) is handled in the <b>Logistics</b> tab.</>
             ) : (
-              <>Quotation history for the whole team — every status, including <b>Drafts</b>. Search, view and download.</>
+              <>Quotation history for the whole team — every status, including <b>Drafts</b>. Search, view and generate PDFs.</>
             )}
           </p>
         </div>
@@ -370,7 +370,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     {!isAdmin && (
                       <>
                         <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
-                          {o.status === "approved" || o.status === "so_created" ? "Download again" : "Download"}
+                          {o.status === "approved" || o.status === "so_created" ? "Generate PDF again" : "Generate PDF"}
                         </button>
                         <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                       </>

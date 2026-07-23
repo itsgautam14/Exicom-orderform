@@ -321,7 +321,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
   const [shipSameAsBill, setShipSameAsBill] = useState(false);
   const [paymentCustom, setPaymentCustom] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
   const approvalNoteRef = useRef<HTMLTextAreaElement>(null);
@@ -349,6 +351,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     setShipSameAsBill(false);
     setItemFilters({});
     setMobileView("edit");
+    setAutoSaveStatus("idle");
     onLoaded?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadOrder]);
@@ -661,6 +664,32 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     persistedId.current = saved.id;
   }
 
+  // Quietly persists the draft in the background as the sales person edits, so
+  // work isn't lost if they navigate away before clicking Generate PDF / Save &
+  // Send. Skipped until there's at least a customer name, so opening a blank
+  // form doesn't immediately create an empty record.
+  async function autoSave() {
+    if (!order.prepared_for.trim() && !order.bill_to_company.trim()) return;
+    setAutoSaveStatus("saving");
+    try {
+      const quoteNumber = await ensureNumber();
+      const issued = quoteNumber === order.quote_number ? order : { ...order, quote_number: quoteNumber };
+      if (issued !== order) setOrder(issued);
+      await persistOrder(issued);
+      setAutoSaveStatus("saved");
+    } catch (e) {
+      console.warn("Autosave failed:", e);
+      setAutoSaveStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { autoSave(); }, 2000);
+    return () => clearTimeout(autoSaveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
+
   async function downloadPdf() {
     const err = validate();
     if (err) { alert(err); return; }
@@ -727,7 +756,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
         <div className="z-10 -mx-4 -mt-4 mb-4 border-b border-slate-100 bg-white/85 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:-mx-5 lg:-mt-5 lg:px-5">
           <div className="flex gap-2">
             <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
-              {busy ? "Working…" : "⤓  Download PDF"}
+              {busy ? "Working…" : "⤓  Generate PDF"}
             </button>
             <button className="btn flex-1" onClick={saveOrder} disabled={busy} title="Save and send to the Approval Admin (no download)">
               Save &amp; Send
@@ -735,11 +764,16 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Start a new blank order"
-              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { finalizedNumber.current = null; persistedId.current = null; setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); } }}
+              onClick={() => { if (confirm("Start a new blank order? Unsaved changes will be lost.")) { finalizedNumber.current = null; persistedId.current = null; setOrder(BLANK_ORDER()); setItemFilters({}); setShipSameAsBill(false); setPaymentCustom(false); setAutoSaveStatus("idle"); } }}
             >
               ✕ New
             </button>
           </div>
+          {autoSaveStatus !== "idle" && (
+            <p className="mt-1.5 text-[10px] text-slate-400">
+              {autoSaveStatus === "saving" ? "Saving…" : autoSaveStatus === "saved" ? "✓ All changes saved" : "⚠ Autosave failed — check your connection"}
+            </p>
+          )}
         </div>
 
         {paymentCustom && (
