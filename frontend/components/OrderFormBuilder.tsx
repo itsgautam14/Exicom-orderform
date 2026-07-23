@@ -742,29 +742,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
           </div>
         </div>
 
-        {belowPricebookAny && (
-          <div className="card mb-4 border-amber-200 bg-amber-50/40">
-            <div className="section-title text-amber-700">⚠ Pricing Needs Approval</div>
-            <p className="mb-3 text-xs text-amber-700">
-              One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
-            </p>
-            <label className="lbl">Reason for quoting below pricebook *</label>
-            <textarea
-              ref={approvalNoteRef}
-              className="inp"
-              rows={2}
-              value={order.approval_note || ""}
-              onChange={(e) => set("approval_note", e.target.value)}
-              placeholder="Explain why this is priced below the pricebook…"
-            />
-            <p className="mt-1 text-[10px] text-slate-500">
-              Internal only — visible to you and the admin. Never shown on the quotation PDF.
-            </p>
-            <button type="button" className="btn btn-primary mt-3" onClick={requestPricing} disabled={busy}>
-              {busy ? "Sending…" : "Request Pricing"}
-            </button>
-          </div>
-        )}
         {paymentCustom && (
           <div className="mb-4 rounded-md bg-amber-50 px-3 py-1.5 text-[11px] font-semibold text-amber-700">
             ⚠ Custom payment terms — this quote will be saved as a <b>DRAFT</b> for admin approval.
@@ -1024,6 +1001,30 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             </div>
           </div>
         </div>
+
+        {belowPricebookAny && (
+          <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
+            <div className="section-title">⚠ Pricing Needs Approval</div>
+            <p className="mb-3 text-xs text-slate-600">
+              One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
+            </p>
+            <label className="lbl">Reason for quoting below pricebook *</label>
+            <textarea
+              ref={approvalNoteRef}
+              className="inp"
+              rows={2}
+              value={order.approval_note || ""}
+              onChange={(e) => set("approval_note", e.target.value)}
+              placeholder="Explain why this is priced below the pricebook…"
+            />
+            <p className="mt-1 text-[10px] text-slate-500">
+              Internal only — visible to you and the admin. Never shown on the quotation PDF.
+            </p>
+            <button type="button" className="btn btn-primary mt-3" onClick={requestPricing} disabled={busy}>
+              {busy ? "Sending…" : "Request Pricing"}
+            </button>
+          </div>
+        )}
 
         {/* Logistics — shown for every incoterm except EXW (after Order Items) */}
         {order.incoterms !== "EXW" && (
