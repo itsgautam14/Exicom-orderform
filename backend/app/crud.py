@@ -287,13 +287,15 @@ def _ensure_pending_logistics(db: Session, country: str) -> None:
 
 
 def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
-    payload = data.model_dump(exclude={"items"})
+    payload = data.model_dump(exclude={"items", "is_final"})
     obj = models.Order(**payload)
     _round_money_fields(obj)
     _apply_items(obj, data.items)
 
     # The server decides whether a quote needs admin sign-off — never the client.
     # Reasons: missing CIF logistics, a price below pricebook, or custom payment terms.
+    # Autosave / the quiet "Save" button (is_final=False) always lands as a draft —
+    # only an explicit Submit (is_final=True) can turn a clean quote "submitted".
     reasons = []
     logistics_missing = is_logistics_missing(obj.incoterms, obj.freight_charge)
     if logistics_missing:
@@ -302,7 +304,7 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
         reasons.append("pricebook")
     if (obj.payment_term_type or "") == "custom":
         reasons.append("payment")
-    obj.status = "draft" if reasons else "submitted"
+    obj.status = "submitted" if (data.is_final and not reasons) else "draft"
     obj.approval_reason = ",".join(reasons)
 
     db.add(obj)
@@ -318,12 +320,14 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
 
 
 def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> models.Order:
-    for k, v in data.model_dump(exclude={"items"}).items():
+    for k, v in data.model_dump(exclude={"items", "is_final"}).items():
         setattr(obj, k, v)
     _round_money_fields(obj)
     _apply_items(obj, data.items)
     # A finalized quote (approved / SO Created) keeps its status; an editable
-    # draft/submitted quote re-evaluates approval from the edited data.
+    # draft/submitted quote re-evaluates approval from the edited data. Autosave
+    # / "Save" (is_final=False) always lands back in draft — only an explicit
+    # Submit (is_final=True) can turn a clean quote "submitted".
     if (obj.status or "") not in ("approved", "so_created"):
         reasons = []
         logistics_missing = is_logistics_missing(obj.incoterms, obj.freight_charge)
@@ -333,7 +337,7 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
             reasons.append("pricebook")
         if (obj.payment_term_type or "") == "custom":
             reasons.append("payment")
-        obj.status = "draft" if reasons else "submitted"
+        obj.status = "submitted" if (data.is_final and not reasons) else "draft"
         obj.approval_reason = ",".join(reasons)
         if logistics_missing:
             _ensure_pending_logistics(

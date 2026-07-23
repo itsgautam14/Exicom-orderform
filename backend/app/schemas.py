@@ -148,6 +148,10 @@ class OrderBase(BaseModel):
 
 class OrderCreate(OrderBase):
     items: list[OrderItemIn] = []
+    # False for autosave / the quiet "Save" button — always persisted as a draft.
+    # True only for the explicit "Submit" action, which computes the real
+    # draft/submitted status from the data (below-pricebook, missing logistics, etc).
+    is_final: bool = False
 
 
 class OrderUpdate(OrderCreate):

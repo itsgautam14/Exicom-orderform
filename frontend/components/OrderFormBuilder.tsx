@@ -665,13 +665,17 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   // Record the quote in the backend once, so it shows up in the admin Orders panel
   // (and, for a missing-logistics draft, routes the country into the Logistics tab).
   // Throws on failure — callers decide whether that's fatal.
-  async function persistOrder(o: OrderInput): Promise<void> {
+  // isFinal=false (autosave / the quiet "Save" button) always lands as a draft on
+  // the server, regardless of how complete the quote is — only the explicit
+  // Submit action (isFinal=true) can turn a clean quote "submitted".
+  async function persistOrder(o: OrderInput, isFinal = false): Promise<void> {
     const payload = {
       ...o,
       created_by: o.created_by || getCreatorId(),
       // payment_terms already holds the text (preset value or custom text).
       payment_term_type: paymentCustom ? "custom" : "predefined",
       payment_term_text: o.payment_terms,
+      is_final: isFinal,
     };
     // Update the existing draft if this quote was already saved; otherwise create it.
     const saved = persistedId.current
@@ -734,7 +738,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       const quoteNumber = await ensureNumber();
       const issued = { ...order, quote_number: quoteNumber };
       setOrder(issued);
-      await persistOrder(issued); // send it to the Approval panel (no auto-download)
+      await persistOrder(issued, true); // finalize: send it to the Approval panel
       const needsApproval = isLogisticsDraft(issued) || belowPricebookAny || paymentCustom;
       alert(
         needsApproval
