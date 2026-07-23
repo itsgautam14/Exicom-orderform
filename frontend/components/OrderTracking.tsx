@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, API_BASE } from "@/lib/api";
 import type { OrderTracking } from "@/lib/types";
 
-const STATUS_OPTIONS = ["Pending", "In Production", "Dispatched", "Delivered", "On Hold", "Cancelled"];
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
 const STAGES: { key: string; label: string }[] = [
@@ -26,19 +25,8 @@ function daysBetween(a: string, b: string): number {
 
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
-  date_of_order: "", value: null, currency: "", date_of_dispatch: "", ex_date_of_delivery: "",
-  status: "", notes: "",
+  date_of_order: "", value: null, currency: "", notes: "",
 };
-
-function statusClass(s: string): string {
-  const k = (s || "").toLowerCase();
-  if (k.includes("deliver")) return "bg-emerald-100 text-emerald-700";
-  if (k.includes("dispatch")) return "bg-sky-100 text-sky-700";
-  if (k.includes("production") || k.includes("pending")) return "bg-amber-100 text-amber-700";
-  if (k.includes("cancel")) return "bg-rose-100 text-rose-700";
-  if (k.includes("hold")) return "bg-slate-200 text-slate-700";
-  return "bg-slate-100 text-slate-600";
-}
 
 const fmtNum = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -47,7 +35,6 @@ export default function OrderTracking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [editing, setEditing] = useState<Partial<OrderTracking> | null>(null);
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("so_created");
@@ -73,28 +60,17 @@ export default function OrderTracking() {
   // ---- dashboard stats ----
   const stats = useMemo(() => {
     const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
-    const byStatus: Record<string, number> = {};
-    for (const r of rows) {
-      const key = r.status?.trim() || "—";
-      byStatus[key] = (byStatus[key] || 0) + 1;
-    }
-    return { count: rows.length, totalValue, byStatus };
+    return { count: rows.length, totalValue };
   }, [rows]);
-
-  const statuses = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.status?.trim()).filter(Boolean))) as string[],
-    [rows]
-  );
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (statusFilter && (r.status || "").trim() !== statusFilter) return false;
-      if (!needle) return true;
-      return [r.partner, r.market, r.kam, r.ordered, r.specifications, r.notes]
-        .some((v) => (v || "").toLowerCase().includes(needle));
-    });
-  }, [rows, q, statusFilter]);
+    if (!needle) return rows;
+    return rows.filter((r) =>
+      [r.partner, r.market, r.kam, r.ordered, r.specifications, r.notes]
+        .some((v) => (v || "").toLowerCase().includes(needle))
+    );
+  }, [rows, q]);
 
   async function save() {
     if (!editing) return;
@@ -217,7 +193,7 @@ export default function OrderTracking() {
       </div>
 
       {/* dashboard cards */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tracked Orders</div>
           <div className="mt-1 text-2xl font-bold text-slate-800">{stats.count}</div>
@@ -225,20 +201,6 @@ export default function OrderTracking() {
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Value</div>
           <div className="mt-1 text-2xl font-bold text-slate-800">{fmtNum(stats.totalValue)}</div>
-        </div>
-        <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">By Status</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {Object.keys(stats.byStatus).length === 0 ? (
-              <span className="text-sm text-slate-400">—</span>
-            ) : (
-              Object.entries(stats.byStatus).map(([s, n]) => (
-                <span key={s} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusClass(s)}`}>
-                  {s}: {n}
-                </span>
-              ))
-            )}
-          </div>
         </div>
       </div>
 
@@ -259,13 +221,6 @@ export default function OrderTracking() {
                 {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div>
-              <label className="lbl">Status</label>
-              <input className="inp" list="track-status" value={editing.status || ""} onChange={(e) => setF("status", e.target.value)} />
-              <datalist id="track-status">{STATUS_OPTIONS.map((s) => <option key={s} value={s} />)}</datalist>
-            </div>
-            {dateField("Date of Dispatch", "date_of_dispatch")}
-            {dateField("Expected Delivery", "ex_date_of_delivery")}
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {areaField("Ordered", "ordered")}
@@ -408,10 +363,6 @@ export default function OrderTracking() {
       {/* filters */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="inp w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All statuses</option>
-          {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
         <button className="btn" onClick={reload}>↻</button>
       </div>
 
@@ -435,9 +386,6 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Specifications</th>
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
-                <th className="px-3 py-2">Dispatch</th>
-                <th className="px-3 py-2">Expected Delivery</th>
-                <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -453,11 +401,6 @@ export default function OrderTracking() {
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_dispatch || "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.ex_date_of_delivery || "—"}</td>
-                  <td className="px-3 py-2">
-                    {r.status ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass(r.status)}`}>{r.status}</span> : "—"}
                   </td>
                   <td className="max-w-[220px] px-3 py-2 text-slate-500">{r.notes || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
