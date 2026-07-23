@@ -92,7 +92,7 @@ export default function CatalogAdmin() {
     setEditing((e) => ({ ...(e || {}), [k]: v }));
   }
 
-  const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
   return (
     <div className="mx-auto max-w-6xl p-4 pb-24 lg:p-6 lg:pb-6">
@@ -128,8 +128,8 @@ export default function CatalogAdmin() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
               <label className="lbl">Base Unit Price</label>
-              <input className="inp" type="number" step="0.01" value={editing.unit_price ?? 0}
-                onChange={(e) => setF("unit_price", parseFloat(e.target.value) || 0)} />
+              <input className="inp" type="number" step="1" value={editing.unit_price ?? 0}
+                onChange={(e) => setF("unit_price", Math.round(parseFloat(e.target.value) || 0))} />
             </div>
             <div>
               <label className="lbl">Base Currency</label>
@@ -145,7 +145,7 @@ export default function CatalogAdmin() {
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                 {Object.entries(editing.prices).map(([c, tiers]) => (
                   <span key={c}>
-                    <b className="text-exicom-tealDark">{c}</b> {tiers.map((t) => t[2]).join(" / ")}
+                    <b className="text-exicom-tealDark">{c}</b> {tiers.map((t) => Math.round(t[2])).join(" / ")}
                   </span>
                 ))}
               </div>

@@ -60,9 +60,9 @@ export default function LogisticsAdmin() {
         <input
           className="inp"
           type="number"
-          step="0.01"
+          step="1"
           value={val === null || val === undefined ? "" : (val as number)}
-          onChange={(e) => setF(k, (e.target.value === "" ? null : parseFloat(e.target.value)) as LogisticsRate[typeof k])}
+          onChange={(e) => setF(k, (e.target.value === "" ? null : Math.round(parseFloat(e.target.value))) as LogisticsRate[typeof k])}
           placeholder="—"
         />
       </div>
@@ -70,7 +70,7 @@ export default function LogisticsAdmin() {
   }
 
   const fmt = (n: number | null) =>
-    n === null || n === undefined ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    n === null || n === undefined ? "—" : Math.round(n).toLocaleString("en-US");
   const pending = items.filter((r) => r.status !== "approved").length;
 
   return (

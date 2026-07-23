@@ -80,7 +80,7 @@ def compute_totals(order: models.Order) -> dict:
     input_cable_total = 0.0
     for it in order.items:
         disc = float(it.discount_pct or 0)
-        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0), 2)
+        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0))
         subtotal += line_total
         if (it.input_cable or "") == "Yes":
             input_cable_total += INPUT_CABLE_PRICE * int(it.quantity)
@@ -91,7 +91,7 @@ def compute_totals(order: models.Order) -> dict:
             "code_note": it.code_note,
             "product_name": it.product_name,
             "description": it.description,
-            "unit_price": float(it.unit_price),
+            "unit_price": round(float(it.unit_price)),
             "quantity": int(it.quantity),
             "unit": it.unit,
             "discount_pct": disc,
@@ -101,11 +101,11 @@ def compute_totals(order: models.Order) -> dict:
         })
 
     tax_rate = float(order.tax_rate or 0)
-    tax_amount = round(subtotal * tax_rate / 100.0, 2)
-    input_cable_total = round(input_cable_total, 2)
-    freight_charge = round(float(order.freight_charge or 0), 2)
-    insurance_charge = round(float(order.insurance_charge or 0), 2)
-    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount, 2)
+    tax_amount = round(subtotal * tax_rate / 100.0)
+    input_cable_total = round(input_cable_total)
+    freight_charge = round(float(order.freight_charge or 0))
+    insurance_charge = round(float(order.insurance_charge or 0))
+    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount)
 
     return {
         "id": order.id,
@@ -147,7 +147,7 @@ def compute_totals(order: models.Order) -> dict:
         "approval_note": order.approval_note or "",
         "created_by": order.created_by or "",
         "items": items,
-        "subtotal": round(subtotal, 2),
+        "subtotal": round(subtotal),
         "input_cable_total": input_cable_total,
         "tax_amount": tax_amount,
         "grand_total": grand_total,
@@ -169,7 +169,9 @@ def get_product(db: Session, product_id: str) -> models.CatalogProduct | None:
 
 
 def create_product(db: Session, data: schemas.CatalogProductCreate) -> models.CatalogProduct:
-    obj = models.CatalogProduct(**data.model_dump())
+    payload = data.model_dump()
+    payload["unit_price"] = round(payload["unit_price"])
+    obj = models.CatalogProduct(**payload)
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -178,7 +180,7 @@ def create_product(db: Session, data: schemas.CatalogProductCreate) -> models.Ca
 
 def update_product(db: Session, obj: models.CatalogProduct, data: schemas.CatalogProductUpdate):
     for k, v in data.model_dump(exclude_unset=True).items():
-        setattr(obj, k, v)
+        setattr(obj, k, round(v) if k == "unit_price" else v)
     db.commit()
     db.refresh(obj)
     return obj
@@ -200,11 +202,21 @@ def get_logistics(db: Session, rate_id: str) -> models.LogisticsRate | None:
     return db.get(models.LogisticsRate, rate_id)
 
 
+_RATE_FIELDS = ("sea_rate", "air_up_to_500", "air_above_500")
+
+
+def _round_rate(v):
+    return None if v is None else round(v)
+
+
 def create_logistics(db: Session, data: schemas.LogisticsRateCreate) -> models.LogisticsRate:
     # Entered by the logistics handler in the (admin-gated) Logistics tab → active
     # immediately. Countries auto-flagged by a draft quote are added elsewhere as
     # `pending` (see _ensure_pending_logistics) until the handler prices them.
-    obj = models.LogisticsRate(**data.model_dump(), status="approved")
+    payload = data.model_dump()
+    for k in _RATE_FIELDS:
+        payload[k] = _round_rate(payload.get(k))
+    obj = models.LogisticsRate(**payload, status="approved")
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -213,7 +225,7 @@ def create_logistics(db: Session, data: schemas.LogisticsRateCreate) -> models.L
 
 def update_logistics(db: Session, obj: models.LogisticsRate, data: schemas.LogisticsRateUpdate):
     for k, v in data.model_dump(exclude_unset=True).items():
-        setattr(obj, k, v)
+        setattr(obj, k, _round_rate(v) if k in _RATE_FIELDS else v)
     obj.status = "approved"  # the logistics handler is the authority — active immediately
     db.commit()
     db.refresh(obj)
@@ -247,9 +259,14 @@ def get_order(db: Session, order_id: str) -> models.Order | None:
 
 def _apply_items(order: models.Order, items: list[schemas.OrderItemIn]) -> None:
     order.items = [
-        models.OrderItem(position=i, **it.model_dump())
+        models.OrderItem(position=i, **{**it.model_dump(), "unit_price": round(it.unit_price)})
         for i, it in enumerate(items)
     ]
+
+
+def _round_money_fields(obj: models.Order) -> None:
+    obj.freight_charge = round(float(obj.freight_charge or 0))
+    obj.insurance_charge = round(float(obj.insurance_charge or 0))
 
 
 def _ensure_pending_logistics(db: Session, country: str) -> None:
@@ -272,6 +289,7 @@ def _ensure_pending_logistics(db: Session, country: str) -> None:
 def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
     payload = data.model_dump(exclude={"items"})
     obj = models.Order(**payload)
+    _round_money_fields(obj)
     _apply_items(obj, data.items)
 
     # The server decides whether a quote needs admin sign-off — never the client.
@@ -302,6 +320,7 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
 def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> models.Order:
     for k, v in data.model_dump(exclude={"items"}).items():
         setattr(obj, k, v)
+    _round_money_fields(obj)
     _apply_items(obj, data.items)
     # A finalized quote (approved / SO Created) keeps its status; an editable
     # draft/submitted quote re-evaluates approval from the edited data.
@@ -366,8 +385,8 @@ def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) ->
     for k, v in payload.items():
         setattr(obj, k, v)
     if unit_rate is not None:
-        obj.freight_charge = round(float(unit_rate) * float(obj.transport_qty or 0), 2)
-        _apply_logistics_rate(db, obj.transport_country, obj.transport_mode, obj.transport_qty, unit_rate)
+        obj.freight_charge = round(float(unit_rate) * float(obj.transport_qty or 0))
+        _apply_logistics_rate(db, obj.transport_country, obj.transport_mode, obj.transport_qty, round(float(unit_rate)))
     obj.status = "approved"
     _sync_tracking_from_order(db, obj)
     db.commit()

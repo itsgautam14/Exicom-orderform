@@ -177,8 +177,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     }
   }
 
-  const money = (n: number, cur: string) =>
-    `${cur} ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (n: number, cur: string) => `${cur} ${Math.round(n || 0).toLocaleString("en-US")}`;
 
   const MINE_FILTERS: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "All" },

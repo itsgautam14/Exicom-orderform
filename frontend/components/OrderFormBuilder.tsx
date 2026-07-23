@@ -416,7 +416,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     if (rateInr == null) return; // no registered rate → manual entry (don't overwrite)
     if (order.currency !== "INR" && !fx.rate) return; // FX not ready → leave for manual entry
     const inr = rateInr * (order.transport_qty || 0);
-    const converted = +(inr * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
+    const converted = Math.round(inr * (order.currency === "INR" ? 1 : fx.rate));
     setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
   }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate, logistics]);
 
@@ -424,7 +424,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   useEffect(() => {
     if (order.incoterms !== "FOB") return;
     if (order.currency !== "INR" && !fx.rate) return; // FX not ready → leave for manual entry
-    const converted = +(FOB_TRANSPORT_INR * (order.currency === "INR" ? 1 : fx.rate)).toFixed(2);
+    const converted = Math.round(FOB_TRANSPORT_INR * (order.currency === "INR" ? 1 : fx.rate));
     setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
   }, [order.incoterms, order.currency, fx.rate]);
 
@@ -540,7 +540,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       code_note: p.code_note,
       product_name: p.product_name,
       description: p.description,
-      unit_price: r.unit_price ?? p.unit_price,
+      unit_price: Math.round(r.unit_price ?? p.unit_price),
       unit: p.unit,
       catalog_id: p.id,
       eur_discount: r.eur_discount,
@@ -558,7 +558,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
           const p = catalog.find((c) => c.id === it.catalog_id);
           if (p) {
             const r = resolveCatalogPricing(p, o.currency, qty, it.eur_discount);
-            if (r.unit_price != null) next.unit_price = r.unit_price;
+            if (r.unit_price != null) next.unit_price = Math.round(r.unit_price);
             if (r.discount_pct != null) next.discount_pct = r.discount_pct;
           }
         }
@@ -745,8 +745,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   }
 
   const cur = order.currency;
-  const fmt = (n: number) =>
-    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
   return (
     <div className="flex flex-col lg:flex-row">
@@ -959,7 +958,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 if (!it.discount_pct) return null;
                 return (
                   <p className="mb-2 text-[10px] font-semibold text-emerald-600">
-                    {it.discount_pct}% off list price (MSRP €{msrp!.toFixed(2)})
+                    {it.discount_pct}% off list price (MSRP €{Math.round(msrp!)})
                   </p>
                 );
               })()}
@@ -971,8 +970,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 </div>
                 <div>
                   <label className="lbl">Unit Price ({order.currency}) *</label>
-                  <input className="inp" type="number" step="0.01" value={it.unit_price}
-                    onChange={(e) => setItem(i, { unit_price: parseFloat(e.target.value) || 0, catalog_id: undefined })} />
+                  <input className="inp" type="number" step="1" value={it.unit_price}
+                    onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
                 </div>
                 <div>
                   <label className="lbl">Discount %</label>
@@ -1165,8 +1164,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
             <div className="mt-2">
               <label className="lbl">Transportation Cost ({order.currency}) · {order.incoterms === "CIF" || order.incoterms === "FOB" ? "auto, editable" : "enter manually"}</label>
-              <input className="inp" type="number" step="0.01" min="0" value={order.freight_charge}
-                onChange={(e) => set("freight_charge", parseFloat(e.target.value) || 0)} />
+              <input className="inp" type="number" step="1" min="0" value={order.freight_charge}
+                onChange={(e) => set("freight_charge", Math.round(parseFloat(e.target.value) || 0))} />
             </div>
 
             {isLogisticsDraft(order) && (

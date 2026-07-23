@@ -399,11 +399,11 @@ html, body {
         {% if item.description %}<div class="item-desc">{{ item.description | replace('\n', '<br/>') | safe }}</div>{% endif %}
         {% if item.input_cable %}<div class="item-desc">Input cable: {{ item.input_cable }}{% if item.input_cable == 'Yes' %} (1.5 m){% endif %}</div>{% endif %}
       </td>
-      <td class="r">{{ order.currency }} {{ "%.2f"|format(item.unit_price) }}</td>
+      <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.unit_price) }}</td>
       <td class="c">{{ item.quantity }}</td>
       <td class="c">{{ item.unit }}</td>
       <td class="c">{% if item.discount_pct %}{{ "%g"|format(item.discount_pct) }}%{% else %}—{% endif %}</td>
-      <td class="r">{{ order.currency }} {{ "{:,.2f}".format(item.line_total) }}</td>
+      <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.line_total) }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -417,27 +417,27 @@ html, body {
       <table class="totals-inner">
         <tr>
           <td class="label">SUBTOTAL:</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.subtotal) }}</td>
+          <td class="value">{{ order.currency }} {{ "{:,.0f}".format(order.subtotal) }}</td>
         </tr>
         {% if order.input_cable_total %}
         <tr>
           <td class="label">Input Cable (1.5 m):</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.input_cable_total) }}</td>
+          <td class="value">{{ order.currency }} {{ "{:,.0f}".format(order.input_cable_total) }}</td>
         </tr>
         {% endif %}
         {% if order.freight_charge %}
         <tr>
           <td class="label">Transportation{% if order.transport_mode %} ({{ order.transport_mode }}){% endif %}:</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.freight_charge) }}</td>
+          <td class="value">{{ order.currency }} {{ "{:,.0f}".format(order.freight_charge) }}</td>
         </tr>
         {% endif %}
         <tr>
           <td class="label">Tax ({{ "%.2f"|format(order.tax_rate) }}%)</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.tax_amount) }}</td>
+          <td class="value">{{ order.currency }} {{ "{:,.0f}".format(order.tax_amount) }}</td>
         </tr>
         <tr class="grand">
           <td class="label">TOTAL:</td>
-          <td class="value">{{ order.currency }} {{ "{:,.2f}".format(order.grand_total) }}</td>
+          <td class="value">{{ order.currency }} {{ "{:,.0f}".format(order.grand_total) }}</td>
         </tr>
       </table>
     </td>

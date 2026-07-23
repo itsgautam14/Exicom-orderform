@@ -151,16 +151,16 @@ def _build_order_data(payload: schemas.OrderCreate, db: Session | None = None) -
     input_cable_total = 0.0
     for i, it in enumerate(payload.items):
         disc = float(it.discount_pct or 0)
-        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0), 2)
+        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0))
         subtotal += line_total
         if (it.input_cable or "") == "Yes":
             input_cable_total += crud.INPUT_CABLE_PRICE * int(it.quantity)
         items.append({**it.model_dump(), "id": str(i), "position": i, "line_total": line_total})
-    tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0, 2)
-    input_cable_total = round(input_cable_total, 2)
-    freight_charge = round(float(payload.freight_charge or 0), 2)
-    insurance_charge = round(float(payload.insurance_charge or 0), 2)
-    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount, 2)
+    tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0)
+    input_cable_total = round(input_cable_total)
+    freight_charge = round(float(payload.freight_charge or 0))
+    insurance_charge = round(float(payload.insurance_charge or 0))
+    grand_total = round(subtotal + input_cable_total + freight_charge + insurance_charge + tax_amount)
 
     logistics_missing = crud.is_logistics_missing(payload.incoterms, freight_charge)
     below = db is not None and crud.below_pricebook_items(db, payload.currency, payload.items)
@@ -172,7 +172,7 @@ def _build_order_data(payload: schemas.OrderCreate, db: Session | None = None) -
         "id": "preview",
         "status": status,
         "items": items,
-        "subtotal": round(subtotal, 2),
+        "subtotal": round(subtotal),
         "input_cable_total": input_cable_total,
         "tax_amount": tax_amount,
         "freight_charge": freight_charge,

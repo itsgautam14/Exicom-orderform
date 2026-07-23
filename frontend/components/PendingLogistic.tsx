@@ -70,7 +70,7 @@ export default function PendingLogistic() {
   useEffect(() => {
     if (draftEdits.unit_rate == null || !reviewing) return;
     const qty = reviewing.transport_qty || 0;
-    setDraftEdits((e) => ({ ...e, freight_charge: Math.round((e.unit_rate || 0) * qty * 100) / 100 }));
+    setDraftEdits((e) => ({ ...e, freight_charge: Math.round((e.unit_rate || 0) * qty) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftEdits.unit_rate]);
 
@@ -96,8 +96,7 @@ export default function PendingLogistic() {
     }
   }
 
-  const money = (n: number, cur: string) =>
-    `${cur} ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (n: number, cur: string) => `${cur} ${Math.round(n || 0).toLocaleString("en-US")}`;
 
   return (
     <div className="mx-auto max-w-5xl p-4 pb-24 lg:p-6 lg:pb-6">
@@ -198,9 +197,9 @@ export default function PendingLogistic() {
               <input
                 className="inp"
                 type="number"
-                step="0.01"
+                step="1"
                 value={draftEdits.unit_rate ?? ""}
-                onChange={(e) => setE("unit_rate", e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                onChange={(e) => setE("unit_rate", e.target.value === "" ? undefined : Math.round(parseFloat(e.target.value)))}
                 placeholder="e.g. 1500"
               />
               <p className="mt-0.5 text-[10px] text-slate-400">
@@ -212,9 +211,9 @@ export default function PendingLogistic() {
               <input
                 className="inp"
                 type="number"
-                step="0.01"
+                step="1"
                 value={draftEdits.freight_charge ?? 0}
-                onChange={(e) => setE("freight_charge", e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                onChange={(e) => setE("freight_charge", e.target.value === "" ? 0 : Math.round(parseFloat(e.target.value)))}
               />
             </div>
             <div>

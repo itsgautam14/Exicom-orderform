@@ -330,6 +330,23 @@ SEED_PRODUCTS = [
 ]
 
 
+def _rounded(p: dict) -> dict:
+    """Round unit_price and every price-tier value to the nearest whole number.
+
+    SEED_PRODUCTS keeps the pricebook's exact decimal figures for reference;
+    this is applied at seed time so what actually lands in the catalog (and
+    from there, every order/PDF) is always a whole number.
+    """
+    out = dict(p)
+    out["unit_price"] = round(out["unit_price"])
+    if out.get("prices"):
+        out["prices"] = {
+            cur: [[lo, hi, round(price)] for lo, hi, price in tiers]
+            for cur, tiers in out["prices"].items()
+        }
+    return out
+
+
 def main(reset: bool = False) -> None:
     # Tables first, then column/data migrations — migrate.run() queries tables
     # (e.g. the fulfillment stage tracker) that only exist after create_all.
@@ -343,7 +360,8 @@ def main(reset: bool = False) -> None:
             print(f"Reset: removed {deleted} existing catalog products.")
 
         inserted = updated = 0
-        for p in SEED_PRODUCTS:
+        for raw in SEED_PRODUCTS:
+            p = _rounded(raw)
             obj = (
                 db.query(models.CatalogProduct)
                 .filter_by(product_code=p["product_code"], product_name=p["product_name"])

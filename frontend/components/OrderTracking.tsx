@@ -28,7 +28,7 @@ const BLANK: Partial<OrderTracking> = {
   date_of_order: "", value: null, currency: "", notes: "",
 };
 
-const fmtNum = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtNum = (n: number) => Math.round(n).toLocaleString("en-US");
 
 export default function OrderTracking() {
   const [rows, setRows] = useState<OrderTracking[]>([]);
@@ -440,9 +440,9 @@ export default function OrderTracking() {
       <div>
         <label className="lbl">{label}</label>
         <input
-          className="inp" type="number" step="0.01"
+          className="inp" type="number" step="1"
           value={v === null || v === undefined ? "" : (v as number)}
-          onChange={(e) => setF(k, (e.target.value === "" ? null : parseFloat(e.target.value)) as OrderTracking[typeof k])}
+          onChange={(e) => setF(k, (e.target.value === "" ? null : Math.round(parseFloat(e.target.value))) as OrderTracking[typeof k])}
         />
       </div>
     );
