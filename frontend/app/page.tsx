@@ -7,9 +7,10 @@ import CatalogAdmin from "@/components/CatalogAdmin";
 import LogisticsAdmin from "@/components/LogisticsAdmin";
 import OrdersAdmin from "@/components/OrdersAdmin";
 import OrderTracking from "@/components/OrderTracking";
+import PendingLogistic from "@/components/PendingLogistic";
 import type { OrderOut } from "@/lib/types";
 
-type Tab = "order" | "orders" | "approvals" | "tracking" | "catalog" | "logistics";
+type Tab = "order" | "orders" | "approvals" | "tracking" | "pendingLogistic" | "catalog" | "logistics";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("order");
@@ -44,6 +45,10 @@ export default function Home() {
               <span className="hidden sm:inline">Order Tracking</span>
               <span className="sm:hidden">Tracking</span>
             </button>
+            <button onClick={() => setTab("pendingLogistic")} className={`tab ${tab === "pendingLogistic" ? "tab-active" : ""}`}>
+              <span className="hidden sm:inline">Pending Logistic</span>
+              <span className="sm:hidden">Pending Log.</span>
+            </button>
             <button onClick={() => setTab("catalog")} className={`tab ${tab === "catalog" ? "tab-active" : ""}`}>
               <span className="hidden sm:inline">Catalogue|Pricing</span>
               <span className="sm:hidden">Catalogue</span>
@@ -59,6 +64,7 @@ export default function Home() {
       {tab === "orders" && <OrdersAdmin mode="mine" onEdit={(o) => { setEditOrder(o); setTab("order"); }} />}
       {tab === "approvals" && <AdminGate><OrdersAdmin mode="admin" onEdit={(o) => { setEditOrder(o); setTab("order"); }} /></AdminGate>}
       {tab === "tracking" && <AdminGate><OrderTracking /></AdminGate>}
+      {tab === "pendingLogistic" && <AdminGate><PendingLogistic /></AdminGate>}
       {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
       {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
     </main>

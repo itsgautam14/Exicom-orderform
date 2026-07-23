@@ -85,6 +85,7 @@ class Order(Base):
     port_of_destination: Mapped[str] = mapped_column(String(128), default="")
     freight_charge: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
     insurance_charge: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    packing_details: Mapped[str] = mapped_column(Text, default="")
 
     # Purchase order
     po_required: Mapped[bool] = mapped_column(Boolean, default=False)

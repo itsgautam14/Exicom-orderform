@@ -135,6 +135,7 @@ class OrderBase(BaseModel):
     port_of_destination: str = ""
     freight_charge: float = 0
     insurance_charge: float = 0
+    packing_details: str = ""
 
     po_required: bool = False
     po_number: str = ""
@@ -166,6 +167,10 @@ class OrderPublish(BaseModel):
     payment_terms: Optional[str] = None
     payment_term_type: Optional[str] = None
     payment_term_text: Optional[str] = None
+    # Standing per-unit rate (INR / pallet or / box) for this country + mode.
+    # When given, freight_charge is computed from it and the rate is saved as
+    # this country's rate in the Logistics tab for future quotes to reuse.
+    unit_rate: Optional[float] = None
 
 
 class OrderOut(OrderBase):

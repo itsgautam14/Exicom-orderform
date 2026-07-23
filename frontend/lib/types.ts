@@ -86,6 +86,8 @@ export interface OrderInput {
   port_of_destination: string;
   freight_charge: number;
   insurance_charge: number;
+  /** Free-text packing/shipment details entered when requesting logistic approval. */
+  packing_details?: string;
 
   po_required: boolean;
   po_number: string;
@@ -155,4 +157,6 @@ export interface OrderPublish {
   payment_terms?: string;
   payment_term_type?: string;
   payment_term_text?: string;
+  /** Standing per-unit rate (INR/pallet or INR/box) — saved as this country's rate too. */
+  unit_rate?: number;
 }

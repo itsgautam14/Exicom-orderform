@@ -33,6 +33,7 @@ _COLUMNS = [
     ("orders", "created_by", "VARCHAR(64) DEFAULT ''"),
     ("orders", "payment_term_type", "VARCHAR(16) DEFAULT 'predefined'"),
     ("orders", "payment_term_text", "TEXT DEFAULT ''"),
+    ("orders", "packing_details", "TEXT DEFAULT ''"),
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
     ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'so_created'"),

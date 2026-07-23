@@ -251,6 +251,7 @@ const BLANK_ORDER = (): OrderInput => ({
   port_of_destination: "",
   freight_charge: 0,
   insurance_charge: 0,
+  packing_details: "",
   po_required: false,
   po_number: "",
   po_amount: "",
@@ -290,6 +291,7 @@ function orderOutToInput(o: OrderOut): OrderInput {
     port_of_destination: o.port_of_destination,
     freight_charge: o.freight_charge,
     insurance_charge: o.insurance_charge,
+    packing_details: o.packing_details,
     po_required: o.po_required,
     po_number: o.po_number,
     po_amount: o.po_amount,
@@ -577,6 +579,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             port_of_loading: "",
             port_of_destination: "",
             freight_charge: 0,
+            packing_details: "",
           }
         : { ...o, incoterms: next }
     );
@@ -1193,6 +1196,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 label={order.transport_mode === "Airways" ? "Airport of Destination" : "Port of Destination"}
                 v={order.port_of_destination}
                 on={(v) => set("port_of_destination", v)}
+              />
+            </div>
+            <div className="mt-2">
+              <label className="lbl">Packing Details</label>
+              <textarea
+                className="inp" rows={2}
+                value={order.packing_details || ""}
+                onChange={(e) => set("packing_details", e.target.value)}
+                placeholder="No. of boxes/pallets, dimensions, weight, special handling…"
               />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">

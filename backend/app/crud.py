@@ -326,14 +326,48 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
     return obj
 
 
+def _apply_logistics_rate(db: Session, country: str, mode: str, qty, rate: float) -> None:
+    """Save the rate an admin just quoted as this country's standing rate.
+
+    Mirrors the weight-tier math in OrderFormBuilder's airRate() (1 box = 10 kg,
+    +500 kg tier above 50 boxes) so future quotes for this country/mode auto-fill
+    from the same number. Marks the row ``approved`` so it goes live immediately.
+    """
+    country = (country or "").strip()
+    if not country:
+        return
+    row = db.query(models.LogisticsRate).filter(
+        func.lower(models.LogisticsRate.country) == country.lower()
+    ).first()
+    if not row:
+        row = models.LogisticsRate(country=country)
+        db.add(row)
+    if (mode or "").lower().startswith("air"):
+        boxes = float(qty or 0)
+        if boxes * 10 > 500:
+            row.air_above_500 = rate
+        else:
+            row.air_up_to_500 = rate
+    else:
+        row.sea_rate = rate
+    row.status = "approved"
+
+
 def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) -> models.Order:
     """Admin fills in the missing logistics fields, then marks the order approved.
 
     Only the provided (logistics) fields are touched — the line items and the
-    rest of the quotation the sales person built are left untouched.
+    rest of the quotation the sales person built are left untouched. If a
+    standing unit_rate is given, freight_charge is derived from it and the rate
+    is saved back to the Logistics tab for this country/mode.
     """
-    for k, v in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    unit_rate = payload.pop("unit_rate", None)
+    for k, v in payload.items():
         setattr(obj, k, v)
+    if unit_rate is not None:
+        obj.freight_charge = round(float(unit_rate) * float(obj.transport_qty or 0), 2)
+        _apply_logistics_rate(db, obj.transport_country, obj.transport_mode, obj.transport_qty, unit_rate)
     obj.status = "approved"
     _sync_tracking_from_order(db, obj)
     db.commit()
