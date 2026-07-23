@@ -6,7 +6,7 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import (
-    String, Text, Integer, Numeric, Boolean, DateTime, ForeignKey, func,
+    String, Text, Integer, Numeric, Boolean, DateTime, ForeignKey, LargeBinary, func,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -190,7 +190,36 @@ class OrderTracking(Base):
     status: Mapped[str] = mapped_column(String(64), default="", index=True)
     notes: Mapped[str] = mapped_column(Text, default="")
 
+    # Fulfillment pipeline: so_created -> in_production -> fg_ready -> dispatched.
+    # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
+    current_stage: Mapped[str] = mapped_column(String(32), default="so_created")
+
+    # Signed quotation / PO document, stored inline (small files — no object
+    # storage configured). doc_filename is blank when nothing's been uploaded.
+    doc_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    doc_filename: Mapped[str] = mapped_column(String(255), default="")
+    doc_content_type: Mapped[str] = mapped_column(String(100), default="")
+
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    stage_events: Mapped[list["TrackingStageEvent"]] = relationship(
+        back_populates="tracking", cascade="all, delete-orphan",
+        order_by="TrackingStageEvent.created_at", lazy="selectin",
+    )
+
+
+class TrackingStageEvent(Base):
+    """One row per stage a tracked order has passed through, so the UI can show
+    how long it sat in each stage and why (remarks — e.g. reason for a delay)."""
+    __tablename__ = "tracking_stage_events"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tracking_id: Mapped[str] = mapped_column(ForeignKey("order_trackings.id", ondelete="CASCADE"), index=True)
+    stage: Mapped[str] = mapped_column(String(32))  # so_created | in_production | fg_ready | dispatched
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    tracking: Mapped["OrderTracking"] = relationship(back_populates="stage_events")

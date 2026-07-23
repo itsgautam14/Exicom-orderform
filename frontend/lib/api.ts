@@ -181,6 +181,26 @@ export const api = {
       headers: { "Content-Type": "application/octet-stream", ...adminHeaders() },
       body: file,
     }).then(json<{ imported: number; skipped: number; errors: string[] }>),
+
+  // Signed quotation / PO document. No Content-Type set on upload — the
+  // browser must generate the multipart boundary itself.
+  uploadTrackingDocument: (id: string, file: File): Promise<OrderTracking> => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(`${BASE}/api/tracking/${id}/document`, {
+      method: "POST",
+      headers: adminHeaders(),
+      body: form,
+    }).then(json<OrderTracking>);
+  },
+
+  // Fulfillment stage tracker: so_created -> in_production -> fg_ready -> dispatched.
+  advanceTrackingStage: (id: string, stage: string, remarks: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/stage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ stage, remarks }),
+    }).then(json<OrderTracking>),
 };
 
 export const API_BASE = BASE;

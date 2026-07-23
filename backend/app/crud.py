@@ -381,6 +381,8 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             date_of_order=date_of_order,
             value=value,
             currency=currency,
+            # Seed the first fulfillment stage so the tracker has a starting point.
+            stage_events=[models.TrackingStageEvent(stage="so_created")],
         ))
     else:
         row.partner = partner
@@ -430,7 +432,10 @@ def get_tracking(db: Session, tracking_id: str) -> models.OrderTracking | None:
 
 
 def create_tracking(db: Session, data: schemas.OrderTrackingCreate) -> models.OrderTracking:
-    obj = models.OrderTracking(**data.model_dump())
+    obj = models.OrderTracking(
+        **data.model_dump(),
+        stage_events=[models.TrackingStageEvent(stage="so_created")],
+    )
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -451,7 +456,39 @@ def delete_tracking(db: Session, obj: models.OrderTracking) -> None:
 
 
 def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
-    objs = [models.OrderTracking(**r) for r in rows]
+    objs = [
+        models.OrderTracking(**r, stage_events=[models.TrackingStageEvent(stage="so_created")])
+        for r in rows
+    ]
     db.add_all(objs)
     db.commit()
     return len(objs)
+
+
+TRACKING_STAGES = ["so_created", "in_production", "fg_ready", "dispatched"]
+
+
+def advance_tracking_stage(
+    db: Session, obj: models.OrderTracking, stage: str, remarks: str = ""
+) -> models.OrderTracking:
+    """Record the tracked order entering ``stage`` and make it current.
+
+    Appends a new TrackingStageEvent (so the prior stage's duration is fixed by
+    its own event's timestamp) rather than editing history in place.
+    """
+    obj.stage_events.append(models.TrackingStageEvent(stage=stage, remarks=remarks))
+    obj.current_stage = stage
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def save_tracking_document(
+    db: Session, obj: models.OrderTracking, filename: str, content_type: str, data: bytes
+) -> models.OrderTracking:
+    obj.doc_filename = filename
+    obj.doc_content_type = content_type
+    obj.doc_data = data
+    db.commit()
+    db.refresh(obj)
+    return obj

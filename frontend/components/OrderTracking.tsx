@@ -1,11 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 import type { OrderTracking } from "@/lib/types";
 
 const STATUS_OPTIONS = ["Pending", "In Production", "Dispatched", "Delivered", "On Hold", "Cancelled"];
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
+
+const STAGES: { key: string; label: string }[] = [
+  { key: "so_created", label: "Sales Order Created" },
+  { key: "in_production", label: "In Production" },
+  { key: "fg_ready", label: "FG Ready for Dispatch" },
+  { key: "dispatched", label: "Dispatched" },
+];
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+function daysBetween(a: string, b: string): number {
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  return Math.max(0, Math.round(ms / 86400000));
+}
 
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
@@ -32,8 +49,11 @@ export default function OrderTracking() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [editing, setEditing] = useState<Partial<OrderTracking> | null>(null);
+  const [viewing, setViewing] = useState<OrderTracking | null>(null);
+  const [stageRemarks, setStageRemarks] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const docInput = useRef<HTMLInputElement>(null);
 
   async function reload() {
     setLoading(true);
@@ -95,6 +115,44 @@ export default function OrderTracking() {
     catch (e) { alert((e as Error).message); }
   }
 
+  // Keep the open detail card in sync whenever the underlying row refreshes.
+  useEffect(() => {
+    if (!viewing) return;
+    const fresh = rows.find((r) => r.id === viewing.id);
+    if (fresh) setViewing(fresh);
+  }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function onUploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.uploadTrackingDocument(viewing.id, file);
+      setViewing(updated);
+      reload();
+    } catch (err) {
+      alert("Upload failed: " + (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function advanceStage(stage: string) {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks);
+      setViewing(updated);
+      setStageRemarks("");
+      reload();
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
@@ -130,7 +188,7 @@ export default function OrderTracking() {
         <div className="flex flex-shrink-0 gap-2">
           <input ref={fileInput} type="file" accept=".xlsx" className="hidden" onChange={onImportFile} />
           <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>⤒ Import Excel</button>
-          <button className="btn btn-primary" onClick={() => setEditing({ ...BLANK })}>+ Add Order</button>
+          <button className="btn btn-primary" onClick={() => { setEditing({ ...BLANK }); setViewing(null); }}>+ Add Order</button>
         </div>
       </div>
 
@@ -197,6 +255,117 @@ export default function OrderTracking() {
         </div>
       )}
 
+      {/* detail view: document + fulfillment stage tracker */}
+      {viewing && (
+        <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="section-title mb-0">{viewing.partner || "Order"}</div>
+              <p className="text-xs text-slate-500">
+                {viewing.quote_number ? `Quote ${viewing.quote_number}` : "Manually added order"}
+              </p>
+            </div>
+            <button className="btn" onClick={() => setViewing(null)}>Close</button>
+          </div>
+
+          {/* signed document */}
+          <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Signed Quotation / PO Document
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {viewing.doc_filename ? (
+                <a
+                  className="text-sm font-semibold text-exicom-teal hover:underline"
+                  href={`${API_BASE}/api/tracking/${viewing.id}/document`}
+                  target="_blank" rel="noopener noreferrer"
+                >
+                  📄 View {viewing.doc_filename}
+                </a>
+              ) : (
+                <span className="text-sm text-slate-400">No document uploaded yet.</span>
+              )}
+              <input ref={docInput} type="file" className="hidden" onChange={onUploadDoc} />
+              <button className="btn" disabled={busy} onClick={() => docInput.current?.click()}>
+                {viewing.doc_filename ? "Replace File" : "Upload File"}
+              </button>
+            </div>
+          </div>
+
+          {/* fulfillment stage tracker */}
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Fulfillment Tracker
+            </div>
+            {(() => {
+              const currentIdx = STAGES.findIndex((s) => s.key === viewing.current_stage);
+              const stageDate = (key: string) =>
+                viewing.stage_events.find((e) => e.stage === key)?.created_at;
+              const nextStage = STAGES[currentIdx + 1];
+              return (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                    {STAGES.map((s, i) => {
+                      const reachedAt = stageDate(s.key);
+                      const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
+                      const done = reachedAt != null;
+                      const active = i === currentIdx;
+                      const duration = reachedAt
+                        ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
+                        : null;
+                      const remarks = [...viewing.stage_events]
+                        .reverse()
+                        .find((e) => e.stage === s.key && e.remarks)?.remarks;
+                      return (
+                        <div
+                          key={s.key}
+                          className={`rounded-lg border p-2.5 ${
+                            active ? "border-exicom-teal bg-exicom-teal/5" : done ? "border-slate-200" : "border-dashed border-slate-200 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                            <span className={`inline-block h-2 w-2 rounded-full ${done ? "bg-exicom-teal" : "bg-slate-300"}`} />
+                            {s.label}
+                          </div>
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}
+                          </div>
+                          {duration != null && (
+                            <div className="mt-1 text-[11px] font-semibold text-slate-600">
+                              {active ? `${duration} day${duration === 1 ? "" : "s"} so far` : `Took ${duration} day${duration === 1 ? "" : "s"}`}
+                            </div>
+                          )}
+                          {remarks && <div className="mt-1 text-[11px] italic text-slate-500">"{remarks}"</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {nextStage && (
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <label className="lbl">
+                        Remarks {nextStage.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
+                      </label>
+                      <textarea
+                        className="inp" rows={2} value={stageRemarks}
+                        onChange={(e) => setStageRemarks(e.target.value)}
+                        placeholder="Why is it moving now / any delay reason…"
+                      />
+                      <button
+                        className="btn btn-primary mt-2" disabled={busy}
+                        onClick={() => advanceStage(nextStage.key)}
+                      >
+                        {busy ? "Updating…" : `Mark as “${nextStage.label}”`}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* filters */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -253,7 +422,8 @@ export default function OrderTracking() {
                   </td>
                   <td className="max-w-[220px] px-3 py-2 text-slate-500">{r.notes || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
-                    <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => setEditing(r)}>Edit</button>
+                    <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); }}>View</button>
+                    <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => { setEditing(r); setViewing(null); }}>Edit</button>
                     <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
                   </td>
                 </tr>

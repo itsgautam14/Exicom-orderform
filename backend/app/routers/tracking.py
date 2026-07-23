@@ -11,7 +11,8 @@ import io
 import re
 
 import openpyxl
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
@@ -48,6 +49,49 @@ def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
     crud.delete_tracking(db, obj)
+
+
+# --- Signed document upload / view --------------------------------------------
+
+@router.post("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
+             dependencies=[Depends(require_admin)])
+async def upload_tracking_document(
+    tracking_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)
+):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    data = await file.read()
+    return crud.save_tracking_document(
+        db, obj, file.filename or "document", file.content_type or "application/octet-stream", data
+    )
+
+
+# No admin gate: a plain <a href target="_blank"> link can't attach an auth
+# header, same reasoning as the /api/orders/{id}/pdf endpoint.
+@router.get("/{tracking_id}/document")
+def get_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj or not obj.doc_data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No document uploaded")
+    return Response(
+        content=obj.doc_data,
+        media_type=obj.doc_content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{obj.doc_filename or "document"}"'},
+    )
+
+
+# --- Fulfillment stage tracker -------------------------------------------------
+
+@router.post("/{tracking_id}/stage", response_model=schemas.OrderTrackingOut,
+             dependencies=[Depends(require_admin)])
+def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    if payload.stage not in crud.TRACKING_STAGES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid stage")
+    return crud.advance_tracking_stage(db, obj, payload.stage, payload.remarks)
 
 
 # --- Excel import ------------------------------------------------------------

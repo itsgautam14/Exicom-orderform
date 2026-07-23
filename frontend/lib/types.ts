@@ -111,6 +111,14 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
   grand_total: number;
 }
 
+export interface TrackingStageEvent {
+  id: string;
+  /** "so_created" | "in_production" | "fg_ready" | "dispatched" */
+  stage: string;
+  remarks: string;
+  created_at: string;
+}
+
 export interface OrderTracking {
   id: string;
   /** Links back to the quotation this row was generated from; blank if added manually. */
@@ -127,6 +135,11 @@ export interface OrderTracking {
   ex_date_of_delivery: string;
   status: string;
   notes: string;
+  /** Fulfillment pipeline position: "so_created" | "in_production" | "fg_ready" | "dispatched". */
+  current_stage: string;
+  doc_filename: string;
+  doc_content_type: string;
+  stage_events: TrackingStageEvent[];
 }
 
 /** Fields an admin can set while publishing a draft. */

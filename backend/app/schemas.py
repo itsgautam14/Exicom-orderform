@@ -1,6 +1,7 @@
 """Pydantic schemas for request / response validation."""
 from __future__ import annotations
 
+import datetime as dt
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -217,6 +218,23 @@ class OrderTrackingUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class StageEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    stage: str
+    remarks: str = ""
+    created_at: dt.datetime
+
+
+class StageEventIn(BaseModel):
+    stage: str
+    remarks: str = ""
+
+
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
+    current_stage: str = "so_created"
+    doc_filename: str = ""
+    doc_content_type: str = ""
+    stage_events: list[StageEventOut] = []
