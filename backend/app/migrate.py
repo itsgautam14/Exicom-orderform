@@ -44,25 +44,53 @@ _COLUMNS = [
 
 
 def _backfill_tracking() -> None:
-    """Give every already-saved quotation its SO Order Tracking row.
+    """Give every SO Created quotation its SO Order Tracking row.
 
-    New quotations get this automatically at save time (see
-    crud._sync_tracking_from_order); this catches quotations that were saved
-    before that existed. Idempotent — matches by quote_number, so re-running
-    on every startup just refreshes partner/market/kam/date/value, never
-    duplicates a row or touches the manual dispatch/delivery/status fields.
+    A tracking row is only ever meant to exist for a quote that's actually
+    reached "Order Received" (status so_created) — this catches ones that
+    reached that status before crud.mark_so_created's sync existed. Idempotent
+    — matches by quote_number, so re-running on every startup just refreshes
+    partner/market/kam/date/value, never duplicates a row or touches the
+    manual dispatch/delivery/remarks fields.
     """
     from app import crud, models  # local import: crud isn't needed at module load
 
     db = SessionLocal()
     try:
-        for obj in db.query(models.Order).all():
+        for obj in db.query(models.Order).filter(models.Order.status == "so_created").all():
             crud._sync_tracking_from_order(db, obj)
         # Rows created before the fulfillment tracker existed have no stage
         # history yet — seed "so_created" so the tracker isn't blank for them.
         for row in db.query(models.OrderTracking).filter(~models.OrderTracking.stage_events.any()).all():
             row.stage_events.append(models.TrackingStageEvent(stage="so_created"))
         db.commit()
+    finally:
+        db.close()
+
+
+def _remove_premature_tracking() -> None:
+    """One-time cleanup: tracking rows used to get created from every quote
+    save/autosave/approval, not just "Order Received". Delete any row that's
+    linked to a real order (non-blank quote_number) whose order never actually
+    reached so_created — those were never legitimate tracking rows. Rows with
+    a blank quote_number (added by hand or via Excel import) are left alone.
+    """
+    from app import models
+
+    db = SessionLocal()
+    try:
+        so_created_numbers = {
+            q for (q,) in db.query(models.Order.quote_number).filter(models.Order.status == "so_created")
+        }
+        stale = [
+            row for row in db.query(models.OrderTracking).filter(models.OrderTracking.quote_number != "").all()
+            if row.quote_number not in so_created_numbers
+        ]
+        for row in stale:
+            db.delete(row)
+        if stale:
+            db.commit()
+            print(f"Removed {len(stale)} tracking row(s) from orders that never reached SO Created.")
     finally:
         db.close()
 
@@ -74,6 +102,7 @@ def run() -> None:
                 f'ALTER TABLE IF EXISTS {table} ADD COLUMN IF NOT EXISTS {column} {ddl}'
             ))
     _backfill_tracking()
+    _remove_premature_tracking()
     print("Schema migration complete.")
 
 

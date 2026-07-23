@@ -313,7 +313,9 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
         _ensure_pending_logistics(
             db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
         )
-    _sync_tracking_from_order(db, obj)
+    # Note: no tracking sync here — a tracking row is only ever created via
+    # mark_so_created (the "Order Received" button on the Submitted tab), not
+    # on every save/autosave of a quote that's still being drafted.
     db.commit()
     db.refresh(obj)
     return obj
@@ -343,7 +345,7 @@ def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> m
             _ensure_pending_logistics(
                 db, obj.transport_country or obj.ship_to_country or obj.bill_to_country
             )
-    _sync_tracking_from_order(db, obj)
+    # No tracking sync here either — see the note in create_order.
     db.commit()
     db.refresh(obj)
     return obj
@@ -392,7 +394,7 @@ def publish_order(db: Session, obj: models.Order, data: schemas.OrderPublish) ->
         obj.freight_charge = round(float(unit_rate) * float(obj.transport_qty or 0))
         _apply_logistics_rate(db, obj.transport_country, obj.transport_mode, obj.transport_qty, round(float(unit_rate)))
     obj.status = "approved"
-    _sync_tracking_from_order(db, obj)
+    # No tracking sync here — a tracking row is only created via mark_so_created.
     db.commit()
     db.refresh(obj)
     return obj
@@ -410,11 +412,12 @@ def _order_items_summary(order: models.Order) -> str:
 def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     """Create or refresh the SO Order Tracking row generated from this quotation.
 
-    Runs every time a quotation is saved (created or edited) so every quote made
-    from the Order Form shows up under SO Order Tracking right away — no manual
-    step required. Partner, market, KAM, order date and value always mirror the
-    quotation; dispatch date, expected delivery, shipment status and remarks are
-    operational fields ops fills in by hand and are never overwritten here.
+    Only called from mark_so_created (the "Order Received" button on the
+    Submitted tab) — a quote doesn't get a tracking row just from being
+    saved/edited/approved, only once the customer has actually confirmed the
+    PO against it. Partner, market, KAM, order date and value mirror the
+    quotation at that point; dispatch date, expected delivery and remarks are
+    operational fields ops fills in by hand afterward and aren't touched here.
     """
     if not obj.quote_number:
         return
@@ -454,8 +457,8 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
 def mark_so_created(db: Session, obj: models.Order) -> models.Order:
     """Mark Order Received: advance a submitted or approved quotation to ``so_created``.
 
-    The tracking row already exists (created when the quotation was first
-    saved) — this just flips the order's own approval status.
+    This is the only place a tracking row gets created — clicking "Order
+    Received" on the Submitted tab is what puts a quote into SO Order Tracking.
     """
     obj.status = "so_created"
     _sync_tracking_from_order(db, obj)
