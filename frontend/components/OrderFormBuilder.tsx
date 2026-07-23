@@ -339,7 +339,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   // A line's "Request Pricing" button. If the approval reason is still empty,
   // jump to it and focus it so the sales person can fill it in; otherwise
-  // actually send the quote to the admin (same as Save & Submit), so the button
+  // actually send the quote to the admin (same as Submit), so the button
   // isn't just a scroll helper.
   function requestPricing() {
     if (!(order.approval_note || "").trim()) {
@@ -675,8 +675,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   }
 
   // Quietly persists the draft in the background as the sales person edits, so
-  // work isn't lost if they navigate away before clicking Generate PDF / Save &
-  // Send. Skipped until there's at least a customer name, so opening a blank
+  // work isn't lost if they navigate away before clicking Generate PDF / Save /
+  // Submit. Skipped until there's at least a customer name, so opening a blank
   // form doesn't immediately create an empty record.
   async function autoSave() {
     if (!order.prepared_for.trim() && !order.bill_to_company.trim()) return;
@@ -699,6 +699,26 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     return () => clearTimeout(autoSaveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order]);
+
+  // Manual "Save" — an on-demand version of autoSave: persists quietly (just
+  // the ✓ Saved indicator, no popup) so a sales person can keep editing.
+  // Distinct from "Submit", which is the deliberate hand-off to the admin.
+  async function quickSave() {
+    setBusy(true);
+    setAutoSaveStatus("saving");
+    try {
+      const quoteNumber = await ensureNumber();
+      const issued = quoteNumber === order.quote_number ? order : { ...order, quote_number: quoteNumber };
+      if (issued !== order) setOrder(issued);
+      await persistOrder(issued);
+      setAutoSaveStatus("saved");
+    } catch (e) {
+      setAutoSaveStatus("error");
+      alert("Could not save the order — is the backend running?\n\n" + (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function downloadPdf() {
     const err = validate();
@@ -763,12 +783,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
         } lg:block`}
       >
         <div className="z-10 -mx-4 -mt-4 mb-4 border-b border-slate-100 bg-white/85 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:-mx-5 lg:-mt-5 lg:px-5">
-          <div className="flex gap-2">
-            <button className="btn btn-primary flex-1" onClick={downloadPdf} disabled={busy}>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn btn-primary flex-1 min-w-[130px]" onClick={downloadPdf} disabled={busy}>
               {busy ? "Working…" : "⤓  Generate PDF"}
             </button>
-            <button className="btn flex-1" onClick={saveOrder} disabled={busy} title="Save and submit to the Approval Admin (no download)">
-              Save &amp; Submit
+            <button className="btn flex-1 min-w-[80px]" onClick={quickSave} disabled={busy} title="Save quietly, no download, keep editing">
+              {busy ? "Saving…" : "Save"}
+            </button>
+            <button className="btn flex-1 min-w-[80px]" onClick={saveOrder} disabled={busy} title="Submit to the Approval Admin (no download)">
+              Submit
             </button>
             <button
               className="btn flex-shrink-0 px-3 text-slate-400 hover:text-red-500 hover:bg-red-50"
