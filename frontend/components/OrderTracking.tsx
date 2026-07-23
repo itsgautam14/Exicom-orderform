@@ -298,9 +298,11 @@ export default function OrderTracking() {
               Fulfillment Tracker
             </div>
             {(() => {
+              // Defensive: older/in-flight API responses may not include stage_events yet.
+              const events = viewing.stage_events || [];
               const currentIdx = STAGES.findIndex((s) => s.key === viewing.current_stage);
               const stageDate = (key: string) =>
-                viewing.stage_events.find((e) => e.stage === key)?.created_at;
+                events.find((e) => e.stage === key)?.created_at;
               const nextStage = STAGES[currentIdx + 1];
               return (
                 <>
@@ -313,7 +315,7 @@ export default function OrderTracking() {
                       const duration = reachedAt
                         ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
                         : null;
-                      const remarks = [...viewing.stage_events]
+                      const remarks = [...events]
                         .reverse()
                         .find((e) => e.stage === s.key && e.remarks)?.remarks;
                       return (
