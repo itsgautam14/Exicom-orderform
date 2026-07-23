@@ -292,6 +292,8 @@ html, body {
       {% if order.status == "draft" %}<div class="draft-note">Provisional — subject to internal approval.</div>{% endif %}
       <div class="meta-lines">
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
+        {% if order.customer_phone %}Phone: <b>{{ order.customer_phone }}</b><br/>{% endif %}
+        {% if order.customer_email %}Email: <b>{{ order.customer_email }}</b><br/>{% endif %}
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
         KAM Name: <b>{{ order.proposed_by }}</b><br/>
@@ -323,7 +325,7 @@ html, body {
         <span class="strong">{{ order.bill_to_company }}</span><br/>
         {% if order.bill_to_gst %}Tax ID: {{ order.bill_to_gst }}<br/>{% endif %}
         {{ order.bill_to_address | replace('\n', '<br/>') | safe }}<br/>
-        {{ order.bill_to_country }}
+        {{ order.bill_to_country }}{% if order.customer_postal_code %} - {{ order.customer_postal_code }}{% endif %}
       </div>
     </td>
     <td>

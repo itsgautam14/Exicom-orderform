@@ -52,6 +52,9 @@ export interface OrderItemOut extends OrderItem {
 export interface OrderInput {
   quote_number: string;
   prepared_for: string;
+  customer_phone?: string;
+  customer_email?: string;
+  customer_postal_code?: string;
   proposed_by: string;
   quote_date: string;
   offer_valid_through: string;

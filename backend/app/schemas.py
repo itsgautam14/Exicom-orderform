@@ -102,6 +102,9 @@ class OrderItemOut(OrderItemIn):
 class OrderBase(BaseModel):
     quote_number: str = Field(..., examples=["Q-00000007"])
     prepared_for: str = ""
+    customer_phone: str = ""
+    customer_email: str = ""
+    customer_postal_code: str = ""
     proposed_by: str = ""
     quote_date: str = ""
     offer_valid_through: str = ""
