@@ -69,6 +69,13 @@ function isEditable(status: string): boolean {
   return status === "draft" || status === "rejected";
 }
 
+// Past Quotes has no separate Approved tab — an approved draft just joins the
+// Submitted tab (it already cleared sign-off in Pricing Approval; the status
+// badge still says "Approved" so it's clear it went through that step).
+function isSubmittedGroup(status: string): boolean {
+  return status === "submitted" || status === "approved";
+}
+
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] || { label: status || "—", cls: "bg-slate-100 text-slate-600" };
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>{m.label}</span>;
@@ -134,7 +141,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
         if (filter === "pending" && !(o.status === "draft" && isPricingDraft(o.approval_reason))) return false;
         if (filter === "pricingApproved" && !((o.status === "approved" || o.status === "so_created") && isPricingDraft(o.approval_reason))) return false;
         if (filter === "rejected" && o.status !== "rejected") return false;
-      } else if (filter !== "all" && o.status !== filter) {
+      } else if (filter === "submitted" ? !isSubmittedGroup(o.status) : filter !== "all" && o.status !== filter) {
         return false;
       }
       if (!needle) return true;
@@ -213,7 +220,6 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     { key: "all", label: "All" },
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
-    { key: "approved", label: "Approved" },
   ];
   const ADMIN_FILTERS: { key: StatusFilter; label: string }[] = [
     { key: "pending", label: "Pending" },
@@ -257,7 +263,10 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                 filter === f.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {f.label} <span className="text-xs text-slate-400">{counts[f.key]}</span>
+              {f.label}{" "}
+              <span className="text-xs text-slate-400">
+                {!isAdmin && f.key === "submitted" ? counts.submitted + counts.approved : counts[f.key]}
+              </span>
             </button>
           ))}
         </div>
@@ -435,12 +444,12 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Review
                       </button>
                     )}
-                    {!isAdmin && filter === "submitted" && o.status === "submitted" && (
+                    {!isAdmin && filter === "submitted" && isSubmittedGroup(o.status) && (
                       <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markOrderReceived(o)}>
                         Order Received
                       </button>
                     )}
-                    {!isAdmin && onEdit && filter === "submitted" && o.status === "submitted" && (
+                    {!isAdmin && onEdit && filter === "submitted" && isSubmittedGroup(o.status) && (
                       <button
                         className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
                         title="Create a new order pre-filled from this one"
