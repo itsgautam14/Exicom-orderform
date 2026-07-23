@@ -50,6 +50,7 @@ export default function OrderTracking() {
   const [statusFilter, setStatusFilter] = useState("");
   const [editing, setEditing] = useState<Partial<OrderTracking> | null>(null);
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
+  const [selectedStage, setSelectedStage] = useState<string>("so_created");
   const [stageRemarks, setStageRemarks] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -122,6 +123,15 @@ export default function OrderTracking() {
     if (fresh) setViewing(fresh);
   }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Default the stage selector to "the one after wherever this order currently
+  // is" each time a different row is opened — but leave it alone otherwise so
+  // it doesn't jump around while the user is picking a stage to edit.
+  useEffect(() => {
+    if (!viewing) return;
+    const idx = STAGES.findIndex((s) => s.key === viewing.current_stage);
+    setSelectedStage((STAGES[idx + 1] || STAGES[idx] || STAGES[0]).key);
+  }, [viewing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function onUploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -138,7 +148,21 @@ export default function OrderTracking() {
     }
   }
 
-  async function advanceStage(stage: string) {
+  async function onDeleteDoc() {
+    if (!viewing || !confirm("Delete the uploaded document?")) return;
+    setBusy(true);
+    try {
+      const updated = await api.deleteTrackingDocument(viewing.id);
+      setViewing(updated);
+      reload();
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveStage(stage: string) {
     if (!viewing) return;
     setBusy(true);
     try {
@@ -289,6 +313,11 @@ export default function OrderTracking() {
               <button className="btn" disabled={busy} onClick={() => docInput.current?.click()}>
                 {viewing.doc_filename ? "Replace File" : "Upload File"}
               </button>
+              {viewing.doc_filename && (
+                <button className="text-xs font-semibold text-red-500 hover:text-red-700" disabled={busy} onClick={onDeleteDoc}>
+                  Delete
+                </button>
+              )}
             </div>
           </div>
 
@@ -297,13 +326,14 @@ export default function OrderTracking() {
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fulfillment Tracker
             </div>
+            <p className="mb-3 text-xs text-slate-400">Click a stage below to record it manually.</p>
             {(() => {
               // Defensive: older/in-flight API responses may not include stage_events yet.
               const events = viewing.stage_events || [];
               const currentIdx = STAGES.findIndex((s) => s.key === viewing.current_stage);
               const stageDate = (key: string) =>
                 events.find((e) => e.stage === key)?.created_at;
-              const nextStage = STAGES[currentIdx + 1];
+              const selected = STAGES.find((s) => s.key === selectedStage) || STAGES[0];
               return (
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -312,6 +342,7 @@ export default function OrderTracking() {
                       const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
                       const done = reachedAt != null;
                       const active = i === currentIdx;
+                      const isSelected = s.key === selectedStage;
                       const duration = reachedAt
                         ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
                         : null;
@@ -319,10 +350,18 @@ export default function OrderTracking() {
                         .reverse()
                         .find((e) => e.stage === s.key && e.remarks)?.remarks;
                       return (
-                        <div
+                        <button
                           key={s.key}
-                          className={`rounded-lg border p-2.5 ${
-                            active ? "border-exicom-teal bg-exicom-teal/5" : done ? "border-slate-200" : "border-dashed border-slate-200 opacity-60"
+                          type="button"
+                          onClick={() => setSelectedStage(s.key)}
+                          className={`rounded-lg border p-2.5 text-left transition ${
+                            isSelected
+                              ? "border-exicom-teal ring-2 ring-exicom-teal/40 bg-exicom-teal/5"
+                              : active
+                              ? "border-exicom-teal bg-exicom-teal/5"
+                              : done
+                              ? "border-slate-200 hover:border-exicom-teal/40"
+                              : "border-dashed border-slate-200 opacity-60 hover:opacity-100"
                           }`}
                         >
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
@@ -338,29 +377,27 @@ export default function OrderTracking() {
                             </div>
                           )}
                           {remarks && <div className="mt-1 text-[11px] italic text-slate-500">"{remarks}"</div>}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
 
-                  {nextStage && (
-                    <div className="mt-4 border-t border-slate-100 pt-3">
-                      <label className="lbl">
-                        Remarks {nextStage.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
-                      </label>
-                      <textarea
-                        className="inp" rows={2} value={stageRemarks}
-                        onChange={(e) => setStageRemarks(e.target.value)}
-                        placeholder="Why is it moving now / any delay reason…"
-                      />
-                      <button
-                        className="btn btn-primary mt-2" disabled={busy}
-                        onClick={() => advanceStage(nextStage.key)}
-                      >
-                        {busy ? "Updating…" : `Mark as “${nextStage.label}”`}
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <label className="lbl">
+                      Remarks for “{selected.label}” {selected.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
+                    </label>
+                    <textarea
+                      className="inp" rows={2} value={stageRemarks}
+                      onChange={(e) => setStageRemarks(e.target.value)}
+                      placeholder="Why is it moving now / any delay reason…"
+                    />
+                    <button
+                      className="btn btn-primary mt-2" disabled={busy}
+                      onClick={() => saveStage(selected.key)}
+                    >
+                      {busy ? "Saving…" : `Save “${selected.label}”`}
+                    </button>
+                  </div>
                 </>
               );
             })()}

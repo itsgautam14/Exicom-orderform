@@ -194,7 +194,11 @@ export const api = {
     }).then(json<OrderTracking>);
   },
 
+  deleteTrackingDocument: (id: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/document`, { method: "DELETE", headers: adminHeaders() }).then(json<OrderTracking>),
+
   // Fulfillment stage tracker: so_created -> in_production -> fg_ready -> dispatched.
+  // Any stage can be set directly — ops fills these in manually, not strictly in order.
   advanceTrackingStage: (id: string, stage: string, remarks: string): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/stage`, {
       method: "POST",

@@ -492,3 +492,12 @@ def save_tracking_document(
     db.commit()
     db.refresh(obj)
     return obj
+
+
+def delete_tracking_document(db: Session, obj: models.OrderTracking) -> models.OrderTracking:
+    obj.doc_filename = ""
+    obj.doc_content_type = ""
+    obj.doc_data = None
+    db.commit()
+    db.refresh(obj)
+    return obj

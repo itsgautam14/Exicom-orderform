@@ -81,6 +81,15 @@ def get_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
     )
 
 
+@router.delete("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
+               dependencies=[Depends(require_admin)])
+def remove_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    return crud.delete_tracking_document(db, obj)
+
+
 # --- Fulfillment stage tracker -------------------------------------------------
 
 @router.post("/{tracking_id}/stage", response_model=schemas.OrderTrackingOut,
