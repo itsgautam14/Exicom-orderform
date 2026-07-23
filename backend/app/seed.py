@@ -331,8 +331,10 @@ SEED_PRODUCTS = [
 
 
 def main(reset: bool = False) -> None:
-    migrate.run()  # ensure new columns exist on already-deployed databases
+    # Tables first, then column/data migrations — migrate.run() queries tables
+    # (e.g. the fulfillment stage tracker) that only exist after create_all.
     Base.metadata.create_all(bind=engine)
+    migrate.run()
     db = SessionLocal()
     try:
         if reset:
