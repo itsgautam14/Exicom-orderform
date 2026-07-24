@@ -104,6 +104,21 @@ const EUR_ND_KEY = "EUR_ND";
 function hasEurNoDiscount(p?: CatalogProduct): boolean {
   return !!p?.prices?.[EUR_ND_KEY]?.length;
 }
+
+// The pricing book's exact MoQ discount tiers off list price: 1-50 units = 40%,
+// 51-150 = 43.5%, 151+ = 47%. Fixed business rates — shown directly rather than
+// re-derived from the (now whole-number-rounded) tier/MSRP prices, which would
+// only approximate these figures (e.g. 39.9% instead of a clean 40%).
+const EUR_TIER_DISCOUNTS = [40, 43.5, 47];
+function eurTierIndex(p: CatalogProduct, qty: number): number {
+  const tiers = p.prices?.EUR;
+  if (!tiers || !tiers.length) return 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const [min, max] = tiers[i];
+    if (qty >= min && (max == null || qty <= max)) return i;
+  }
+  return 0;
+}
 // Pricebook price for a line, honouring the EUR with/without-discount choice.
 function catalogPrice(p: CatalogProduct, currency: string, qty: number, eurDiscount?: string): number | null {
   if (currency === "EUR" && eurDiscount === "without" && hasEurNoDiscount(p)) {
@@ -131,8 +146,7 @@ function resolveCatalogPricing(
   const mode = requestedMode || "with";
   const msrp = p.prices?.[EUR_ND_KEY]?.[0]?.[2] ?? null;
   if (mode === "without") return { eur_discount: mode, unit_price: msrp, discount_pct: 0 };
-  const tierPrice = priceFor(p, "EUR", qty);
-  const pct = msrp && tierPrice != null ? Math.round((1 - tierPrice / msrp) * 1000) / 10 : 0;
+  const pct = EUR_TIER_DISCOUNTS[eurTierIndex(p, qty)] ?? 0;
   return { eur_discount: mode, unit_price: msrp, discount_pct: pct };
 }
 
