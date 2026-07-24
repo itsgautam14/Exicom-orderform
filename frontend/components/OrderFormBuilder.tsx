@@ -173,13 +173,21 @@ function passesCategory(p: CatalogProduct, activeFilter: string | undefined): bo
   return !isAccessoryOnly(p);                                // no chip → hide accessory-only items
 }
 
+/** The charger's power rating parsed out of its name, e.g. "Spin Air 22 kW (Wifi)" → 22. */
+function kwRating(p: CatalogProduct): number {
+  const m = p.product_name.match(/(\d+(?:\.\d+)?)\s*kW/i);
+  return m ? parseFloat(m[1]) : Infinity; // no rating (e.g. Load Balancing Kit) → sort last
+}
+
 /**
- * Sort order for the product picker: by code (ascending), then by product-name
- * length (shorter first), then alphabetically as a tie-break.
+ * Sort order for the product picker: by power rating ascending (3.3 kW → 22 kW),
+ * then by variant within the same rating — shorter feature name first (Wifi →
+ * Wifi and RFID → Wifi, RFID and Modem → …and Ethernet), alphabetically as a
+ * final tie-break.
  */
-function byCodeThenNameLength(a: CatalogProduct, b: CatalogProduct): number {
-  const c = a.product_code.localeCompare(b.product_code, undefined, { numeric: true });
-  if (c !== 0) return c;
+function byPowerThenVariant(a: CatalogProduct, b: CatalogProduct): number {
+  const k = kwRating(a) - kwRating(b);
+  if (k !== 0) return k;
   const l = a.product_name.length - b.product_name.length;
   if (l !== 0) return l;
   return a.product_name.localeCompare(b.product_name);
@@ -929,7 +937,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                         passesCategory(c, itemFilters[i]) &&
                         `${c.product_code} ${c.product_name}`.toLowerCase().includes(q)
                       )
-                      .sort(byCodeThenNameLength)
+                      .sort(byPowerThenVariant)
                       .slice(0, 30);
                     return (
                       <div className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -966,7 +974,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     {catalog
                       .filter((c) => hasCurrency(c, order.currency) && passesCategory(c, itemFilters[i]))
                       .slice()
-                      .sort(byCodeThenNameLength)
+                      .sort(byPowerThenVariant)
                       .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.product_code} — {c.product_name}
