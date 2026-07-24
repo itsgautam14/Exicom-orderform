@@ -1207,16 +1207,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     {busy ? "Sending…" : "Request Logistic Approval"}
                   </button>
                 </div>
-                <label className="lbl mt-2 text-amber-700">Remarks (optional)</label>
-                <textarea
-                  className="inp"
-                  rows={2}
-                  value={order.approval_note || ""}
-                  onChange={(e) => set("approval_note", e.target.value)}
-                  placeholder="Any notes for whoever prices the logistics…"
-                />
                 <p className="mt-1 font-normal text-amber-600">
-                  Internal only — never shown on the PDF. Once approved, this quote can no longer be edited.
+                  Once approved, this quote can no longer be edited — double-check every other detail first.
                 </p>
               </div>
             )}
