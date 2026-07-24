@@ -125,6 +125,10 @@ def order_pdf(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if (obj.status or "") == "draft":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This quote is still a draft awaiting approval — no PDF yet."
+        )
     data = crud.compute_totals(obj)
     pdf_bytes = render_order_pdf(data)
     filename = f"Exicom_{data['quote_number'] or order_id}.pdf"

@@ -460,13 +460,13 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Duplicate
                       </button>
                     )}
+                    {!isAdmin && o.status !== "draft" && (
+                      <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
+                        Generate PDF
+                      </button>
+                    )}
                     {!isAdmin && (
-                      <>
-                        <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
-                          Generate PDF
-                        </button>
-                        <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
-                      </>
+                      <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                     )}
                   </td>
                 </tr>

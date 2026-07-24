@@ -126,10 +126,13 @@ export const api = {
   deleteOrder: (id: string): Promise<void> =>
     fetch(`${BASE}/api/orders/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
-  // Saved-order PDF (admin only) → blob for download / view.
+  // Saved-order PDF → blob for download / view.
   orderPdfBlob: (id: string): Promise<Blob> =>
-    fetch(`${BASE}/api/orders/${id}/pdf`, { headers: adminHeaders() }).then((r) => {
-      if (!r.ok) throw new Error("PDF generation failed");
+    fetch(`${BASE}/api/orders/${id}/pdf`, { headers: adminHeaders() }).then(async (r) => {
+      if (!r.ok) {
+        const detail = await r.json().then((d) => d.detail).catch(() => null);
+        throw new Error(detail || "PDF generation failed");
+      }
       return r.blob();
     }),
 
