@@ -654,6 +654,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     const miss: string[] = [];
     if (!order.quote_number.trim()) miss.push("Quote Number");
     if (!order.prepared_for.trim()) miss.push("Customer (SPOC)");
+    if (!(order.customer_phone || "").trim()) miss.push("Customer Phone Number");
+    if (!(order.customer_email || "").trim()) miss.push("Customer Email ID");
+    if (!(order.customer_postal_code || "").trim()) miss.push("Postal Code");
     if (!order.proposed_by.trim()) miss.push("KAM Name");
     if (!order.bill_to_company.trim()) miss.push("Bill To · Company Name");
     if (!order.bill_to_address.trim()) miss.push("Bill To · Address");
@@ -830,9 +833,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <Field label="Date" v={order.quote_date} on={(v) => set("quote_date", v)} />
             <Field label="Offer Valid Through" v={order.offer_valid_through} on={(v) => set("offer_valid_through", v)} />
             <Field label="Customer (SPOC) *" v={order.prepared_for} on={(v) => set("prepared_for", v)} />
-            <Field label="Customer Phone Number" v={order.customer_phone || ""} on={(v) => set("customer_phone", v)} />
-            <Field label="Customer Email ID" v={order.customer_email || ""} on={(v) => set("customer_email", v)} />
-            <Field label="Postal Code" v={order.customer_postal_code || ""} on={(v) => set("customer_postal_code", v)} />
+            <Field label="Customer Phone Number *" v={order.customer_phone || ""} on={(v) => set("customer_phone", v)} />
+            <Field label="Customer Email ID *" v={order.customer_email || ""} on={(v) => set("customer_email", v)} />
+            <Field label="Postal Code *" v={order.customer_postal_code || ""} on={(v) => set("customer_postal_code", v)} />
             <Field label="KAM Name *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
