@@ -1006,23 +1006,37 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 )}
               </div>
               {isBelowPricebook(it) && (
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
-                  <span>
-                    {(() => {
-                      const book = pricebookFor(it);
-                      return book == null
-                        ? `⚠ No pricebook price in ${cur} for this product.`
-                        : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
-                    })()}
-                  </span>
-                  <button
-                    type="button"
-                    className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
-                    onClick={requestPricing}
-                    disabled={busy}
-                  >
-                    {busy ? "Sending…" : "Request Pricing"}
-                  </button>
+                <div className="mt-1 rounded-md bg-amber-50 px-2 py-2 text-[10px] font-semibold text-amber-700">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>
+                      {(() => {
+                        const book = pricebookFor(it);
+                        return book == null
+                          ? `⚠ No pricebook price in ${cur} for this product.`
+                          : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
+                      })()}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
+                      onClick={requestPricing}
+                      disabled={busy}
+                    >
+                      {busy ? "Sending…" : "Request Pricing"}
+                    </button>
+                  </div>
+                  <label className="lbl mt-2 text-amber-700">Reason for quoting below pricebook *</label>
+                  <textarea
+                    ref={approvalNoteRef}
+                    className="inp"
+                    rows={2}
+                    value={order.approval_note || ""}
+                    onChange={(e) => set("approval_note", e.target.value)}
+                    placeholder="Explain why this is priced below the pricebook…"
+                  />
+                  <p className="mt-1 font-normal text-amber-600">
+                    Internal only — never shown on the PDF. Once approved, this quote can no longer be edited.
+                  </p>
                 </div>
               )}
               {(() => {
@@ -1066,34 +1080,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             </div>
           </div>
         </div>
-
-        {belowPricebookAny && (
-          <div className="card mb-4 border-exicom-teal/30 bg-teal-50/30">
-            <div className="section-title">⚠ Pricing Needs Approval</div>
-            <p className="mb-3 text-xs text-slate-600">
-              One or more prices are below pricebook — this quote will be saved as a <b>DRAFT</b> for admin approval.
-            </p>
-            <button type="button" className="btn btn-primary" onClick={requestPricing} disabled={busy}>
-              {busy ? "Sending…" : "Request Pricing"}
-            </button>
-            <label className="lbl mt-3">Reason for quoting below pricebook *</label>
-            <textarea
-              ref={approvalNoteRef}
-              className="inp"
-              rows={2}
-              value={order.approval_note || ""}
-              onChange={(e) => set("approval_note", e.target.value)}
-              placeholder="Explain why this is priced below the pricebook…"
-            />
-            <p className="mt-1 text-[10px] text-slate-500">
-              Internal only — visible to you and the admin. Never shown on the quotation PDF.
-            </p>
-            <p className="mt-2 text-[10px] font-semibold text-amber-600">
-              ⚠ Once approved, this quote can no longer be edited — double-check every other detail
-              before requesting approval.
-            </p>
-          </div>
-        )}
 
         {/* Logistics — shown for every incoterm except EXW (after Order Items) */}
         {order.incoterms !== "EXW" && (
@@ -1207,8 +1193,16 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     {busy ? "Sending…" : "Request Logistic Approval"}
                   </button>
                 </div>
+                <label className="lbl mt-2 text-amber-700">Remarks (optional)</label>
+                <textarea
+                  className="inp"
+                  rows={2}
+                  value={order.approval_note || ""}
+                  onChange={(e) => set("approval_note", e.target.value)}
+                  placeholder="Any notes for whoever prices the logistics…"
+                />
                 <p className="mt-1 font-normal text-amber-600">
-                  Once approved, this quote can no longer be edited — double-check every other detail first.
+                  Internal only — never shown on the PDF. Once approved, this quote can no longer be edited.
                 </p>
               </div>
             )}

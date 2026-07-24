@@ -173,6 +173,13 @@ export default function PendingLogistic() {
             <p className="whitespace-pre-wrap text-sm text-slate-700">{reviewing.packing_details || "—"}</p>
           </div>
 
+          {reviewing.approval_note && (
+            <div className="mt-3 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-600">
+              <span className="font-semibold text-slate-700">Sales remarks (internal):</span>{" "}
+              <span className="whitespace-pre-wrap">{reviewing.approval_note}</span>
+            </div>
+          )}
+
           <a
             className="mt-3 inline-block text-xs font-semibold text-exicom-tealDark hover:underline"
             href={`${API_BASE}/api/orders/${reviewing.id}/preview`}
