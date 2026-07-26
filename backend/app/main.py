@@ -1,5 +1,5 @@
 """FastAPI application entrypoint."""
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import hash_password
@@ -8,14 +8,26 @@ from app.database import Base, SessionLocal, engine
 from app import migrate, models
 from app.routers import auth, catalog, logistics, orders, tracking, users
 
-# Create missing tables, then apply idempotent column migrations to existing ones.
-# Wrapped so a transient DB blip (e.g. Neon DNS hiccup) never blocks startup — the
-# schema is idempotent and already exists once it has run successfully once.
-try:
-    Base.metadata.create_all(bind=engine)
-    migrate.run()
-except Exception as exc:
-    print(f"Schema setup skipped (will retry next request): {exc}")
+_schema_ready = False
+
+
+def _setup_schema() -> None:
+    """Create missing tables, apply idempotent column migrations, and seed the
+    default admin. Everything here is safe to call more than once — so on a
+    transient DB blip (e.g. a cold-start connection hiccup) we actually retry
+    on the next request instead of leaving the app stuck in a half-migrated
+    state for the rest of the process's life.
+    """
+    global _schema_ready
+    if _schema_ready:
+        return
+    try:
+        Base.metadata.create_all(bind=engine)
+        migrate.run()
+        _seed_default_admin()
+        _schema_ready = True
+    except Exception as exc:
+        print(f"Schema setup failed, will retry on next request: {exc}")
 
 
 def _seed_default_admin() -> None:
@@ -48,7 +60,7 @@ def _seed_default_admin() -> None:
         db.close()
 
 
-_seed_default_admin()
+_setup_schema()
 
 app = FastAPI(title=settings.app_name)
 
@@ -59,6 +71,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def retry_schema_setup(request: Request, call_next):
+    # Cheap no-op once _schema_ready is True; only does real work if the very
+    # first attempt (above) failed, e.g. a cold-start DB connection blip.
+    _setup_schema()
+    return await call_next(request)
+
 
 app.include_router(auth.router)
 app.include_router(users.router)
