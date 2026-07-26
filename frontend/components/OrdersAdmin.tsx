@@ -196,14 +196,25 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
 
   // The customer confirmed the PO against this quotation — graduates it into
   // SO Order Tracking (a tracking row already exists from when it was first
-  // saved; this just flips the order's own status to reflect it's a real order).
+  // saved; this just flips the order's own status to reflect it's a real
+  // order) and immediately downloads the PO-styled PDF (no Exicom letterhead).
   async function markOrderReceived(o: OrderOut) {
-    if (!confirm(`Mark ${o.quote_number} as Order Received? It'll show in SO Order Tracking.`)) return;
+    if (!confirm(`Mark ${o.quote_number} as PO/Order Received? It'll show in SO Order Tracking and download the PO.`)) return;
+    setBusy(true);
     try {
       await api.markSoCreated(o.id);
+      const blob = await api.orderPdfBlob(o.id, true);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PO_${o.quote_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
       reload();
     } catch (e) {
       alert((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -434,8 +445,12 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                       </button>
                     )}
                     {!isAdmin && filter === "submitted" && isSubmittedGroup(o.status) && (
-                      <button className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800" onClick={() => markOrderReceived(o)}>
-                        Order Received
+                      <button
+                        className="mr-2 text-xs font-semibold text-violet-600 hover:text-violet-800 disabled:opacity-50"
+                        onClick={() => markOrderReceived(o)}
+                        disabled={busy}
+                      >
+                        PO/Order Received
                       </button>
                     )}
                     {!isAdmin && onEdit && filter === "submitted" && isSubmittedGroup(o.status) && (

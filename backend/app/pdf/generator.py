@@ -49,11 +49,13 @@ BANK_DETAILS = {
 }
 
 
-def render_order_pdf(order: dict) -> bytes:
+def render_order_pdf(order: dict, po_mode: bool = False) -> bytes:
     """Render an order dict into PDF bytes.
 
     `order` is expected to already contain computed line_total / subtotal /
-    tax_amount / grand_total values (see crud.compute_totals).
+    tax_amount / grand_total values (see crud.compute_totals). ``po_mode``
+    drops the Exicom logo/letterhead — used for the PO/Order Received
+    download, which otherwise uses the exact same layout.
     """
     template = _env.get_template("order_form.html")
     html_str = template.render(
@@ -61,13 +63,14 @@ def render_order_pdf(order: dict) -> bytes:
         company=COMPANY_INFO,
         bank=BANK_DETAILS,
         logo_data_uri=EXICOM_LOGO_DATA_URI,
+        po_mode=po_mode,
     )
     pdf_io = io.BytesIO()
     HTML(string=html_str, base_url=str(TEMPLATE_DIR)).write_pdf(pdf_io)
     return pdf_io.getvalue()
 
 
-def render_order_html(order: dict) -> str:
+def render_order_html(order: dict, po_mode: bool = False) -> str:
     """Return the rendered HTML (useful for live browser preview)."""
     template = _env.get_template("order_form.html")
     return template.render(
@@ -75,4 +78,5 @@ def render_order_html(order: dict) -> str:
         company=COMPANY_INFO,
         bank=BANK_DETAILS,
         logo_data_uri=EXICOM_LOGO_DATA_URI,
+        po_mode=po_mode,
     )

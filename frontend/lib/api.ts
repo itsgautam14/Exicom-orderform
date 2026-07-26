@@ -126,9 +126,10 @@ export const api = {
   deleteOrder: (id: string): Promise<void> =>
     fetch(`${BASE}/api/orders/${id}`, { method: "DELETE", headers: adminHeaders() }).then(() => undefined),
 
-  // Saved-order PDF → blob for download / view.
-  orderPdfBlob: (id: string): Promise<Blob> =>
-    fetch(`${BASE}/api/orders/${id}/pdf`, { headers: adminHeaders() }).then(async (r) => {
+  // Saved-order PDF → blob for download / view. po=true drops the Exicom
+  // logo/letterhead (used for the PO/Order Received download).
+  orderPdfBlob: (id: string, po = false): Promise<Blob> =>
+    fetch(`${BASE}/api/orders/${id}/pdf${po ? "?po=true" : ""}`, { headers: adminHeaders() }).then(async (r) => {
       if (!r.ok) {
         const detail = await r.json().then((d) => d.detail).catch(() => null);
         throw new Error(detail || "PDF generation failed");

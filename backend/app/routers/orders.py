@@ -121,7 +121,7 @@ def delete_order(order_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{order_id}/pdf")
-def order_pdf(order_id: str, db: Session = Depends(get_db)):
+def order_pdf(order_id: str, po: bool = False, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
@@ -130,8 +130,9 @@ def order_pdf(order_id: str, db: Session = Depends(get_db)):
             status.HTTP_409_CONFLICT, "This quote is still a draft awaiting approval — no PDF yet."
         )
     data = crud.compute_totals(obj)
-    pdf_bytes = render_order_pdf(data)
-    filename = f"Exicom_{data['quote_number'] or order_id}.pdf"
+    pdf_bytes = render_order_pdf(data, po_mode=po)
+    prefix = "PO" if po else "Exicom"
+    filename = f"{prefix}_{data['quote_number'] or order_id}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

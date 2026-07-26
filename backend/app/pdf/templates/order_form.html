@@ -285,7 +285,7 @@ html, body {
 <table class="header">
   <tr>
     <td class="logo-cell">
-      <div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>
+      {% if not po_mode %}<div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>{% endif %}
     </td>
     <td class="meta-cell">
       <div class="doc-title">QUOTE FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
@@ -306,6 +306,7 @@ html, body {
 
 <hr class="hr-thin"/>
 
+{% if not po_mode %}
 <!-- COMPANY INFO -->
 <div class="company-block">
   <span class="name">{{ company.name }}</span><br/>
@@ -313,6 +314,7 @@ html, body {
   CIN: {{ company.cin }}<br/>
   E: {{ company.email }} | W: {{ company.website }}
 </div>
+{% endif %}
 
 <hr class="hr-thick"/>
 
