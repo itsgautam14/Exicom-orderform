@@ -57,6 +57,7 @@ export default function PendingLogistic() {
       freight_charge: o.freight_charge || 0,
       payment_terms: paymentText,
       unit_rate: undefined,
+      packing_details: o.packing_details || "",
     });
   }
 
@@ -169,8 +170,14 @@ export default function PendingLogistic() {
           </div>
 
           <div className="mt-3">
-            <div className="text-[11px] font-semibold uppercase text-slate-400">Packing Details</div>
-            <p className="whitespace-pre-wrap text-sm text-slate-700">{reviewing.packing_details || "—"}</p>
+            <label className="lbl">Packing Details</label>
+            <textarea
+              className="inp"
+              rows={2}
+              value={draftEdits.packing_details || ""}
+              onChange={(e) => setE("packing_details", e.target.value)}
+              placeholder="No. of boxes/pallets, dimensions, weight, special handling…"
+            />
           </div>
 
           {reviewing.approval_note && (

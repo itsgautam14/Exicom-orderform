@@ -52,6 +52,7 @@ class Order(Base):
     customer_phone: Mapped[str] = mapped_column(String(32), default="")
     customer_email: Mapped[str] = mapped_column(String(255), default="")
     customer_postal_code: Mapped[str] = mapped_column(String(32), default="")
+    eori_number: Mapped[str] = mapped_column(String(32), default="")  # EUR only, optional
     proposed_by: Mapped[str] = mapped_column(String(255), default="")
     quote_date: Mapped[str] = mapped_column(String(64), default="")
     offer_valid_through: Mapped[str] = mapped_column(String(64), default="")

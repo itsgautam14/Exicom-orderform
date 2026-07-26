@@ -55,6 +55,8 @@ export interface OrderInput {
   customer_phone?: string;
   customer_email?: string;
   customer_postal_code?: string;
+  /** EUR only: EU customs Economic Operators Registration and Identification number. */
+  eori_number?: string;
   proposed_by: string;
   quote_date: string;
   offer_valid_through: string;
@@ -162,4 +164,6 @@ export interface OrderPublish {
   payment_term_text?: string;
   /** Standing per-unit rate (INR/pallet or INR/box) — saved as this country's rate too. */
   unit_rate?: number;
+  /** Filled in by the logistics reviewer, not the sales person. */
+  packing_details?: string;
 }

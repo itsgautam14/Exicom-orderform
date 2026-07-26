@@ -257,6 +257,7 @@ const BLANK_ORDER = (): OrderInput => ({
   customer_phone: "",
   customer_email: "",
   customer_postal_code: "",
+  eori_number: "",
   proposed_by: "",
   quote_date: today(),
   offer_valid_through: todayPlus30(),
@@ -298,6 +299,7 @@ function orderOutToInput(o: OrderOut): OrderInput {
     customer_phone: o.customer_phone,
     customer_email: o.customer_email,
     customer_postal_code: o.customer_postal_code,
+    eori_number: o.eori_number,
     proposed_by: o.proposed_by,
     quote_date: o.quote_date,
     offer_valid_through: o.offer_valid_through,
@@ -832,6 +834,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
             <Field label="Customer Phone Number *" v={order.customer_phone || ""} on={(v) => set("customer_phone", v)} />
             <Field label="Customer Email ID *" v={order.customer_email || ""} on={(v) => set("customer_email", v)} />
             <Field label="Postal Code *" v={order.customer_postal_code || ""} on={(v) => set("customer_postal_code", v)} />
+            {order.currency === "EUR" && (
+              <Field label="EORI Number" v={order.eori_number || ""} on={(v) => set("eori_number", v)} />
+            )}
             <Field label="KAM Name *" v={order.proposed_by} on={(v) => set("proposed_by", v)} />
             <div>
               <label className="lbl">Incoterms</label>
@@ -1200,7 +1205,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     onClick={saveOrder}
                     disabled={busy}
                   >
-                    {busy ? "Sending…" : "Request Logistic Approval"}
+                    {busy ? "Sending…" : "Request Quote"}
                   </button>
                 </div>
                 <p className="mt-1 font-normal text-amber-600">
@@ -1219,15 +1224,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 label={order.transport_mode === "Airways" ? "Airport of Destination" : "Port of Destination"}
                 v={order.port_of_destination}
                 on={(v) => set("port_of_destination", v)}
-              />
-            </div>
-            <div className="mt-2">
-              <label className="lbl">Packing Details</label>
-              <textarea
-                className="inp" rows={2}
-                value={order.packing_details || ""}
-                onChange={(e) => set("packing_details", e.target.value)}
-                placeholder="No. of boxes/pallets, dimensions, weight, special handling…"
               />
             </div>
             <p className="mt-1 text-[10px] text-slate-400">

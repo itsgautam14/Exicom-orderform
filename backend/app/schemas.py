@@ -105,6 +105,7 @@ class OrderBase(BaseModel):
     customer_phone: str = ""
     customer_email: str = ""
     customer_postal_code: str = ""
+    eori_number: str = ""  # EUR only, optional
     proposed_by: str = ""
     quote_date: str = ""
     offer_valid_through: str = ""
@@ -178,6 +179,8 @@ class OrderPublish(BaseModel):
     # When given, freight_charge is computed from it and the rate is saved as
     # this country's rate in the Logistics tab for future quotes to reuse.
     unit_rate: Optional[float] = None
+    # Filled in by the logistics reviewer (not the sales person) while approving.
+    packing_details: Optional[str] = None
 
 
 class OrderOut(OrderBase):

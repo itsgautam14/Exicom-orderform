@@ -294,6 +294,7 @@ html, body {
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
         {% if order.customer_phone %}Phone: <b>{{ order.customer_phone }}</b><br/>{% endif %}
         {% if order.customer_email %}Email: <b>{{ order.customer_email }}</b><br/>{% endif %}
+        {% if order.eori_number %}EORI Number: <b>{{ order.eori_number }}</b><br/>{% endif %}
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
         KAM Name: <b>{{ order.proposed_by }}</b><br/>

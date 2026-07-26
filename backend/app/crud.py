@@ -114,6 +114,7 @@ def compute_totals(order: models.Order) -> dict:
         "customer_phone": order.customer_phone or "",
         "customer_email": order.customer_email or "",
         "customer_postal_code": order.customer_postal_code or "",
+        "eori_number": order.eori_number or "",
         "proposed_by": order.proposed_by,
         "quote_date": order.quote_date,
         "offer_valid_through": order.offer_valid_through,
