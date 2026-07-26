@@ -98,7 +98,7 @@ export interface OrderInput {
   po_number: string;
   po_amount: string;
 
-  /** The logged-in username that created this quote (set server-side). */
+  /** Per-browser creator id (set when the quote is saved). */
   created_by?: string;
   /** Internal reason for quoting below pricebook — never shown on the PDF. */
   approval_note?: string;
@@ -147,17 +147,6 @@ export interface OrderTracking {
   doc_filename: string;
   doc_content_type: string;
   stage_events: TrackingStageEvent[];
-}
-
-export type Role = "sales_ops" | "manager" | "logistics" | "scm" | "admin";
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  full_name: string;
-  role: Role;
-  is_active: boolean;
 }
 
 /** Fields an admin can set while publishing a draft. */

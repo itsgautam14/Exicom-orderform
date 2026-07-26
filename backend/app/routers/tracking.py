@@ -1,9 +1,8 @@
 """Order-tracking endpoints: manual CRUD + bulk Excel import.
 
-Lives under the Approvals module's "SO Order Tracking" tab. Viewing requires
-the manager or admin role; all writes are admin-only for now (room is left for
-a future `scm` role). The Excel import reads the raw request body (no
-python-multipart needed).
+Lives under the Approvals module's "SO Order Tracking" tab. Writes require the
+admin password. The Excel import reads the raw request body (no python-multipart
+needed).
 """
 from __future__ import annotations
 
@@ -17,25 +16,25 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
-from app.auth import require_roles
+from app.auth import require_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/api/tracking", tags=["tracking"])
 
 
-@router.get("", response_model=list[schemas.OrderTrackingOut], dependencies=[Depends(require_roles("manager"))])
+@router.get("", response_model=list[schemas.OrderTrackingOut], dependencies=[Depends(require_admin)])
 def list_tracking(db: Session = Depends(get_db)):
     return crud.list_trackings(db)
 
 
 @router.post("", response_model=schemas.OrderTrackingOut, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(require_roles("admin"))])
+             dependencies=[Depends(require_admin)])
 def create_tracking(payload: schemas.OrderTrackingCreate, db: Session = Depends(get_db)):
     return crud.create_tracking(db, payload)
 
 
 @router.put("/{tracking_id}", response_model=schemas.OrderTrackingOut,
-            dependencies=[Depends(require_roles("admin"))])
+            dependencies=[Depends(require_admin)])
 def update_tracking(tracking_id: str, payload: schemas.OrderTrackingUpdate, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -44,7 +43,7 @@ def update_tracking(tracking_id: str, payload: schemas.OrderTrackingUpdate, db: 
 
 
 @router.delete("/{tracking_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(require_roles("admin"))])
+               dependencies=[Depends(require_admin)])
 def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -55,7 +54,7 @@ def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
 # --- Signed document upload / view --------------------------------------------
 
 @router.post("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
-             dependencies=[Depends(require_roles("admin"))])
+             dependencies=[Depends(require_admin)])
 async def upload_tracking_document(
     tracking_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)
 ):
@@ -83,7 +82,7 @@ def get_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
-               dependencies=[Depends(require_roles("admin"))])
+               dependencies=[Depends(require_admin)])
 def remove_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -94,7 +93,7 @@ def remove_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
 # --- Fulfillment stage tracker -------------------------------------------------
 
 @router.post("/{tracking_id}/stage", response_model=schemas.OrderTrackingOut,
-             dependencies=[Depends(require_roles("admin"))])
+             dependencies=[Depends(require_admin)])
 def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -169,7 +168,7 @@ def _key(*parts) -> tuple:
     return tuple((p or "").strip().lower() for p in parts)
 
 
-@router.post("/import", dependencies=[Depends(require_roles("admin"))])
+@router.post("/import", dependencies=[Depends(require_admin)])
 async def import_tracking(request: Request, db: Session = Depends(get_db)):
     """Bulk-import tracking rows from an uploaded .xlsx (raw body).
 

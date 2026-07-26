@@ -6,59 +6,10 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-# ----------------------------- Admin auth (legacy shared password) -----------
+# ----------------------------- Admin auth ------------------------------------
 
 class AdminAuth(BaseModel):
     password: str = ""
-
-
-# ----------------------------- Users / login (JWT + email OTP) ---------------
-
-ROLES = ("sales_ops", "manager", "logistics", "scm", "admin")
-
-
-class LoginIn(BaseModel):
-    username: str
-    password: str
-
-
-class VerifyOtpIn(BaseModel):
-    username: str
-    otp: str
-
-
-class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    username: str
-    email: str
-    full_name: str
-    role: str
-    is_active: bool
-
-
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserOut
-
-
-class UserCreate(BaseModel):
-    username: str
-    email: str = ""
-    full_name: str = ""
-    password: str
-    role: str = "sales_ops"
-    is_active: bool = True
-
-
-class UserUpdate(BaseModel):
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    role: Optional[str] = None
-    is_active: Optional[bool] = None
-    # If given, resets the password.
-    password: Optional[str] = None
 
 
 # ----------------------------- Catalog ---------------------------------------
