@@ -13,7 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.auth import create_access_token, get_current_user, hash_password, verify_password
+from app.auth import create_access_token, get_current_user, verify_password
 from app.config import settings
 from app.database import get_db
 from app.email_util import send_otp_email
@@ -23,27 +23,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 def _generate_otp() -> str:
     return f"{random.randint(0, 999999):06d}"
-
-
-@router.post("/signup")
-def signup(payload: schemas.SignupIn, db: Session = Depends(get_db)):
-    """Self-service registration. The account is created but inactive — an
-    admin must assign a role and activate it (Users tab) before it can log in."""
-    if not payload.username.strip() or not payload.email.strip() or not payload.password:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Username, email and password are required")
-    if db.query(models.User).filter(models.User.username == payload.username).first():
-        raise HTTPException(status.HTTP_409_CONFLICT, "That username is already taken")
-
-    user = models.User(
-        username=payload.username,
-        email=payload.email,
-        full_name=payload.full_name,
-        password_hash=hash_password(payload.password),
-        is_active=False,
-    )
-    db.add(user)
-    db.commit()
-    return {"message": "Account created. An admin needs to approve it before you can log in."}
 
 
 @router.post("/login")
