@@ -293,8 +293,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
             </div>
           )}
           {reviewing.approval_note && (
-            <div className="mb-3 rounded-md border border-amber-200 bg-white px-2 py-1.5 text-[11px] text-amber-700">
-              <span className="font-semibold text-amber-800">Sales reason (internal):</span>{" "}
+            <div className="mb-3 rounded-lg bg-exicom-gray/20 px-3 py-2 text-sm text-slate-700">
+              <span className="font-semibold text-slate-800">Remarks:</span>{" "}
               <span className="whitespace-pre-wrap">{reviewing.approval_note}</span>
             </div>
           )}
