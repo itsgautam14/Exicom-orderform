@@ -301,9 +301,7 @@ export default function OrderTracking() {
                       const duration = reachedAt
                         ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
                         : null;
-                      const remarks = [...events]
-                        .reverse()
-                        .find((e) => e.stage === s.key && e.remarks)?.remarks;
+                      const stageRemarks = events.filter((e) => e.stage === s.key && e.remarks);
                       return (
                         <button
                           key={s.key}
@@ -331,7 +329,16 @@ export default function OrderTracking() {
                               {active ? `${duration} day${duration === 1 ? "" : "s"} so far` : `Took ${duration} day${duration === 1 ? "" : "s"}`}
                             </div>
                           )}
-                          {remarks && <div className="mt-1 text-[11px] italic text-slate-500">"{remarks}"</div>}
+                          {stageRemarks.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {stageRemarks.map((e) => (
+                                <div key={e.id} className="text-[11px] italic text-slate-500">
+                                  "{e.remarks}"{" "}
+                                  <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -383,7 +390,6 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Market</th>
                 <th className="px-3 py-2">KAM</th>
                 <th className="px-3 py-2">Ordered</th>
-                <th className="px-3 py-2">Specifications</th>
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Remarks</th>
@@ -397,7 +403,6 @@ export default function OrderTracking() {
                   <td className="px-3 py-2 text-slate-600">{r.market || "—"}</td>
                   <td className="px-3 py-2 text-slate-600">{r.kam || "—"}</td>
                   <td className="px-3 py-2 text-slate-600">{r.ordered || "—"}</td>
-                  <td className="max-w-[200px] px-3 py-2 text-slate-600">{r.specifications || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
