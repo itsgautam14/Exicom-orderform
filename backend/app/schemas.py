@@ -22,6 +22,13 @@ class LoginIn(BaseModel):
     password: str
 
 
+class SignupIn(BaseModel):
+    username: str
+    email: str
+    full_name: str = ""
+    password: str
+
+
 class VerifyOtpIn(BaseModel):
     username: str
     otp: str

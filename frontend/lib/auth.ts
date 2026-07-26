@@ -39,6 +39,21 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
 }
 
+/** Self-service registration. The account is created but inactive until an
+ * admin assigns it a role and activates it in the Users tab. */
+export function signup(
+  username: string,
+  email: string,
+  fullName: string,
+  password: string
+): Promise<{ message: string }> {
+  return fetch(`${BASE}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, email, full_name: fullName, password }),
+  }).then(json<{ message: string }>);
+}
+
 /** Step 1 of login: username + password → triggers an emailed OTP. */
 export function login(username: string, password: string): Promise<{ message: string }> {
   return fetch(`${BASE}/api/auth/login`, {
