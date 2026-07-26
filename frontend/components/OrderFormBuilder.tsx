@@ -365,7 +365,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
   const approvalNoteRef = useRef<HTMLTextAreaElement>(null);
 
-  // A line's "Request Pricing" button. If the approval reason is still empty,
+  // A line's "Pricing Approval" button. If the approval reason is still empty,
   // jump to it and focus it so the sales person can fill it in; otherwise
   // actually send the quote to the admin (same as Submit), so the button
   // isn't just a scroll helper.
@@ -531,10 +531,6 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       : it.product_code
         ? catalog.find((c) => c.product_code === it.product_code)
         : undefined;
-  }
-  function pricebookFor(it: OrderItem): number | null {
-    const p = catalogProductFor(it);
-    return p ? catalogPrice(p, order.currency, it.quantity, it.eur_discount) : null;
   }
   function isBelowPricebook(it: OrderItem): boolean {
     const p = catalogProductFor(it);
@@ -987,10 +983,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Product Code" v={it.product_code} on={(v) => setItem(i, { product_code: v })} />
-                <Area label="Code Sub-text" v={it.code_note} on={(v) => setItem(i, { code_note: v })} rows={2} />
-              </div>
+              <Field label="Product Code" v={it.product_code} on={(v) => setItem(i, { product_code: v })} />
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
               {order.currency === "EUR" && (() => {
@@ -1032,22 +1025,14 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               </div>
               {isBelowPricebook(it) && (
                 <div className="mt-1 rounded-md bg-amber-50 px-2 py-2 text-[10px] font-semibold text-amber-700">
-                  <div className="flex items-center justify-between gap-2">
-                    <span>
-                      {(() => {
-                        const book = pricebookFor(it);
-                        return book == null
-                          ? `⚠ No pricebook price in ${cur} for this product.`
-                          : `⚠ Below pricebook (${cur} ${fmt(book)}).`;
-                      })()}
-                    </span>
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       className="flex-shrink-0 rounded-md bg-amber-200 px-2 py-1 text-amber-900 hover:bg-amber-300 disabled:opacity-50"
                       onClick={requestPricing}
                       disabled={busy}
                     >
-                      {busy ? "Sending…" : "Request Pricing"}
+                      {busy ? "Sending…" : "Pricing Approval"}
                     </button>
                   </div>
                   <label className="lbl mt-2 text-amber-700">Reason for quoting below pricebook *</label>
@@ -1057,7 +1042,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     rows={2}
                     value={order.approval_note || ""}
                     onChange={(e) => set("approval_note", e.target.value)}
-                    placeholder="Explain why this is priced below the pricebook…"
+                    placeholder="Rationale…"
                   />
                   <p className="mt-1 font-normal text-amber-600">
                     Internal only — never shown on the PDF. Once approved, this quote can no longer be edited.
