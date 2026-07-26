@@ -30,7 +30,7 @@ const BLANK: Partial<OrderTracking> = {
 
 const fmtNum = (n: number) => Math.round(n).toLocaleString("en-US");
 
-export default function OrderTracking() {
+export default function OrderTracking({ readOnly = false }: { readOnly?: boolean }) {
   const [rows, setRows] = useState<OrderTracking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,11 +185,13 @@ export default function OrderTracking() {
             Track dispatched orders — enter rows manually or import an Excel file.
           </p>
         </div>
-        <div className="flex flex-shrink-0 gap-2">
-          <input ref={fileInput} type="file" accept=".xlsx" className="hidden" onChange={onImportFile} />
-          <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>⤒ Import Excel</button>
-          <button className="btn btn-primary" onClick={() => { setEditing({ ...BLANK }); setViewing(null); }}>+ Add Order</button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-shrink-0 gap-2">
+            <input ref={fileInput} type="file" accept=".xlsx" className="hidden" onChange={onImportFile} />
+            <button className="btn" disabled={busy} onClick={() => fileInput.current?.click()}>⤒ Import Excel</button>
+            <button className="btn btn-primary" onClick={() => { setEditing({ ...BLANK }); setViewing(null); }}>+ Add Order</button>
+          </div>
+        )}
       </div>
 
       {/* dashboard cards */}
@@ -264,14 +266,18 @@ export default function OrderTracking() {
               ) : (
                 <span className="text-sm text-slate-400">No document uploaded yet.</span>
               )}
-              <input ref={docInput} type="file" className="hidden" onChange={onUploadDoc} />
-              <button className="btn" disabled={busy} onClick={() => docInput.current?.click()}>
-                {viewing.doc_filename ? "Replace File" : "Upload File"}
-              </button>
-              {viewing.doc_filename && (
-                <button className="text-xs font-semibold text-red-500 hover:text-red-700" disabled={busy} onClick={onDeleteDoc}>
-                  Delete
-                </button>
+              {!readOnly && (
+                <>
+                  <input ref={docInput} type="file" className="hidden" onChange={onUploadDoc} />
+                  <button className="btn" disabled={busy} onClick={() => docInput.current?.click()}>
+                    {viewing.doc_filename ? "Replace File" : "Upload File"}
+                  </button>
+                  {viewing.doc_filename && (
+                    <button className="text-xs font-semibold text-red-500 hover:text-red-700" disabled={busy} onClick={onDeleteDoc}>
+                      Delete
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -337,22 +343,24 @@ export default function OrderTracking() {
                     })}
                   </div>
 
-                  <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="lbl">
-                      Remarks for “{selected.label}” {selected.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
-                    </label>
-                    <textarea
-                      className="inp" rows={2} value={stageRemarks}
-                      onChange={(e) => setStageRemarks(e.target.value)}
-                      placeholder="Why is it moving now / any delay reason…"
-                    />
-                    <button
-                      className="btn btn-primary mt-2" disabled={busy}
-                      onClick={() => saveStage(selected.key)}
-                    >
-                      {busy ? "Saving…" : `Save “${selected.label}”`}
-                    </button>
-                  </div>
+                  {!readOnly && (
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <label className="lbl">
+                        Remarks for “{selected.label}” {selected.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
+                      </label>
+                      <textarea
+                        className="inp" rows={2} value={stageRemarks}
+                        onChange={(e) => setStageRemarks(e.target.value)}
+                        placeholder="Why is it moving now / any delay reason…"
+                      />
+                      <button
+                        className="btn btn-primary mt-2" disabled={busy}
+                        onClick={() => saveStage(selected.key)}
+                      >
+                        {busy ? "Saving…" : `Save “${selected.label}”`}
+                      </button>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -405,7 +413,9 @@ export default function OrderTracking() {
                   <td className="max-w-[220px] px-3 py-2 text-slate-500">{r.notes || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); }}>View</button>
-                    <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
+                    {!readOnly && (
+                      <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -6,7 +6,8 @@ from fastapi.responses import Response, HTMLResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud, models, schemas
+from app.auth import require_roles
 from app.database import get_db
 from app.pdf.generator import render_order_pdf, render_order_html
 
@@ -39,42 +40,73 @@ def next_quote_number(db: Session = Depends(get_db)):
     return {"period": period, "sequence": value, "quote_number": f"{period}-{value:02d}"}
 
 
-# The saved-order collection is the "Orders" / Approval panel. It is open (no admin
-# password) so the approval workflow is accessible to the team.
+# The saved-order collection is the "Orders" / Approval panel — readable by
+# sales_ops (own quotes only), manager, logistics (needs it for Pending
+# Logistic) and admin.
 @router.get("", response_model=list[schemas.OrderOut])
-def list_orders(created_by: str | None = None, db: Session = Depends(get_db)):
-    # `created_by` scopes the list to one sales person's own quotes (Past Quotes).
+def list_orders(
+    created_by: str | None = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_roles("sales_ops", "manager", "logistics")),
+):
+    # A sales person only ever sees their own quotes — any client-supplied
+    # `created_by` override is ignored for that role. Manager/logistics/admin
+    # see everyone's (logistics needs full visibility to find CIF drafts
+    # missing logistics on the Pending Logistic tab).
+    if user.role == "sales_ops":
+        created_by = user.username
     return [crud.compute_totals(o) for o in crud.list_orders(db, created_by=created_by)]
 
 
 @router.post("", response_model=schemas.OrderOut, status_code=status.HTTP_201_CREATED)
-def create_order(payload: schemas.OrderCreate, db: Session = Depends(get_db)):
+def create_order(
+    payload: schemas.OrderCreate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_roles("sales_ops", "manager")),
+):
+    payload.created_by = user.username
     obj = crud.create_order(db, payload)
     return crud.compute_totals(obj)
 
 
 @router.get("/{order_id}", response_model=schemas.OrderOut)
-def get_order(order_id: str, db: Session = Depends(get_db)):
+def get_order(
+    order_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_roles("sales_ops", "manager", "logistics")),
+):
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if user.role == "sales_ops" and obj.created_by != user.username:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to do this")
     return crud.compute_totals(obj)
 
 
 @router.put("/{order_id}", response_model=schemas.OrderOut)
-def update_order(order_id: str, payload: schemas.OrderUpdate, db: Session = Depends(get_db)):
+def update_order(
+    order_id: str,
+    payload: schemas.OrderUpdate,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_roles("sales_ops", "manager")),
+):
     obj = crud.get_order(db, order_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if user.role == "sales_ops" and obj.created_by != user.username:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have permission to do this")
     if (obj.status or "") in ("approved", "so_created"):
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Approved quotations can no longer be edited — duplicate it instead."
         )
+    # Ownership never changes on edit — keep whoever originally created it.
+    payload.created_by = obj.created_by
     obj = crud.update_order(db, obj, payload)
     return crud.compute_totals(obj)
 
 
-@router.post("/{order_id}/publish", response_model=schemas.OrderOut)
+@router.post("/{order_id}/publish", response_model=schemas.OrderOut,
+             dependencies=[Depends(require_roles("logistics"))])
 def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = Depends(get_db)):
     """Fill in the missing logistics and mark the draft as approved."""
     obj = crud.get_order(db, order_id)
@@ -84,7 +116,8 @@ def publish_order(order_id: str, payload: schemas.OrderPublish, db: Session = De
     return crud.compute_totals(obj)
 
 
-@router.post("/{order_id}/so-created", response_model=schemas.OrderOut)
+@router.post("/{order_id}/so-created", response_model=schemas.OrderOut,
+             dependencies=[Depends(require_roles("admin"))])
 def mark_so_created(order_id: str, db: Session = Depends(get_db)):
     """Mark a quotation as Order Received — the customer confirmed the PO
     against it, so it graduates to the final SO Created state. Allowed from
@@ -100,7 +133,8 @@ def mark_so_created(order_id: str, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.post("/{order_id}/reject", response_model=schemas.OrderOut)
+@router.post("/{order_id}/reject", response_model=schemas.OrderOut,
+             dependencies=[Depends(require_roles("admin"))])
 def reject_order(order_id: str, db: Session = Depends(get_db)):
     """Reject a draft quotation awaiting pricing approval."""
     obj = crud.get_order(db, order_id)
@@ -112,7 +146,8 @@ def reject_order(order_id: str, db: Session = Depends(get_db)):
     return crud.compute_totals(obj)
 
 
-@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_roles("admin"))])
 def delete_order(order_id: str, db: Session = Depends(get_db)):
     obj = crud.get_order(db, order_id)
     if not obj:

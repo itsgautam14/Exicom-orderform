@@ -18,6 +18,41 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+# Roles: sales_ops, manager, logistics, scm (reserved, no wired permissions yet), admin.
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), default="")
+    full_name: Mapped[str] = mapped_column(String(255), default="")
+    password_hash: Mapped[str] = mapped_column(String(255), default="")
+    role: Mapped[str] = mapped_column(String(32), default="sales_ops", index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class OTPCode(Base):
+    """A one-time login code emailed to a user, valid for a short window.
+
+    ``used`` flips to True the moment it's successfully verified so it can't
+    be replayed; expired/used codes are just left in place (harmless — the
+    verify endpoint checks both before accepting one).
+    """
+    __tablename__ = "otp_codes"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    code: Mapped[str] = mapped_column(String(6))
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CatalogProduct(Base):
     """Backend-managed product catalog. Pricing lives here and auto-fills orders."""
     __tablename__ = "catalog_products"
@@ -105,7 +140,8 @@ class Order(Base):
     approval_reason: Mapped[str] = mapped_column(String(64), default="")
     # Why the sales person quoted below pricebook. Internal only — never in the PDF.
     approval_note: Mapped[str] = mapped_column(Text, default="")
-    # Per-browser creator id so a sales person sees only the quotes they made.
+    # The logged-in username that created this quote (set server-side) — lets a
+    # sales_ops user's Past Quotes view scope down to just their own.
     created_by: Mapped[str] = mapped_column(String(64), default="", index=True)
 
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { CatalogProduct, LogisticsRate, OrderInput, OrderItem, OrderOut } from "@/lib/types";
 import { WORLD_COUNTRIES } from "@/lib/countries";
-import { getCreatorId } from "@/lib/creator";
 import { PAYMENT_PRESETS, isCustomPaymentTerm } from "@/lib/payment";
 
 /** Currencies the pricebook carries. */
@@ -700,7 +699,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   async function persistOrder(o: OrderInput, isFinal = false): Promise<void> {
     const payload = {
       ...o,
-      created_by: o.created_by || getCreatorId(),
+      // created_by is derived from the logged-in user server-side; whatever
+      // is sent here is authoritative only for edits (server keeps the
+      // original creator on update, and always sets it on create).
       // payment_terms already holds the text (preset value or custom text).
       payment_term_type: paymentCustom ? "custom" : "predefined",
       payment_term_text: o.payment_terms,
