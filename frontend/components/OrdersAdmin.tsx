@@ -468,7 +468,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Generate PDF
                       </button>
                     )}
-                    {!isAdmin && (
+                    {!isAdmin && o.status !== "so_created" && (
                       <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(o)}>Delete</button>
                     )}
                   </td>
