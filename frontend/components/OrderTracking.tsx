@@ -289,6 +289,7 @@ export default function OrderTracking() {
               const stageDate = (key: string) =>
                 events.find((e) => e.stage === key)?.created_at;
               const selected = STAGES.find((s) => s.key === selectedStage) || STAGES[0];
+              const selectedStageRemarks = events.filter((e) => e.stage === selected.key && e.remarks);
               return (
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -345,7 +346,27 @@ export default function OrderTracking() {
                   </div>
 
                   <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="lbl">
+                    <label className="lbl">Stage</label>
+                    <select
+                      className="inp"
+                      value={selectedStage}
+                      onChange={(e) => setSelectedStage(e.target.value)}
+                    >
+                      {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
+
+                    {selectedStageRemarks.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {selectedStageRemarks.map((e) => (
+                          <div key={e.id} className="text-xs italic text-slate-500">
+                            "{e.remarks}"{" "}
+                            <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <label className="lbl mt-3">
                       Remarks for “{selected.label}” {selected.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
                     </label>
                     <textarea
