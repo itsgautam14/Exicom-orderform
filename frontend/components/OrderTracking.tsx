@@ -23,12 +23,23 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.round(ms / 86400000));
 }
 
-// For a <input type="datetime-local"> value — local time, "YYYY-MM-DDTHH:mm".
-function toDatetimeLocal(iso: string): string {
+// For a <input type="date"> value — local date only, "YYYY-MM-DD". The time
+// of day is never hand-entered — it's kept from whenever the stage was
+// actually recorded (see mergeDateKeepTime).
+function toDateOnly(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Apply a hand-picked date on top of the original timestamp's time-of-day,
+// so editing the date never touches the actual click time it was recorded at.
+function mergeDateKeepTime(dateStr: string, originalIso: string): string {
+  const orig = new Date(originalIso);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d, orig.getHours(), orig.getMinutes(), orig.getSeconds(), orig.getMilliseconds())
+    .toISOString();
 }
 
 // Most recent remark left for a row's current stage, so the list reflects
@@ -53,7 +64,9 @@ export default function OrderTracking() {
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("so_created");
   const [stageRemarks, setStageRemarks] = useState("");
-  const [editingRemark, setEditingRemark] = useState<{ eventId: string; text: string; date: string } | null>(null);
+  const [editingRemark, setEditingRemark] = useState<
+    { eventId: string; text: string; date: string; originalIso: string } | null
+  >(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -180,8 +193,11 @@ export default function OrderTracking() {
     if (!viewing || !editingRemark) return;
     setBusy(true);
     try {
-      // datetime-local ("YYYY-MM-DDTHH:mm") is parsed as local time by `new Date`.
-      const createdAt = editingRemark.date ? new Date(editingRemark.date).toISOString() : undefined;
+      // Only the date is hand-picked — the time of day is kept from the
+      // original timestamp, never manually entered.
+      const createdAt = editingRemark.date
+        ? mergeDateKeepTime(editingRemark.date, editingRemark.originalIso)
+        : undefined;
       const updated = await api.updateStageRemark(viewing.id, editingRemark.eventId, editingRemark.text, createdAt);
       setViewing(updated);
       setEditingRemark(null);
@@ -369,7 +385,7 @@ export default function OrderTracking() {
                           {primaryEvent && editingRemark?.eventId === primaryEvent.id ? (
                             <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                               <input
-                                type="datetime-local"
+                                type="date"
                                 className="inp !py-1 !text-[11px]"
                                 value={editingRemark.date}
                                 onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
@@ -410,7 +426,8 @@ export default function OrderTracking() {
                                     setEditingRemark({
                                       eventId: primaryEvent.id,
                                       text: primaryEvent.remarks,
-                                      date: toDatetimeLocal(primaryEvent.created_at),
+                                      date: toDateOnly(primaryEvent.created_at),
+                                      originalIso: primaryEvent.created_at,
                                     });
                                   }}
                                 >
@@ -433,7 +450,7 @@ export default function OrderTracking() {
                                 editingRemark?.eventId === e.id ? (
                                   <div key={e.id}>
                                     <input
-                                      type="datetime-local"
+                                      type="date"
                                       className="inp mb-1 !py-1 !text-[11px]"
                                       value={editingRemark.date}
                                       onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
@@ -468,7 +485,7 @@ export default function OrderTracking() {
                                     <button
                                       type="button"
                                       className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
-                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDatetimeLocal(e.created_at) })}
+                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at })}
                                     >
                                       Edit
                                     </button>
@@ -534,7 +551,7 @@ export default function OrderTracking() {
                           {stageLabel(e.stage)}
                         </span>
                         <input
-                          type="datetime-local"
+                          type="date"
                           className="inp mt-1 !py-1 !text-xs"
                           value={editingRemark.date}
                           onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
@@ -572,7 +589,7 @@ export default function OrderTracking() {
                         <button
                           type="button"
                           className="text-[11px] font-semibold text-exicom-teal hover:underline"
-                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDatetimeLocal(e.created_at) })}
+                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at })}
                         >
                           Edit
                         </button>
