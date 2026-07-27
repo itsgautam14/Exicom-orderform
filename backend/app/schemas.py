@@ -142,8 +142,11 @@ class OrderBase(BaseModel):
     packing_details: str = ""
 
     po_required: bool = False
+    # po_number / po_date are auto-generated when "PO/Order Received" is
+    # clicked (see crud.mark_so_created) — never set by the client.
     po_number: str = ""
     po_amount: str = ""
+    po_date: str = ""
 
     created_by: str = ""
     # Internal justification for quoting below pricebook — never rendered in the PDF.

@@ -38,6 +38,7 @@ _COLUMNS = [
     ("orders", "customer_email", "VARCHAR(255) DEFAULT ''"),
     ("orders", "customer_postal_code", "VARCHAR(32) DEFAULT ''"),
     ("orders", "eori_number", "VARCHAR(32) DEFAULT ''"),
+    ("orders", "po_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
     ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'so_created'"),

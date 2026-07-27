@@ -95,8 +95,10 @@ export interface OrderInput {
   packing_details?: string;
 
   po_required: boolean;
+  /** Auto-generated (not user-entered) when "PO/Order Received" is clicked. */
   po_number: string;
   po_amount: string;
+  po_date?: string;
 
   /** Per-browser creator id (set when the quote is saved). */
   created_by?: string;

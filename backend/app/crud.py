@@ -1,6 +1,8 @@
 """Database operations and total computation."""
 from __future__ import annotations
 
+import datetime as dt
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -146,6 +148,7 @@ def compute_totals(order: models.Order) -> dict:
         "po_required": order.po_required,
         "po_number": order.po_number,
         "po_amount": order.po_amount,
+        "po_date": order.po_date or "",
         "status": order.status or "submitted",
         "approval_reason": order.approval_reason or "",
         "approval_note": order.approval_note or "",
@@ -466,8 +469,14 @@ def mark_so_created(db: Session, obj: models.Order) -> models.Order:
 
     This is the only place a tracking row gets created — clicking "Order
     Received" on the Submitted tab is what puts a quote into SO Order Tracking.
+    It's also the only place po_number/po_date get set — generated once, right
+    now, from the click timestamp, and never touched again (the order can no
+    longer be edited once it's so_created).
     """
+    now = dt.datetime.now()
     obj.status = "so_created"
+    obj.po_number = f"PO-{now:%Y%m%d%H%M%S}"
+    obj.po_date = now.strftime("%d/%m/%Y")
     _sync_tracking_from_order(db, obj)
     db.commit()
     db.refresh(obj)

@@ -288,17 +288,23 @@ html, body {
       {% if not po_mode %}<div class="logo-wrap"><img src="{{ logo_data_uri }}" alt="Exicom" style="height:46px;width:auto"/></div>{% endif %}
     </td>
     <td class="meta-cell">
-      <div class="doc-title">QUOTE FORM{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
+      <div class="doc-title">{% if po_mode %}PURCHASE ORDER{% else %}QUOTE FORM{% endif %}{% if order.status == "draft" %} <span class="draft-badge">DRAFT</span>{% endif %}</div>
       {% if order.status == "draft" %}<div class="draft-note">Provisional — subject to internal approval.</div>{% endif %}
       <div class="meta-lines">
         Customer (SPOC): <b>{{ order.prepared_for }}</b><br/>
         {% if order.customer_phone %}Phone: <b>{{ order.customer_phone }}</b><br/>{% endif %}
         {% if order.customer_email %}Email: <b>{{ order.customer_email }}</b><br/>{% endif %}
         {% if order.eori_number %}EORI Number: <b>{{ order.eori_number }}</b><br/>{% endif %}
+        {% if po_mode %}
+        {% if order.po_date %}PO Date: <b>{{ order.po_date }}</b><br/>{% endif %}
+        KAM Name: <b>{{ order.proposed_by }}</b><br/>
+        PO Number: <b>{{ order.po_number }}</b>
+        {% else %}
         {% if order.quote_date %}Date: <b>{{ order.quote_date }}</b><br/>{% endif %}
         Offer Valid Through: <b>{{ order.offer_valid_through }}</b><br/>
         KAM Name: <b>{{ order.proposed_by }}</b><br/>
         Quote Number: <b>{{ order.quote_number }}</b>
+        {% endif %}
       </div>
     </td>
   </tr>

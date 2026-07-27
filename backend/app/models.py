@@ -93,8 +93,11 @@ class Order(Base):
 
     # Purchase order
     po_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Auto-generated (not user-entered) the moment "PO/Order Received" is
+    # clicked — see crud.mark_so_created. Fixed after that, like quote_date.
     po_number: Mapped[str] = mapped_column(String(64), default="")
     po_amount: Mapped[str] = mapped_column(String(64), default="")
+    po_date: Mapped[str] = mapped_column(String(64), default="")
 
     # Approval workflow:
     #   draft     — logistics couldn't be filled (CIF with no transport cost); needs an admin.

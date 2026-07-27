@@ -145,11 +145,13 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
 
   async function downloadPdf(o: OrderOut) {
     try {
-      const blob = await api.orderPdfBlob(o.id);
+      // Once confirmed, always regenerate the PO document, not the quote form.
+      const isConfirmed = o.status === "so_created";
+      const blob = await api.orderPdfBlob(o.id, isConfirmed);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Exicom_${o.quote_number}.pdf`;
+      a.download = `${isConfirmed ? "PO" : "Exicom"}_${o.quote_number}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
