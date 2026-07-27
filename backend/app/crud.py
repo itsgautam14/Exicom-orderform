@@ -527,6 +527,16 @@ def update_tracking(db: Session, obj: models.OrderTracking, data: schemas.OrderT
 
 
 def delete_tracking(db: Session, obj: models.OrderTracking) -> None:
+    # If this row came from a real quotation ("Order Received"), deleting it
+    # un-confirms that order — send it back to Submitted so it can be marked
+    # Order Received again later. Clear the PO fields since they'll be
+    # regenerated fresh whenever that happens.
+    if obj.quote_number:
+        order = db.query(models.Order).filter(models.Order.quote_number == obj.quote_number).first()
+        if order and order.status == "so_created":
+            order.status = "submitted"
+            order.po_number = ""
+            order.po_date = ""
     db.delete(obj)
     db.commit()
 
