@@ -251,6 +251,10 @@ class StageEventIn(BaseModel):
 
 class StageEventUpdate(BaseModel):
     remarks: str = ""
+    # Lets a stage's date be corrected/back-dated by hand — duration math
+    # (days in stage) is computed from this timestamp, so editing it re-bases
+    # those counts too.
+    created_at: Optional[dt.datetime] = None
 
 
 class OrderTrackingOut(OrderTrackingBase):

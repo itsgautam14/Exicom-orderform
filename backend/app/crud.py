@@ -570,14 +570,18 @@ def advance_tracking_stage(
 
 
 def update_stage_event_remarks(
-    db: Session, obj: models.OrderTracking, event_id: str, remarks: str
+    db: Session, obj: models.OrderTracking, event_id: str, remarks: str, created_at: dt.datetime | None = None
 ) -> models.OrderTracking | None:
-    """Correct a previously recorded remark in place (e.g. fixing a typo) —
-    unlike advance_tracking_stage, this edits history rather than appending."""
+    """Correct a previously recorded remark (and/or its date) in place — unlike
+    advance_tracking_stage, this edits history rather than appending. Letting
+    the date be hand-set (e.g. for "Sales Order Created") re-bases the
+    days-in-stage math, which is computed from these timestamps."""
     event = next((e for e in obj.stage_events if e.id == event_id), None)
     if not event:
         return None
     event.remarks = remarks
+    if created_at is not None:
+        event.created_at = created_at
     db.commit()
     db.refresh(obj)
     return obj

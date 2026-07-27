@@ -108,11 +108,11 @@ def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: 
 def update_stage_remark(
     tracking_id: str, event_id: str, payload: schemas.StageEventUpdate, db: Session = Depends(get_db)
 ):
-    """Correct a previously recorded remark in place."""
+    """Correct a previously recorded remark and/or its date in place."""
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
-    updated = crud.update_stage_event_remarks(db, obj, event_id, payload.remarks)
+    updated = crud.update_stage_event_remarks(db, obj, event_id, payload.remarks, payload.created_at)
     if not updated:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Remark not found")
     return updated

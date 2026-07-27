@@ -210,12 +210,13 @@ export const api = {
       body: JSON.stringify({ stage, remarks }),
     }).then(json<OrderTracking>),
 
-  // Correct a previously recorded stage remark in place (e.g. fixing a typo).
-  updateStageRemark: (id: string, eventId: string, remarks: string): Promise<OrderTracking> =>
+  // Correct a previously recorded stage remark and/or its date in place
+  // (e.g. fixing a typo, or hand-setting when "Sales Order Created" really happened).
+  updateStageRemark: (id: string, eventId: string, remarks: string, createdAt?: string): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/stage/${eventId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ remarks }),
+      body: JSON.stringify({ remarks, ...(createdAt ? { created_at: createdAt } : {}) }),
     }).then(json<OrderTracking>),
 };
 

@@ -23,6 +23,14 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.round(ms / 86400000));
 }
 
+// For a <input type="datetime-local"> value — local time, "YYYY-MM-DDTHH:mm".
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Most recent remark left for a row's current stage, so the list reflects
 // whatever the Stage dropdown is showing without opening the detail view.
 function latestStageRemark(row: OrderTracking) {
@@ -45,7 +53,7 @@ export default function OrderTracking() {
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("so_created");
   const [stageRemarks, setStageRemarks] = useState("");
-  const [editingRemark, setEditingRemark] = useState<{ eventId: string; text: string } | null>(null);
+  const [editingRemark, setEditingRemark] = useState<{ eventId: string; text: string; date: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -172,7 +180,9 @@ export default function OrderTracking() {
     if (!viewing || !editingRemark) return;
     setBusy(true);
     try {
-      const updated = await api.updateStageRemark(viewing.id, editingRemark.eventId, editingRemark.text);
+      // datetime-local ("YYYY-MM-DDTHH:mm") is parsed as local time by `new Date`.
+      const createdAt = editingRemark.date ? new Date(editingRemark.date).toISOString() : undefined;
+      const updated = await api.updateStageRemark(viewing.id, editingRemark.eventId, editingRemark.text, createdAt);
       setViewing(updated);
       setEditingRemark(null);
       reload();
@@ -320,7 +330,8 @@ export default function OrderTracking() {
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
                     {STAGES.map((s, i) => {
-                      const reachedAt = stageDate(s.key);
+                      const primaryEvent = events.find((e) => e.stage === s.key);
+                      const reachedAt = primaryEvent?.created_at;
                       const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
                       const done = reachedAt != null;
                       const active = i === currentIdx;
@@ -328,7 +339,12 @@ export default function OrderTracking() {
                       const duration = reachedAt
                         ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
                         : null;
-                      const stageRemarks = events.filter((e) => e.stage === s.key && e.remarks);
+                      // Extra remarks beyond the primary event (rare — a stage
+                      // re-triggered more than once); the primary's own remark
+                      // is edited inline with its date below instead.
+                      const stageRemarks = events.filter(
+                        (e) => e.stage === s.key && e.remarks && e.id !== primaryEvent?.id
+                      );
                       return (
                         <div
                           key={s.key}
@@ -350,9 +366,62 @@ export default function OrderTracking() {
                             <span className={`inline-block h-2 w-2 rounded-full ${done ? "bg-exicom-teal" : "bg-slate-300"}`} />
                             {s.label}
                           </div>
-                          <div className="mt-1 text-[11px] text-slate-500">
-                            {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}
-                          </div>
+                          {primaryEvent && editingRemark?.eventId === primaryEvent.id ? (
+                            <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="datetime-local"
+                                className="inp !py-1 !text-[11px]"
+                                value={editingRemark.date}
+                                onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
+                              />
+                              <textarea
+                                className="inp mt-1 !py-1 !text-[11px]"
+                                rows={2}
+                                placeholder="Remarks (optional)…"
+                                value={editingRemark.text}
+                                onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                              />
+                              <div className="mt-1 flex gap-2">
+                                <button
+                                  type="button" disabled={busy}
+                                  className="text-[10px] font-semibold text-exicom-teal hover:underline"
+                                  onClick={saveEditedRemark}
+                                >
+                                  {busy ? "Saving…" : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                                  onClick={() => setEditingRemark(null)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[11px] text-slate-500">
+                              {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}{" "}
+                              {primaryEvent && (
+                                <button
+                                  type="button"
+                                  className="font-semibold text-exicom-teal hover:underline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingRemark({
+                                      eventId: primaryEvent.id,
+                                      text: primaryEvent.remarks,
+                                      date: toDatetimeLocal(primaryEvent.created_at),
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {primaryEvent?.remarks && (
+                                <div className="mt-0.5 italic">"{primaryEvent.remarks}"</div>
+                              )}
+                            </div>
+                          )}
                           {duration != null && (
                             <div className="mt-1 text-[11px] font-semibold text-slate-600">
                               {active ? `${duration} day${duration === 1 ? "" : "s"} so far` : `Took ${duration} day${duration === 1 ? "" : "s"}`}
@@ -363,12 +432,17 @@ export default function OrderTracking() {
                               {stageRemarks.map((e) =>
                                 editingRemark?.eventId === e.id ? (
                                   <div key={e.id}>
+                                    <input
+                                      type="datetime-local"
+                                      className="inp mb-1 !py-1 !text-[11px]"
+                                      value={editingRemark.date}
+                                      onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
+                                    />
                                     <textarea
                                       className="inp !py-1 !text-[11px]"
                                       rows={2}
-                                      autoFocus
                                       value={editingRemark.text}
-                                      onChange={(ev) => setEditingRemark({ eventId: e.id, text: ev.target.value })}
+                                      onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                                     />
                                     <div className="mt-1 flex gap-2">
                                       <button
@@ -394,7 +468,7 @@ export default function OrderTracking() {
                                     <button
                                       type="button"
                                       className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
-                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks })}
+                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDatetimeLocal(e.created_at) })}
                                     >
                                       Edit
                                     </button>
@@ -459,12 +533,17 @@ export default function OrderTracking() {
                         <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
                           {stageLabel(e.stage)}
                         </span>
+                        <input
+                          type="datetime-local"
+                          className="inp mt-1 !py-1 !text-xs"
+                          value={editingRemark.date}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
+                        />
                         <textarea
                           className="inp mt-1 !py-1 !text-xs"
                           rows={2}
-                          autoFocus
                           value={editingRemark.text}
-                          onChange={(ev) => setEditingRemark({ eventId: e.id, text: ev.target.value })}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                         />
                         <div className="mt-1 flex gap-2">
                           <button
@@ -493,7 +572,7 @@ export default function OrderTracking() {
                         <button
                           type="button"
                           className="text-[11px] font-semibold text-exicom-teal hover:underline"
-                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks })}
+                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDatetimeLocal(e.created_at) })}
                         >
                           Edit
                         </button>
