@@ -662,6 +662,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     if (!order.ship_to_company.trim()) miss.push("Ship To · Company Name");
     if (!order.ship_to_address.trim()) miss.push("Ship To · Address");
     if (!order.ship_to_country.trim()) miss.push("Ship To · Country");
+    if (order.incoterms !== "EXW" && !order.transport_mode.trim()) miss.push("Transport Mode");
     order.items.forEach((it, i) => {
       if (!it.quantity || it.quantity <= 0) miss.push(`Item ${i + 1} · Quantity`);
       if (!it.unit_price || it.unit_price <= 0) miss.push(`Item ${i + 1} · Unit Price`);
