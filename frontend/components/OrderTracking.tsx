@@ -58,10 +58,7 @@ export default function OrderTracking() {
   useEffect(() => { reload(); }, []);
 
   // ---- dashboard stats ----
-  const stats = useMemo(() => {
-    const totalValue = rows.reduce((s, r) => s + (r.value || 0), 0);
-    return { count: rows.length, totalValue };
-  }, [rows]);
+  const stats = useMemo(() => ({ count: rows.length }), [rows]);
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -90,6 +87,17 @@ export default function OrderTracking() {
     if (!confirm("Delete this tracking row?")) return;
     try { await api.deleteTracking(id); reload(); }
     catch (e) { alert((e as Error).message); }
+  }
+
+  // Quick stage change directly from the list, without opening the detail view.
+  async function changeStage(row: OrderTracking, stage: string) {
+    if (stage === row.current_stage) return;
+    try {
+      await api.advanceTrackingStage(row.id, stage, "");
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    }
   }
 
   // Keep the open detail card in sync whenever the underlying row refreshes.
@@ -193,14 +201,10 @@ export default function OrderTracking() {
       </div>
 
       {/* dashboard cards */}
-      <div className="mb-5 grid grid-cols-2 gap-3">
+      <div className="mb-5 grid grid-cols-1 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tracked Orders</div>
           <div className="mt-1 text-2xl font-bold text-slate-800">{stats.count}</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Value</div>
-          <div className="mt-1 text-2xl font-bold text-slate-800">{fmtNum(stats.totalValue)}</div>
         </div>
       </div>
 
@@ -413,6 +417,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Ordered</th>
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
+                <th className="px-3 py-2">Stage</th>
                 <th className="px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -427,6 +432,15 @@ export default function OrderTracking() {
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <select
+                      className="inp !w-auto !py-1 !text-xs"
+                      value={r.current_stage}
+                      onChange={(e) => changeStage(r, e.target.value)}
+                    >
+                      {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
                   </td>
                   <td className="max-w-[220px] px-3 py-2 text-slate-500">{r.notes || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
