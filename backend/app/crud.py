@@ -326,7 +326,10 @@ def create_order(db: Session, data: schemas.OrderCreate) -> models.Order:
 
 
 def update_order(db: Session, obj: models.Order, data: schemas.OrderUpdate) -> models.Order:
-    for k, v in data.model_dump(exclude={"items", "is_final"}).items():
+    # quote_date is fixed at creation time and never changes on later edits,
+    # re-saves, or autosaves — the PDF should always show when the quote was
+    # first made, not whenever it was last touched.
+    for k, v in data.model_dump(exclude={"items", "is_final", "quote_date"}).items():
         setattr(obj, k, v)
     _round_money_fields(obj)
     _apply_items(obj, data.items)
