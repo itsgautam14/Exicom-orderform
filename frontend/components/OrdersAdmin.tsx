@@ -29,7 +29,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-amber-100 text-amber-700" },
   submitted: { label: "Submitted", cls: "bg-sky-100 text-sky-700" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
-  so_created: { label: "SO Created", cls: "bg-violet-100 text-violet-700" },
+  so_created: { label: "Order Confirmed", cls: "bg-violet-100 text-violet-700" },
   rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700" },
 };
 
@@ -224,6 +224,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
     { key: "all", label: "All" },
     { key: "draft", label: "Drafts" },
     { key: "submitted", label: "Submitted" },
+    { key: "so_created", label: "Order Confirmed" },
   ];
   const ADMIN_FILTERS: { key: StatusFilter; label: string }[] = [
     { key: "pending", label: "Pending" },
