@@ -569,6 +569,20 @@ def advance_tracking_stage(
     return obj
 
 
+def update_stage_event_remarks(
+    db: Session, obj: models.OrderTracking, event_id: str, remarks: str
+) -> models.OrderTracking | None:
+    """Correct a previously recorded remark in place (e.g. fixing a typo) —
+    unlike advance_tracking_stage, this edits history rather than appending."""
+    event = next((e for e in obj.stage_events if e.id == event_id), None)
+    if not event:
+        return None
+    event.remarks = remarks
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def save_tracking_document(
     db: Session, obj: models.OrderTracking, filename: str, content_type: str, data: bytes
 ) -> models.OrderTracking:

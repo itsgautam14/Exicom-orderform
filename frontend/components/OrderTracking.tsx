@@ -9,7 +9,7 @@ const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 const STAGES: { key: string; label: string }[] = [
   { key: "so_created", label: "Sales Order Created" },
   { key: "in_production", label: "In Production" },
-  { key: "fg_ready", label: "FG Ready for Dispatch" },
+  { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
 ];
 
@@ -45,6 +45,7 @@ export default function OrderTracking() {
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("so_created");
   const [stageRemarks, setStageRemarks] = useState("");
+  const [editingRemark, setEditingRemark] = useState<{ eventId: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -167,6 +168,21 @@ export default function OrderTracking() {
     }
   }
 
+  async function saveEditedRemark() {
+    if (!viewing || !editingRemark) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateStageRemark(viewing.id, editingRemark.eventId, editingRemark.text);
+      setViewing(updated);
+      setEditingRemark(null);
+      reload();
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
@@ -254,7 +270,7 @@ export default function OrderTracking() {
                 {viewing.quote_number ? `Quote ${viewing.quote_number}` : "Manually added order"}
               </p>
             </div>
-            <button className="btn" onClick={() => setViewing(null)}>Close</button>
+            <button className="btn" onClick={() => { setViewing(null); setEditingRemark(null); }}>Close</button>
           </div>
 
           {/* signed document */}
@@ -314,11 +330,13 @@ export default function OrderTracking() {
                         : null;
                       const stageRemarks = events.filter((e) => e.stage === s.key && e.remarks);
                       return (
-                        <button
+                        <div
                           key={s.key}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setSelectedStage(s.key)}
-                          className={`rounded-lg border p-2.5 text-left transition ${
+                          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedStage(s.key)}
+                          className={`cursor-pointer rounded-lg border p-2.5 text-left transition ${
                             isSelected
                               ? "border-exicom-teal ring-2 ring-exicom-teal/40 bg-exicom-teal/5"
                               : active
@@ -341,16 +359,51 @@ export default function OrderTracking() {
                             </div>
                           )}
                           {stageRemarks.length > 0 && (
-                            <div className="mt-1 space-y-0.5">
-                              {stageRemarks.map((e) => (
-                                <div key={e.id} className="text-[11px] italic text-slate-500">
-                                  "{e.remarks}"{" "}
-                                  <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>
-                                </div>
-                              ))}
+                            <div className="mt-1 space-y-1" onClick={(e) => e.stopPropagation()}>
+                              {stageRemarks.map((e) =>
+                                editingRemark?.eventId === e.id ? (
+                                  <div key={e.id}>
+                                    <textarea
+                                      className="inp !py-1 !text-[11px]"
+                                      rows={2}
+                                      autoFocus
+                                      value={editingRemark.text}
+                                      onChange={(ev) => setEditingRemark({ eventId: e.id, text: ev.target.value })}
+                                    />
+                                    <div className="mt-1 flex gap-2">
+                                      <button
+                                        type="button" disabled={busy}
+                                        className="text-[10px] font-semibold text-exicom-teal hover:underline"
+                                        onClick={saveEditedRemark}
+                                      >
+                                        {busy ? "Saving…" : "Save"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                                        onClick={() => setEditingRemark(null)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div key={e.id} className="text-[11px] italic text-slate-500">
+                                    "{e.remarks}"{" "}
+                                    <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>{" "}
+                                    <button
+                                      type="button"
+                                      className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
+                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks })}
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )
+                              )}
                             </div>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -400,15 +453,53 @@ export default function OrderTracking() {
               const stageLabel = (key: string) => STAGES.find((s) => s.key === key)?.label || key;
               return (
                 <div className="space-y-1.5">
-                  {allRemarks.map((e) => (
-                    <div key={e.id} className="text-xs text-slate-600">
-                      <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
-                        {stageLabel(e.stage)}
-                      </span>{" "}
-                      <span className="italic">"{e.remarks}"</span>{" "}
-                      <span className="text-slate-400">({fmtDateTime(e.created_at)})</span>
-                    </div>
-                  ))}
+                  {allRemarks.map((e) =>
+                    editingRemark?.eventId === e.id ? (
+                      <div key={e.id}>
+                        <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
+                          {stageLabel(e.stage)}
+                        </span>
+                        <textarea
+                          className="inp mt-1 !py-1 !text-xs"
+                          rows={2}
+                          autoFocus
+                          value={editingRemark.text}
+                          onChange={(ev) => setEditingRemark({ eventId: e.id, text: ev.target.value })}
+                        />
+                        <div className="mt-1 flex gap-2">
+                          <button
+                            type="button" disabled={busy}
+                            className="text-[11px] font-semibold text-exicom-teal hover:underline"
+                            onClick={saveEditedRemark}
+                          >
+                            {busy ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-slate-400 hover:text-slate-600"
+                            onClick={() => setEditingRemark(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={e.id} className="text-xs text-slate-600">
+                        <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
+                          {stageLabel(e.stage)}
+                        </span>{" "}
+                        <span className="italic">"{e.remarks}"</span>{" "}
+                        <span className="text-slate-400">({fmtDateTime(e.created_at)})</span>{" "}
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-exicom-teal hover:underline"
+                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks })}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )
+                  )}
                 </div>
               );
             })()}
@@ -480,7 +571,7 @@ export default function OrderTracking() {
                     })()}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
-                    <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); }}>View</button>
+                    <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); setEditingRemark(null); }}>View</button>
                     <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
                   </td>
                 </tr>

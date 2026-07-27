@@ -209,6 +209,14 @@ export const api = {
       headers: { "Content-Type": "application/json", ...adminHeaders() },
       body: JSON.stringify({ stage, remarks }),
     }).then(json<OrderTracking>),
+
+  // Correct a previously recorded stage remark in place (e.g. fixing a typo).
+  updateStageRemark: (id: string, eventId: string, remarks: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/stage/${eventId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ remarks }),
+    }).then(json<OrderTracking>),
 };
 
 export const API_BASE = BASE;

@@ -103,6 +103,21 @@ def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: 
     return crud.advance_tracking_stage(db, obj, payload.stage, payload.remarks)
 
 
+@router.put("/{tracking_id}/stage/{event_id}", response_model=schemas.OrderTrackingOut,
+            dependencies=[Depends(require_admin)])
+def update_stage_remark(
+    tracking_id: str, event_id: str, payload: schemas.StageEventUpdate, db: Session = Depends(get_db)
+):
+    """Correct a previously recorded remark in place."""
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    updated = crud.update_stage_event_remarks(db, obj, event_id, payload.remarks)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Remark not found")
+    return updated
+
+
 # --- Excel import ------------------------------------------------------------
 
 def _norm(h) -> str:

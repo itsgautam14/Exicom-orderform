@@ -249,6 +249,10 @@ class StageEventIn(BaseModel):
     remarks: str = ""
 
 
+class StageEventUpdate(BaseModel):
+    remarks: str = ""
+
+
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
