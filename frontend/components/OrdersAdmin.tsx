@@ -463,7 +463,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         Duplicate
                       </button>
                     )}
-                    {!isAdmin && o.status !== "draft" && o.status !== "so_created" && (
+                    {!isAdmin && o.status !== "draft" && (
                       <button className="mr-2 text-xs font-semibold text-slate-600 hover:text-slate-900" onClick={() => downloadPdf(o)}>
                         Generate PDF
                       </button>
