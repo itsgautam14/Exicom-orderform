@@ -23,6 +23,12 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.round(ms / 86400000));
 }
 
+// Most recent remark left for a row's current stage, so the list reflects
+// whatever the Stage dropdown is showing without opening the detail view.
+function latestStageRemark(row: OrderTracking) {
+  return [...(row.stage_events || [])].reverse().find((e) => e.stage === row.current_stage && e.remarks);
+}
+
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
   date_of_order: "", value: null, currency: "", notes: "",
@@ -442,7 +448,17 @@ export default function OrderTracking() {
                       {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="max-w-[220px] px-3 py-2 text-slate-500">{r.notes || "—"}</td>
+                  <td className="max-w-[220px] px-3 py-2 text-slate-500">
+                    {(() => {
+                      const remark = latestStageRemark(r);
+                      return remark ? (
+                        <>
+                          <span className="italic">"{remark.remarks}"</span>{" "}
+                          <span className="text-xs text-slate-400">({fmtDateTime(remark.created_at)})</span>
+                        </>
+                      ) : "—";
+                    })()}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
                     <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); }}>View</button>
                     <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
