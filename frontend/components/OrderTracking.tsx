@@ -356,15 +356,6 @@ export default function OrderTracking() {
                   </div>
 
                   <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="lbl">Stage</label>
-                    <select
-                      className="inp"
-                      value={selectedStage}
-                      onChange={(e) => setSelectedStage(e.target.value)}
-                    >
-                      {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-
                     {selectedStageRemarks.length > 0 && (
                       <div className="mt-2 space-y-0.5">
                         {selectedStageRemarks.map((e) => (
