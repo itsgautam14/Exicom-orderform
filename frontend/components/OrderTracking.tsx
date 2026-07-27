@@ -386,10 +386,39 @@ export default function OrderTracking() {
               );
             })()}
           </div>
+
+          {/* every remark across all stages, in one place */}
+          <div className="mt-5 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              All Remarks
+            </div>
+            {(() => {
+              const allRemarks = (viewing.stage_events || []).filter((e) => e.remarks);
+              if (allRemarks.length === 0) {
+                return <p className="text-xs text-slate-400">No remarks recorded yet.</p>;
+              }
+              const stageLabel = (key: string) => STAGES.find((s) => s.key === key)?.label || key;
+              return (
+                <div className="space-y-1.5">
+                  {allRemarks.map((e) => (
+                    <div key={e.id} className="text-xs text-slate-600">
+                      <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
+                        {stageLabel(e.stage)}
+                      </span>{" "}
+                      <span className="italic">"{e.remarks}"</span>{" "}
+                      <span className="text-slate-400">({fmtDateTime(e.created_at)})</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
-      {/* filters */}
+      {/* filters + list — hidden while viewing an order's details */}
+      {!viewing && (
+        <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn" onClick={reload}>↻</button>
@@ -459,6 +488,8 @@ export default function OrderTracking() {
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
     </div>
   );
