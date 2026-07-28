@@ -1,8 +1,8 @@
 """Order-tracking endpoints: manual CRUD + bulk Excel import.
 
-Lives under the Approvals module's "SO Order Tracking" tab. Writes require the
-admin password. The Excel import reads the raw request body (no python-multipart
-needed).
+Lives under the Approvals module's "SO Order Tracking" tab. Open to anyone —
+no admin password required. The Excel import reads the raw request body (no
+python-multipart needed).
 """
 from __future__ import annotations
 
@@ -16,25 +16,22 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
-from app.auth import require_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/api/tracking", tags=["tracking"])
 
 
-@router.get("", response_model=list[schemas.OrderTrackingOut], dependencies=[Depends(require_admin)])
+@router.get("", response_model=list[schemas.OrderTrackingOut])
 def list_tracking(db: Session = Depends(get_db)):
     return crud.list_trackings(db)
 
 
-@router.post("", response_model=schemas.OrderTrackingOut, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(require_admin)])
+@router.post("", response_model=schemas.OrderTrackingOut, status_code=status.HTTP_201_CREATED)
 def create_tracking(payload: schemas.OrderTrackingCreate, db: Session = Depends(get_db)):
     return crud.create_tracking(db, payload)
 
 
-@router.put("/{tracking_id}", response_model=schemas.OrderTrackingOut,
-            dependencies=[Depends(require_admin)])
+@router.put("/{tracking_id}", response_model=schemas.OrderTrackingOut)
 def update_tracking(tracking_id: str, payload: schemas.OrderTrackingUpdate, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -42,8 +39,7 @@ def update_tracking(tracking_id: str, payload: schemas.OrderTrackingUpdate, db: 
     return crud.update_tracking(db, obj, payload)
 
 
-@router.delete("/{tracking_id}", status_code=status.HTTP_204_NO_CONTENT,
-               dependencies=[Depends(require_admin)])
+@router.delete("/{tracking_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -53,8 +49,7 @@ def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
 
 # --- Signed document upload / view --------------------------------------------
 
-@router.post("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
-             dependencies=[Depends(require_admin)])
+@router.post("/{tracking_id}/document", response_model=schemas.OrderTrackingOut)
 async def upload_tracking_document(
     tracking_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)
 ):
@@ -81,8 +76,7 @@ def get_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.delete("/{tracking_id}/document", response_model=schemas.OrderTrackingOut,
-               dependencies=[Depends(require_admin)])
+@router.delete("/{tracking_id}/document", response_model=schemas.OrderTrackingOut)
 def remove_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -92,8 +86,7 @@ def remove_tracking_document(tracking_id: str, db: Session = Depends(get_db)):
 
 # --- Fulfillment stage tracker -------------------------------------------------
 
-@router.post("/{tracking_id}/stage", response_model=schemas.OrderTrackingOut,
-             dependencies=[Depends(require_admin)])
+@router.post("/{tracking_id}/stage", response_model=schemas.OrderTrackingOut)
 def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: Session = Depends(get_db)):
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
@@ -103,8 +96,7 @@ def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: 
     return crud.advance_tracking_stage(db, obj, payload.stage, payload.remarks, payload.kam)
 
 
-@router.put("/{tracking_id}/stage/{event_id}", response_model=schemas.OrderTrackingOut,
-            dependencies=[Depends(require_admin)])
+@router.put("/{tracking_id}/stage/{event_id}", response_model=schemas.OrderTrackingOut)
 def update_stage_remark(
     tracking_id: str, event_id: str, payload: schemas.StageEventUpdate, db: Session = Depends(get_db)
 ):
@@ -183,7 +175,7 @@ def _key(*parts) -> tuple:
     return tuple((p or "").strip().lower() for p in parts)
 
 
-@router.post("/import", dependencies=[Depends(require_admin)])
+@router.post("/import")
 async def import_tracking(request: Request, db: Session = Depends(get_db)):
     """Bulk-import tracking rows from an uploaded .xlsx (raw body).
 

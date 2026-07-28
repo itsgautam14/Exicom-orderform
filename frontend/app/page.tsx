@@ -63,7 +63,7 @@ export default function Home() {
       {tab === "order" && <OrderFormBuilder loadOrder={editOrder} onLoaded={() => setEditOrder(null)} />}
       {tab === "orders" && <OrdersAdmin mode="mine" onEdit={(o) => { setEditOrder(o); setTab("order"); }} />}
       {tab === "approvals" && <AdminGate><OrdersAdmin mode="admin" onEdit={(o) => { setEditOrder(o); setTab("order"); }} /></AdminGate>}
-      {tab === "tracking" && <AdminGate><OrderTracking /></AdminGate>}
+      {tab === "tracking" && <OrderTracking />}
       {tab === "pendingLogistic" && <AdminGate><PendingLogistic /></AdminGate>}
       {tab === "catalog" && <AdminGate><CatalogAdmin /></AdminGate>}
       {tab === "logistics" && <AdminGate><LogisticsAdmin /></AdminGate>}
