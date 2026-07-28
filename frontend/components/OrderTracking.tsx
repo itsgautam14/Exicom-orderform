@@ -63,12 +63,6 @@ function delayColor(dateStr?: string): "green" | "amber" | "red" | null {
   return "red";
 }
 
-const DELAY_STYLES: Record<"green" | "amber" | "red", string> = {
-  green: "border-emerald-300 bg-emerald-50",
-  amber: "border-amber-300 bg-amber-50",
-  red: "border-rose-300 bg-rose-50",
-};
-
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
   date_of_order: "", value: null, currency: "", notes: "", total_quantity: null,
@@ -88,7 +82,10 @@ export default function OrderTracking() {
   const [editingRemark, setEditingRemark] = useState<
     { eventId: string; text: string; date: string; originalIso: string } | null
   >(null);
-  const [dispatchDraft, setDispatchDraft] = useState<Partial<OrderTracking>>({});
+  const [editingDispatch, setEditingDispatch] = useState<1 | 2 | 3 | null>(null);
+  const [dispatchDraft, setDispatchDraft] = useState<{ qty: number | null; date: string; kam: string }>({
+    qty: null, date: "", kam: "",
+  });
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -166,29 +163,34 @@ export default function OrderTracking() {
     setSelectedStage((STAGES[idx + 1] || STAGES[idx] || STAGES[0]).key);
   }, [viewing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load the dispatch slots into an editable draft each time a different
-  // order is opened for viewing.
+  // Close any open dispatch editor when switching to a different order.
   useEffect(() => {
+    setEditingDispatch(null);
+  }, [viewing?.id]);
+
+  function startEditDispatch(n: 1 | 2 | 3) {
     if (!viewing) return;
-    setDispatchDraft({
-      dispatch1_qty: viewing.dispatch1_qty ?? null,
-      dispatch1_date: viewing.dispatch1_date || "",
-      dispatch1_kam: viewing.dispatch1_kam || "",
-      dispatch2_qty: viewing.dispatch2_qty ?? null,
-      dispatch2_date: viewing.dispatch2_date || "",
-      dispatch2_kam: viewing.dispatch2_kam || "",
-      dispatch3_qty: viewing.dispatch3_qty ?? null,
-      dispatch3_date: viewing.dispatch3_date || "",
-      dispatch3_kam: viewing.dispatch3_kam || "",
-    });
-  }, [viewing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
+    const date = n === 1 ? viewing.dispatch1_date : n === 2 ? viewing.dispatch2_date : viewing.dispatch3_date;
+    const kam = n === 1 ? viewing.dispatch1_kam : n === 2 ? viewing.dispatch2_kam : viewing.dispatch3_kam;
+    setDispatchDraft({ qty: qty ?? null, date: date || "", kam: kam || "" });
+    setEditingDispatch(n);
+  }
 
   async function saveDispatch() {
-    if (!viewing) return;
+    if (!viewing || !editingDispatch) return;
     setBusy(true);
     try {
-      const updated = await api.updateTracking(viewing.id, dispatchDraft);
+      const n = editingDispatch;
+      const payload: Partial<OrderTracking> =
+        n === 1
+          ? { dispatch1_qty: dispatchDraft.qty, dispatch1_date: dispatchDraft.date, dispatch1_kam: dispatchDraft.kam }
+          : n === 2
+          ? { dispatch2_qty: dispatchDraft.qty, dispatch2_date: dispatchDraft.date, dispatch2_kam: dispatchDraft.kam }
+          : { dispatch3_qty: dispatchDraft.qty, dispatch3_date: dispatchDraft.date, dispatch3_kam: dispatchDraft.kam };
+      const updated = await api.updateTracking(viewing.id, payload);
       setViewing(updated);
+      setEditingDispatch(null);
       reload();
     } catch (e) {
       alert((e as Error).message);
@@ -382,81 +384,104 @@ export default function OrderTracking() {
             </div>
           </div>
 
-          {/* dispatch details — up to 3 partial-dispatch slots */}
+          {/* dispatch details — up to 3 partial-dispatch slots, each a compact
+              row until you Edit it */}
           <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Dispatch Details
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {(() => {
-                const slots = [
-                  {
-                    n: 1,
-                    qty: dispatchDraft.dispatch1_qty ?? null,
-                    date: dispatchDraft.dispatch1_date || "",
-                    kam: dispatchDraft.dispatch1_kam || "",
-                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch1_qty: v })),
-                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch1_date: v })),
-                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch1_kam: v })),
-                  },
-                  {
-                    n: 2,
-                    qty: dispatchDraft.dispatch2_qty ?? null,
-                    date: dispatchDraft.dispatch2_date || "",
-                    kam: dispatchDraft.dispatch2_kam || "",
-                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch2_qty: v })),
-                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch2_date: v })),
-                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch2_kam: v })),
-                  },
-                  {
-                    n: 3,
-                    qty: dispatchDraft.dispatch3_qty ?? null,
-                    date: dispatchDraft.dispatch3_date || "",
-                    kam: dispatchDraft.dispatch3_kam || "",
-                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch3_qty: v })),
-                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch3_date: v })),
-                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch3_kam: v })),
-                  },
-                ];
-                return slots.map((s) => {
-                  const color = delayColor(s.date);
-                  const price =
-                    s.qty && viewing.value != null && viewing.total_quantity
-                      ? (viewing.value / viewing.total_quantity) * s.qty
-                      : null;
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
+              {([1, 2, 3] as const).map((n) => {
+                const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
+                const date = n === 1 ? viewing.dispatch1_date : n === 2 ? viewing.dispatch2_date : viewing.dispatch3_date;
+                const kam = n === 1 ? viewing.dispatch1_kam : n === 2 ? viewing.dispatch2_kam : viewing.dispatch3_kam;
+                const color = delayColor(date);
+                const price =
+                  qty && viewing.value != null && viewing.total_quantity
+                    ? (viewing.value / viewing.total_quantity) * qty
+                    : null;
+
+                if (editingDispatch === n) {
                   return (
-                    <div
-                      key={s.n}
-                      className={`rounded-lg border p-2.5 ${color ? DELAY_STYLES[color] : "border-slate-200"}`}
-                    >
-                      <div className="mb-1.5 text-xs font-semibold text-slate-700">Dispatch {s.n}</div>
-                      <label className="lbl">Quantity</label>
-                      <input
-                        className="inp" type="number" step="1"
-                        value={s.qty === null ? "" : s.qty}
-                        onChange={(e) => s.setQty(e.target.value === "" ? null : Math.round(parseFloat(e.target.value)))}
-                      />
-                      <label className="lbl mt-2">Tentative Dispatch Date</label>
-                      <input className="inp" type="date" value={s.date} onChange={(e) => s.setDate(e.target.value)} />
-                      <label className="lbl mt-2">KAM</label>
-                      <input className="inp" value={s.kam} onChange={(e) => s.setKam(e.target.value)} />
+                    <div key={n} className="p-3">
+                      <div className="mb-2 text-xs font-semibold text-slate-700">Dispatch {n}</div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                          <label className="lbl">Quantity</label>
+                          <input
+                            className="inp" type="number" step="1"
+                            value={dispatchDraft.qty === null ? "" : dispatchDraft.qty}
+                            onChange={(e) =>
+                              setDispatchDraft((d) => ({
+                                ...d,
+                                qty: e.target.value === "" ? null : Math.round(parseFloat(e.target.value)),
+                              }))
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="lbl">Tentative Dispatch Date</label>
+                          <input
+                            className="inp" type="date" value={dispatchDraft.date}
+                            onChange={(e) => setDispatchDraft((d) => ({ ...d, date: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="lbl">KAM</label>
+                          <input
+                            className="inp" value={dispatchDraft.kam}
+                            onChange={(e) => setDispatchDraft((d) => ({ ...d, kam: e.target.value }))}
+                          />
+                        </div>
+                      </div>
                       <div className="mt-2 text-[11px] text-slate-500">
                         Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-500">
-                        Price:{" "}
-                        <span className="font-semibold text-slate-700">
-                          {price == null ? "—" : `${viewing.currency || ""} ${fmtNum(price)}`}
-                        </span>
+                      <div className="mt-3 flex gap-2">
+                        <button className="btn btn-primary" disabled={busy} onClick={saveDispatch}>
+                          {busy ? "Saving…" : "Save"}
+                        </button>
+                        <button className="btn" onClick={() => setEditingDispatch(null)}>Cancel</button>
                       </div>
                     </div>
                   );
-                });
-              })()}
+                }
+
+                return (
+                  <div key={n} className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                    <div className="flex min-w-[90px] items-center gap-2 font-semibold text-slate-700">
+                      <span
+                        className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                          color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
+                        }`}
+                      />
+                      Dispatch {n}
+                    </div>
+                    <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{qty ?? "—"}</span></div>
+                    <div className="text-slate-500">
+                      Date:{" "}
+                      <span className={`font-medium ${color === "amber" ? "text-amber-700" : color === "red" ? "text-rose-700" : "text-slate-700"}`}>
+                        {date || "—"}
+                      </span>
+                    </div>
+                    <div className="text-slate-500">KAM: <span className="font-medium text-slate-700">{kam || "—"}</span></div>
+                    <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
+                    <div className="text-slate-500">
+                      Price:{" "}
+                      <span className="font-medium text-slate-700">
+                        {price == null ? "—" : `${viewing.currency || ""} ${fmtNum(price)}`}
+                      </span>
+                    </div>
+                    <button
+                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
+                      onClick={() => startEditDispatch(n)}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-            <button className="btn btn-primary mt-3" disabled={busy} onClick={saveDispatch}>
-              {busy ? "Saving…" : "Save Dispatch Details"}
-            </button>
           </div>
 
           {/* fulfillment stage tracker */}
