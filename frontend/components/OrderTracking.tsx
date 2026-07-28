@@ -103,6 +103,7 @@ export default function OrderTracking() {
   const [dispatchDraft, setDispatchDraft] = useState<{ qty: number | null; date: string; kam: string }>({
     qty: null, date: "", kam: "",
   });
+  const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -956,7 +957,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
-                <th className="px-3 py-2">Remarks</th>
+                <th className="w-64 px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -980,15 +981,35 @@ export default function OrderTracking() {
                       {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="max-w-[220px] px-3 py-2 text-slate-500">
+                  <td className="w-64 max-w-[16rem] px-3 py-2 align-top text-slate-500">
                     {(() => {
                       const remark = latestStageRemark(r);
-                      return remark ? (
-                        <>
-                          <span className="italic">"{remark.remarks}"</span>{" "}
+                      if (!remark) return "—";
+                      const expanded = expandedRemarks.has(r.id);
+                      const isLong = remark.remarks.length > 90;
+                      const text = !isLong || expanded ? remark.remarks : `${remark.remarks.slice(0, 90)}…`;
+                      return (
+                        <div className="whitespace-normal break-words">
+                          <span className="italic">"{text}"</span>{" "}
                           <span className="text-xs text-slate-400">({fmtDateTime(remark.created_at)})</span>
-                        </>
-                      ) : "—";
+                          {isLong && (
+                            <button
+                              type="button"
+                              className="ml-1 text-xs font-semibold text-exicom-teal hover:underline"
+                              onClick={() =>
+                                setExpandedRemarks((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(r.id)) next.delete(r.id);
+                                  else next.add(r.id);
+                                  return next;
+                                })
+                              }
+                            >
+                              {expanded ? "Read less" : "Read more"}
+                            </button>
+                          )}
+                        </div>
+                      );
                     })()}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
