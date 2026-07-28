@@ -18,6 +18,14 @@ function fmtDateTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
+// "HH:MM", 24-hour.
+function fmtTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function daysBetween(a: string, b: string): number {
   const ms = new Date(b).getTime() - new Date(a).getTime();
   return Math.max(0, Math.round(ms / 86400000));
@@ -654,6 +662,38 @@ export default function OrderTracking() {
                       );
                     })}
                   </div>
+
+                  {/* logs — every stage transition, in order, KAM + timestamp + note */}
+                  {events.length > 0 && (
+                    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full min-w-[640px] text-sm">
+                        <thead>
+                          <tr className="bg-lime-500 text-left text-xs font-semibold text-white">
+                            <th className="px-3 py-2">Stages</th>
+                            <th className="px-3 py-2">Activity</th>
+                            <th className="px-3 py-2">Time Stamp</th>
+                            <th className="px-3 py-2">Done by KAM</th>
+                            <th className="px-3 py-2">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {events.map((e) => (
+                            <tr key={e.id} className="border-t border-slate-100">
+                              <td className="px-3 py-2 font-semibold text-slate-700">
+                                {STAGES.find((s) => s.key === e.stage)?.label || e.stage}
+                              </td>
+                              <td className="px-3 py-2 text-slate-600">
+                                Marked “{STAGES.find((s) => s.key === e.stage)?.label || e.stage}”
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
+                              <td className="px-3 py-2 text-slate-600">{viewing.kam || "—"}</td>
+                              <td className="px-3 py-2 text-slate-600">{e.remarks || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
                   <div className="mt-4 border-t border-slate-100 pt-3">
                     {selectedStageRemarks.length > 0 && (
