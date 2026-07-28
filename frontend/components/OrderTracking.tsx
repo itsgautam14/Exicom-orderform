@@ -957,7 +957,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
-                <th className="w-64 px-3 py-2">Remarks</th>
+                <th className="w-96 px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -981,16 +981,28 @@ export default function OrderTracking() {
                       {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
                   </td>
-                  <td className="w-64 max-w-[16rem] px-3 py-2 align-top text-slate-500">
+                  <td className="w-96 max-w-sm px-3 py-1.5 align-top text-slate-500">
                     {(() => {
                       const remark = latestStageRemark(r);
                       if (!remark) return "—";
                       const expanded = expandedRemarks.has(r.id);
-                      const isLong = remark.remarks.length > 90;
-                      const text = !isLong || expanded ? remark.remarks : `${remark.remarks.slice(0, 90)}…`;
+                      const isLong = remark.remarks.length > 140;
                       return (
-                        <div className="whitespace-normal break-words">
-                          <span className="italic">"{text}"</span>{" "}
+                        <div>
+                          <span
+                            style={
+                              expanded
+                                ? undefined
+                                : {
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                  }
+                            }
+                          >
+                            "{remark.remarks}"
+                          </span>{" "}
                           <span className="text-xs text-slate-400">({fmtDateTime(remark.created_at)})</span>
                           {isLong && (
                             <button
