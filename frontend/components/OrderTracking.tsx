@@ -87,8 +87,9 @@ export default function OrderTracking() {
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>("so_created");
   const [stageRemarks, setStageRemarks] = useState("");
+  const [stageKam, setStageKam] = useState("");
   const [editingRemark, setEditingRemark] = useState<
-    { eventId: string; text: string; date: string; originalIso: string } | null
+    { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
   const [editingDispatch, setEditingDispatch] = useState<1 | 2 | 3 | null>(null);
   const [dispatchDraft, setDispatchDraft] = useState<{ qty: number | null; date: string; kam: string }>({
@@ -241,9 +242,10 @@ export default function OrderTracking() {
     if (!viewing) return;
     setBusy(true);
     try {
-      const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks);
+      const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks, stageKam);
       setViewing(updated);
       setStageRemarks("");
+      setStageKam("");
       reload();
     } catch (err) {
       alert((err as Error).message);
@@ -261,7 +263,9 @@ export default function OrderTracking() {
       const createdAt = editingRemark.date
         ? mergeDateKeepTime(editingRemark.date, editingRemark.originalIso)
         : undefined;
-      const updated = await api.updateStageRemark(viewing.id, editingRemark.eventId, editingRemark.text, createdAt);
+      const updated = await api.updateStageRemark(
+        viewing.id, editingRemark.eventId, editingRemark.text, createdAt, editingRemark.kam
+      );
       setViewing(updated);
       setEditingRemark(null);
       reload();
@@ -561,6 +565,12 @@ export default function OrderTracking() {
                                 value={editingRemark.text}
                                 onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                               />
+                              <input
+                                className="inp mt-1 !py-1 !text-[11px]"
+                                placeholder="Done by (KAM)…"
+                                value={editingRemark.kam}
+                                onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                              />
                               <div className="mt-1 flex gap-2">
                                 <button
                                   type="button" disabled={busy}
@@ -592,6 +602,7 @@ export default function OrderTracking() {
                                       text: primaryEvent.remarks,
                                       date: toDateOnly(primaryEvent.created_at),
                                       originalIso: primaryEvent.created_at,
+                                      kam: primaryEvent.kam || "",
                                     });
                                   }}
                                 >
@@ -625,6 +636,12 @@ export default function OrderTracking() {
                                       value={editingRemark.text}
                                       onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                                     />
+                                    <input
+                                      className="inp mt-1 !py-1 !text-[11px]"
+                                      placeholder="Done by (KAM)…"
+                                      value={editingRemark.kam}
+                                      onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                                    />
                                     <div className="mt-1 flex gap-2">
                                       <button
                                         type="button" disabled={busy}
@@ -649,7 +666,7 @@ export default function OrderTracking() {
                                     <button
                                       type="button"
                                       className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
-                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at })}
+                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at, kam: e.kam || "" })}
                                     >
                                       Edit
                                     </button>
@@ -672,7 +689,7 @@ export default function OrderTracking() {
                             <th className="px-3 py-2">Stages</th>
                             <th className="px-3 py-2">Activity</th>
                             <th className="px-3 py-2">Time Stamp</th>
-                            <th className="px-3 py-2">Done by KAM</th>
+                            <th className="px-3 py-2">Done by</th>
                             <th className="px-3 py-2">Notes</th>
                           </tr>
                         </thead>
@@ -686,7 +703,7 @@ export default function OrderTracking() {
                                 Marked “{STAGES.find((s) => s.key === e.stage)?.label || e.stage}”
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
-                              <td className="px-3 py-2 text-slate-600">{viewing.kam || "—"}</td>
+                              <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
                               <td className="px-3 py-2 text-slate-600">{e.remarks || "—"}</td>
                             </tr>
                           ))}
@@ -715,6 +732,8 @@ export default function OrderTracking() {
                       onChange={(e) => setStageRemarks(e.target.value)}
                       placeholder="Why is it moving now / any delay reason…"
                     />
+                    <label className="lbl mt-2">Done by (KAM)</label>
+                    <input className="inp" value={stageKam} onChange={(e) => setStageKam(e.target.value)} />
                     <button
                       className="btn btn-primary mt-2" disabled={busy}
                       onClick={() => saveStage(selected.key)}
@@ -758,6 +777,12 @@ export default function OrderTracking() {
                           value={editingRemark.text}
                           onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                         />
+                        <input
+                          className="inp mt-1 !py-1 !text-xs"
+                          placeholder="Done by (KAM)…"
+                          value={editingRemark.kam}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                        />
                         <div className="mt-1 flex gap-2">
                           <button
                             type="button" disabled={busy}
@@ -785,7 +810,7 @@ export default function OrderTracking() {
                         <button
                           type="button"
                           className="text-[11px] font-semibold text-exicom-teal hover:underline"
-                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at })}
+                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at, kam: e.kam || "" })}
                         >
                           Edit
                         </button>

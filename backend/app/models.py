@@ -250,6 +250,8 @@ class TrackingStageEvent(Base):
     tracking_id: Mapped[str] = mapped_column(ForeignKey("order_trackings.id", ondelete="CASCADE"), index=True)
     stage: Mapped[str] = mapped_column(String(32))  # so_created | in_production | fg_ready | dispatched
     remarks: Mapped[str] = mapped_column(Text, default="")
+    # Who logged this stage entry — hand-entered, not inferred from anywhere else.
+    kam: Mapped[str] = mapped_column(String(128), default="")
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     tracking: Mapped["OrderTracking"] = relationship(back_populates="stage_events")

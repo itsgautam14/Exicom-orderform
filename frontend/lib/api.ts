@@ -203,20 +203,27 @@ export const api = {
 
   // Fulfillment stage tracker: so_created -> in_production -> fg_ready -> dispatched.
   // Any stage can be set directly — ops fills these in manually, not strictly in order.
-  advanceTrackingStage: (id: string, stage: string, remarks: string): Promise<OrderTracking> =>
+  // `kam` (who logged this entry) is hand-entered, not inferred.
+  advanceTrackingStage: (id: string, stage: string, remarks: string, kam = ""): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/stage`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ stage, remarks }),
+      body: JSON.stringify({ stage, remarks, kam }),
     }).then(json<OrderTracking>),
 
-  // Correct a previously recorded stage remark and/or its date in place
+  // Correct a previously recorded stage remark, date and/or KAM in place
   // (e.g. fixing a typo, or hand-setting when "Sales Order Created" really happened).
-  updateStageRemark: (id: string, eventId: string, remarks: string, createdAt?: string): Promise<OrderTracking> =>
+  updateStageRemark: (
+    id: string, eventId: string, remarks: string, createdAt?: string, kam?: string
+  ): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/stage/${eventId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ remarks, ...(createdAt ? { created_at: createdAt } : {}) }),
+      body: JSON.stringify({
+        remarks,
+        ...(createdAt ? { created_at: createdAt } : {}),
+        ...(kam !== undefined ? { kam } : {}),
+      }),
     }).then(json<OrderTracking>),
 };
 

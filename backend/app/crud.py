@@ -563,14 +563,15 @@ TRACKING_STAGES = ["so_created", "in_production", "fg_ready", "dispatched"]
 
 
 def advance_tracking_stage(
-    db: Session, obj: models.OrderTracking, stage: str, remarks: str = ""
+    db: Session, obj: models.OrderTracking, stage: str, remarks: str = "", kam: str = ""
 ) -> models.OrderTracking:
     """Record the tracked order entering ``stage`` and make it current.
 
     Appends a new TrackingStageEvent (so the prior stage's duration is fixed by
-    its own event's timestamp) rather than editing history in place.
+    its own event's timestamp) rather than editing history in place. ``kam`` is
+    hand-entered — who logged this stage entry — not inferred from anywhere.
     """
-    obj.stage_events.append(models.TrackingStageEvent(stage=stage, remarks=remarks))
+    obj.stage_events.append(models.TrackingStageEvent(stage=stage, remarks=remarks, kam=kam))
     obj.current_stage = stage
     db.commit()
     db.refresh(obj)
@@ -578,11 +579,16 @@ def advance_tracking_stage(
 
 
 def update_stage_event_remarks(
-    db: Session, obj: models.OrderTracking, event_id: str, remarks: str, created_at: dt.datetime | None = None
+    db: Session,
+    obj: models.OrderTracking,
+    event_id: str,
+    remarks: str,
+    created_at: dt.datetime | None = None,
+    kam: str | None = None,
 ) -> models.OrderTracking | None:
-    """Correct a previously recorded remark (and/or its date) in place — unlike
-    advance_tracking_stage, this edits history rather than appending. Letting
-    the date be hand-set (e.g. for "Sales Order Created") re-bases the
+    """Correct a previously recorded remark (and/or its date/KAM) in place —
+    unlike advance_tracking_stage, this edits history rather than appending.
+    Letting the date be hand-set (e.g. for "Sales Order Created") re-bases the
     days-in-stage math, which is computed from these timestamps."""
     event = next((e for e in obj.stage_events if e.id == event_id), None)
     if not event:
@@ -590,6 +596,8 @@ def update_stage_event_remarks(
     event.remarks = remarks
     if created_at is not None:
         event.created_at = created_at
+    if kam is not None:
+        event.kam = kam
     db.commit()
     db.refresh(obj)
     return obj

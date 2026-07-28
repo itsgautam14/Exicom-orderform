@@ -265,16 +265,19 @@ class StageEventOut(BaseModel):
     id: str
     stage: str
     remarks: str = ""
+    kam: str = ""
     created_at: dt.datetime
 
 
 class StageEventIn(BaseModel):
     stage: str
     remarks: str = ""
+    kam: str = ""
 
 
 class StageEventUpdate(BaseModel):
     remarks: str = ""
+    kam: Optional[str] = None
     # Lets a stage's date be corrected/back-dated by hand — duration math
     # (days in stage) is computed from this timestamp, so editing it re-bases
     # those counts too.

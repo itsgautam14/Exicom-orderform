@@ -125,6 +125,8 @@ export interface TrackingStageEvent {
   /** "so_created" | "in_production" | "fg_ready" | "dispatched" */
   stage: string;
   remarks: string;
+  /** Who logged this stage entry — hand-entered, not inferred. */
+  kam: string;
   created_at: string;
 }
 

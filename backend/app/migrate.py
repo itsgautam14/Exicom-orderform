@@ -56,6 +56,7 @@ _COLUMNS = [
     ("order_trackings", "dispatch3_qty", "INTEGER"),
     ("order_trackings", "dispatch3_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "dispatch3_kam", "VARCHAR(128) DEFAULT ''"),
+    ("tracking_stage_events", "kam", "VARCHAR(128) DEFAULT ''"),
 ]
 
 
