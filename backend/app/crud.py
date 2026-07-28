@@ -441,6 +441,10 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     date_of_order = obj.quote_date or ""
     value = compute_totals(obj)["grand_total"]
     currency = obj.currency or ""
+    # Total ordered quantity across all line items — used to split `value`
+    # proportionally across the dispatch slots (value / qty * dispatch qty).
+    total_quantity = sum(int(it.quantity or 0) for it in obj.items) or None
+    transport_mode = obj.transport_mode or ""
     if row is None:
         db.add(models.OrderTracking(
             quote_number=obj.quote_number,
@@ -451,6 +455,8 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             date_of_order=date_of_order,
             value=value,
             currency=currency,
+            total_quantity=total_quantity,
+            transport_mode=transport_mode,
             # Seed the first fulfillment stage so the tracker has a starting point.
             stage_events=[models.TrackingStageEvent(stage="so_created")],
         ))
@@ -462,6 +468,8 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
         row.date_of_order = date_of_order
         row.value = value
         row.currency = currency
+        row.total_quantity = total_quantity
+        row.transport_mode = transport_mode
 
 
 def mark_so_created(db: Session, obj: models.Order) -> models.Order:

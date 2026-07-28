@@ -193,10 +193,32 @@ class OrderTracking(Base):
     date_of_order: Mapped[str] = mapped_column(String(64), default="")
     value: Mapped[Optional[float]] = mapped_column(Numeric(16, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(8), default="")
+    # Total ordered quantity (across all line items) — divides into `value` to
+    # get a per-unit price for splitting across the dispatch slots below.
+    # Auto-filled from the linked Order's items when synced from a real quote;
+    # editable by hand for manually-added / Excel-imported rows.
+    total_quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Transport mode (Airways / Sea Freight), fetched from the linked Order's
+    # Quote Form logistics section — not user-entered here.
+    transport_mode: Mapped[str] = mapped_column(String(32), default="")
     date_of_dispatch: Mapped[str] = mapped_column(String(64), default="")
     ex_date_of_delivery: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[str] = mapped_column(String(64), default="", index=True)
     notes: Mapped[str] = mapped_column(Text, default="")
+
+    # Up to 3 partial-dispatch slots for this order. Quantity is hand-entered;
+    # its share of `value` (quantity / total_quantity * value) is computed on
+    # the fly in the UI, not stored. `date` is the tentative dispatch date —
+    # the UI colors it green/amber/red based on how many days past today it is.
+    dispatch1_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    dispatch1_date: Mapped[str] = mapped_column(String(64), default="")
+    dispatch1_kam: Mapped[str] = mapped_column(String(128), default="")
+    dispatch2_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    dispatch2_date: Mapped[str] = mapped_column(String(64), default="")
+    dispatch2_kam: Mapped[str] = mapped_column(String(128), default="")
+    dispatch3_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    dispatch3_date: Mapped[str] = mapped_column(String(64), default="")
+    dispatch3_kam: Mapped[str] = mapped_column(String(128), default="")
 
     # Fulfillment pipeline: so_created -> in_production -> fg_ready -> dispatched.
     # See TrackingStageEvent for the timestamped history (duration + remarks per stage).

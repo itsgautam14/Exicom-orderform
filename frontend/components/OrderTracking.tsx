@@ -48,9 +48,30 @@ function latestStageRemark(row: OrderTracking) {
   return [...(row.stage_events || [])].reverse().find((e) => e.stage === row.current_stage && e.remarks);
 }
 
+// Green while on/before the tentative dispatch date, amber 1 day past it,
+// red 2+ days past — purely today vs. the hand-entered date, nothing else.
+function delayColor(dateStr?: string): "green" | "amber" | "red" | null {
+  if (!dateStr) return null;
+  const tentative = new Date(dateStr);
+  if (Number.isNaN(tentative.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  tentative.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - tentative.getTime()) / 86400000);
+  if (diffDays <= 0) return "green";
+  if (diffDays === 1) return "amber";
+  return "red";
+}
+
+const DELAY_STYLES: Record<"green" | "amber" | "red", string> = {
+  green: "border-emerald-300 bg-emerald-50",
+  amber: "border-amber-300 bg-amber-50",
+  red: "border-rose-300 bg-rose-50",
+};
+
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
-  date_of_order: "", value: null, currency: "", notes: "",
+  date_of_order: "", value: null, currency: "", notes: "", total_quantity: null,
 };
 
 const fmtNum = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -67,6 +88,7 @@ export default function OrderTracking() {
   const [editingRemark, setEditingRemark] = useState<
     { eventId: string; text: string; date: string; originalIso: string } | null
   >(null);
+  const [dispatchDraft, setDispatchDraft] = useState<Partial<OrderTracking>>({});
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -143,6 +165,37 @@ export default function OrderTracking() {
     const idx = STAGES.findIndex((s) => s.key === viewing.current_stage);
     setSelectedStage((STAGES[idx + 1] || STAGES[idx] || STAGES[0]).key);
   }, [viewing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the dispatch slots into an editable draft each time a different
+  // order is opened for viewing.
+  useEffect(() => {
+    if (!viewing) return;
+    setDispatchDraft({
+      dispatch1_qty: viewing.dispatch1_qty ?? null,
+      dispatch1_date: viewing.dispatch1_date || "",
+      dispatch1_kam: viewing.dispatch1_kam || "",
+      dispatch2_qty: viewing.dispatch2_qty ?? null,
+      dispatch2_date: viewing.dispatch2_date || "",
+      dispatch2_kam: viewing.dispatch2_kam || "",
+      dispatch3_qty: viewing.dispatch3_qty ?? null,
+      dispatch3_date: viewing.dispatch3_date || "",
+      dispatch3_kam: viewing.dispatch3_kam || "",
+    });
+  }, [viewing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveDispatch() {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateTracking(viewing.id, dispatchDraft);
+      setViewing(updated);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onUploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -262,7 +315,7 @@ export default function OrderTracking() {
           <div className="section-title">{editing.id ? "Edit Order" : "New Order"}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {textField("Partner", "partner")}
-            {textField("Market", "market")}
+            {textField("Country", "market")}
             {textField("KAM", "kam")}
             {dateField("Date of Order", "date_of_order")}
             {numField("Value", "value")}
@@ -273,6 +326,7 @@ export default function OrderTracking() {
                 {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+            {numField("Total Quantity", "total_quantity")}
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {areaField("Ordered", "ordered")}
@@ -326,6 +380,83 @@ export default function OrderTracking() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* dispatch details — up to 3 partial-dispatch slots */}
+          <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Dispatch Details
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {(() => {
+                const slots = [
+                  {
+                    n: 1,
+                    qty: dispatchDraft.dispatch1_qty ?? null,
+                    date: dispatchDraft.dispatch1_date || "",
+                    kam: dispatchDraft.dispatch1_kam || "",
+                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch1_qty: v })),
+                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch1_date: v })),
+                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch1_kam: v })),
+                  },
+                  {
+                    n: 2,
+                    qty: dispatchDraft.dispatch2_qty ?? null,
+                    date: dispatchDraft.dispatch2_date || "",
+                    kam: dispatchDraft.dispatch2_kam || "",
+                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch2_qty: v })),
+                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch2_date: v })),
+                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch2_kam: v })),
+                  },
+                  {
+                    n: 3,
+                    qty: dispatchDraft.dispatch3_qty ?? null,
+                    date: dispatchDraft.dispatch3_date || "",
+                    kam: dispatchDraft.dispatch3_kam || "",
+                    setQty: (v: number | null) => setDispatchDraft((d) => ({ ...d, dispatch3_qty: v })),
+                    setDate: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch3_date: v })),
+                    setKam: (v: string) => setDispatchDraft((d) => ({ ...d, dispatch3_kam: v })),
+                  },
+                ];
+                return slots.map((s) => {
+                  const color = delayColor(s.date);
+                  const price =
+                    s.qty && viewing.value != null && viewing.total_quantity
+                      ? (viewing.value / viewing.total_quantity) * s.qty
+                      : null;
+                  return (
+                    <div
+                      key={s.n}
+                      className={`rounded-lg border p-2.5 ${color ? DELAY_STYLES[color] : "border-slate-200"}`}
+                    >
+                      <div className="mb-1.5 text-xs font-semibold text-slate-700">Dispatch {s.n}</div>
+                      <label className="lbl">Quantity</label>
+                      <input
+                        className="inp" type="number" step="1"
+                        value={s.qty === null ? "" : s.qty}
+                        onChange={(e) => s.setQty(e.target.value === "" ? null : Math.round(parseFloat(e.target.value)))}
+                      />
+                      <label className="lbl mt-2">Tentative Dispatch Date</label>
+                      <input className="inp" type="date" value={s.date} onChange={(e) => s.setDate(e.target.value)} />
+                      <label className="lbl mt-2">KAM</label>
+                      <input className="inp" value={s.kam} onChange={(e) => s.setKam(e.target.value)} />
+                      <div className="mt-2 text-[11px] text-slate-500">
+                        Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        Price:{" "}
+                        <span className="font-semibold text-slate-700">
+                          {price == null ? "—" : `${viewing.currency || ""} ${fmtNum(price)}`}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            <button className="btn btn-primary mt-3" disabled={busy} onClick={saveDispatch}>
+              {busy ? "Saving…" : "Save Dispatch Details"}
+            </button>
           </div>
 
           {/* fulfillment stage tracker */}
@@ -607,7 +738,7 @@ export default function OrderTracking() {
       {!viewing && (
         <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input className="inp max-w-xs flex-1" placeholder="Search partner, market, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="inp max-w-xs flex-1" placeholder="Search partner, country, KAM, remarks…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn" onClick={reload}>↻</button>
       </div>
 
@@ -625,7 +756,7 @@ export default function OrderTracking() {
             <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
               <tr>
                 <th className="px-3 py-2">Partner</th>
-                <th className="px-3 py-2">Market</th>
+                <th className="px-3 py-2">Country</th>
                 <th className="px-3 py-2">KAM</th>
                 <th className="px-3 py-2">Ordered</th>
                 <th className="px-3 py-2">Order Date</th>

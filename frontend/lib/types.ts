@@ -133,6 +133,7 @@ export interface OrderTracking {
   /** Links back to the quotation this row was generated from; blank if added manually. */
   quote_number?: string;
   partner: string;
+  /** Destination country — shown in the UI as "Country". */
   market: string;
   kam: string;
   ordered: string;
@@ -140,10 +141,24 @@ export interface OrderTracking {
   date_of_order: string;
   value: number | null;
   currency: string;
+  /** Total ordered quantity — divides into `value` for the dispatch price split. */
+  total_quantity?: number | null;
+  /** Airways / Sea Freight, fetched from the linked quotation's logistics section. */
+  transport_mode?: string;
   date_of_dispatch: string;
   ex_date_of_delivery: string;
   status: string;
   notes: string;
+
+  dispatch1_qty?: number | null;
+  dispatch1_date?: string;
+  dispatch1_kam?: string;
+  dispatch2_qty?: number | null;
+  dispatch2_date?: string;
+  dispatch2_kam?: string;
+  dispatch3_qty?: number | null;
+  dispatch3_date?: string;
+  dispatch3_kam?: string;
   /** Fulfillment pipeline position: "so_created" | "in_production" | "fg_ready" | "dispatched". */
   current_stage: string;
   doc_filename: string;

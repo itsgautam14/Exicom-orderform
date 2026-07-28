@@ -45,6 +45,17 @@ _COLUMNS = [
     ("order_trackings", "doc_data", "BYTEA"),
     ("order_trackings", "doc_filename", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "doc_content_type", "VARCHAR(100) DEFAULT ''"),
+    ("order_trackings", "total_quantity", "INTEGER"),
+    ("order_trackings", "transport_mode", "VARCHAR(32) DEFAULT ''"),
+    ("order_trackings", "dispatch1_qty", "INTEGER"),
+    ("order_trackings", "dispatch1_date", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "dispatch1_kam", "VARCHAR(128) DEFAULT ''"),
+    ("order_trackings", "dispatch2_qty", "INTEGER"),
+    ("order_trackings", "dispatch2_date", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "dispatch2_kam", "VARCHAR(128) DEFAULT ''"),
+    ("order_trackings", "dispatch3_qty", "INTEGER"),
+    ("order_trackings", "dispatch3_date", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "dispatch3_kam", "VARCHAR(128) DEFAULT ''"),
 ]
 
 

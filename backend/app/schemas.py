@@ -203,17 +203,29 @@ class OrderOut(OrderBase):
 class OrderTrackingBase(BaseModel):
     quote_number: str = ""
     partner: str = ""
-    market: str = ""
+    market: str = ""  # destination country — shown in the UI as "Country"
     kam: str = ""
     ordered: str = ""
     specifications: str = ""
     date_of_order: str = ""
     value: Optional[float] = None
     currency: str = ""
+    total_quantity: Optional[int] = None
+    transport_mode: str = ""
     date_of_dispatch: str = ""
     ex_date_of_delivery: str = ""
     status: str = ""
     notes: str = ""
+
+    dispatch1_qty: Optional[int] = None
+    dispatch1_date: str = ""
+    dispatch1_kam: str = ""
+    dispatch2_qty: Optional[int] = None
+    dispatch2_date: str = ""
+    dispatch2_kam: str = ""
+    dispatch3_qty: Optional[int] = None
+    dispatch3_date: str = ""
+    dispatch3_kam: str = ""
 
 
 class OrderTrackingCreate(OrderTrackingBase):
@@ -230,10 +242,22 @@ class OrderTrackingUpdate(BaseModel):
     date_of_order: Optional[str] = None
     value: Optional[float] = None
     currency: Optional[str] = None
+    total_quantity: Optional[int] = None
+    transport_mode: Optional[str] = None
     date_of_dispatch: Optional[str] = None
     ex_date_of_delivery: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+
+    dispatch1_qty: Optional[int] = None
+    dispatch1_date: Optional[str] = None
+    dispatch1_kam: Optional[str] = None
+    dispatch2_qty: Optional[int] = None
+    dispatch2_date: Optional[str] = None
+    dispatch2_kam: Optional[str] = None
+    dispatch3_qty: Optional[int] = None
+    dispatch3_date: Optional[str] = None
+    dispatch3_kam: Optional[str] = None
 
 
 class StageEventOut(BaseModel):
