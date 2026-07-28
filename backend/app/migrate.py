@@ -47,6 +47,7 @@ _COLUMNS = [
     ("order_trackings", "doc_content_type", "VARCHAR(100) DEFAULT ''"),
     ("order_trackings", "total_quantity", "INTEGER"),
     ("order_trackings", "transport_mode", "VARCHAR(32) DEFAULT ''"),
+    ("order_trackings", "dispatch_in_tranches", "BOOLEAN"),
     ("order_trackings", "dispatch1_qty", "INTEGER"),
     ("order_trackings", "dispatch1_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "dispatch1_kam", "VARCHAR(128) DEFAULT ''"),

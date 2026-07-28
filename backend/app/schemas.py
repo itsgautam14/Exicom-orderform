@@ -217,6 +217,8 @@ class OrderTrackingBase(BaseModel):
     status: str = ""
     notes: str = ""
 
+    # Null until the Yes/No "dispatch in tranches?" prompt is answered.
+    dispatch_in_tranches: Optional[bool] = None
     dispatch1_qty: Optional[int] = None
     dispatch1_date: str = ""
     dispatch1_kam: str = ""
@@ -249,6 +251,7 @@ class OrderTrackingUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
 
+    dispatch_in_tranches: Optional[bool] = None
     dispatch1_qty: Optional[int] = None
     dispatch1_date: Optional[str] = None
     dispatch1_kam: Optional[str] = None

@@ -164,6 +164,21 @@ export default function OrderTracking() {
     }
   }
 
+  // Answers (or re-answers) the "dispatch in tranches?" prompt gating Dispatch Details.
+  async function setDispatchInTranches(value: boolean) {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateTracking(viewing.id, { dispatch_in_tranches: value });
+      setViewing(updated);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Keep the open detail card in sync whenever the underlying row refreshes.
   useEffect(() => {
     if (!viewing) return;
@@ -404,11 +419,49 @@ export default function OrderTracking() {
             </div>
           </div>
 
-          {/* dispatch details — up to 3 partial-dispatch slots, each a compact
-              row until you Edit it */}
+          {/* dispatch details — gated behind a one-time Yes/No prompt */}
+          {viewing.dispatch_in_tranches == null ? (
+            <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Dispatch Details
+              </div>
+              <p className="mb-3 text-sm text-slate-600">Do you want to dispatch in tranches?</p>
+              <div className="flex gap-2">
+                <button className="btn btn-primary" disabled={busy} onClick={() => setDispatchInTranches(true)}>
+                  Yes
+                </button>
+                <button className="btn" disabled={busy} onClick={() => setDispatchInTranches(false)}>
+                  No
+                </button>
+              </div>
+            </div>
+          ) : viewing.dispatch_in_tranches === false ? (
+            <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Dispatch Details
+              </div>
+              <p className="text-sm text-slate-500">
+                Not dispatching in tranches.{" "}
+                <button
+                  className="font-semibold text-exicom-teal hover:underline"
+                  onClick={() => setDispatchInTranches(true)}
+                >
+                  Change
+                </button>
+              </p>
+            </div>
+          ) : (
           <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Dispatch Details
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Dispatch Details
+              </div>
+              <button
+                className="text-xs font-semibold text-slate-400 hover:text-slate-600"
+                onClick={() => setDispatchInTranches(false)}
+              >
+                Not dispatching in tranches after all?
+              </button>
             </div>
             <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
               {([1, 2, 3] as const).map((n) => {
@@ -503,6 +556,7 @@ export default function OrderTracking() {
               })}
             </div>
           </div>
+          )}
 
           {/* fulfillment stage tracker */}
           <div className="rounded-lg border border-slate-200 bg-white p-3">

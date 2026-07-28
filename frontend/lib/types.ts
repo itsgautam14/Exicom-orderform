@@ -152,6 +152,8 @@ export interface OrderTracking {
   status: string;
   notes: string;
 
+  /** Null until the "dispatch in tranches?" prompt is answered. */
+  dispatch_in_tranches?: boolean | null;
   dispatch1_qty?: number | null;
   dispatch1_date?: string;
   dispatch1_kam?: string;

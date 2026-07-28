@@ -206,6 +206,11 @@ class OrderTracking(Base):
     status: Mapped[str] = mapped_column(String(64), default="", index=True)
     notes: Mapped[str] = mapped_column(Text, default="")
 
+    # Whether this order dispatches in multiple tranches — null until the user
+    # answers the Yes/No prompt shown before Dispatch Details; only "Yes"
+    # reveals the 3 dispatch slots below.
+    dispatch_in_tranches: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+
     # Up to 3 partial-dispatch slots for this order. Quantity is hand-entered;
     # its share of `value` (quantity / total_quantity * value) is computed on
     # the fly in the UI, not stored. `date` is the tentative dispatch date —
