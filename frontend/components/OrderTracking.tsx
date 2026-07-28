@@ -824,80 +824,43 @@ export default function OrderTracking() {
             })()}
           </div>
 
-          {/* every remark across all stages, in one place */}
+          {/* KPI summary — days spent in each stage, red flag at 2+ days */}
           <div className="mt-5 rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              All Remarks
+              Summary
             </div>
-            {(() => {
-              const allRemarks = (viewing.stage_events || []).filter((e) => e.remarks);
-              if (allRemarks.length === 0) {
-                return <p className="text-xs text-slate-400">No remarks recorded yet.</p>;
-              }
-              const stageLabel = (key: string) => STAGES.find((s) => s.key === key)?.label || key;
-              return (
-                <div className="space-y-1.5">
-                  {allRemarks.map((e) =>
-                    editingRemark?.eventId === e.id ? (
-                      <div key={e.id}>
-                        <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
-                          {stageLabel(e.stage)}
-                        </span>
-                        <input
-                          type="date"
-                          className="inp mt-1 !py-1 !text-xs"
-                          value={editingRemark.date}
-                          onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
-                        />
-                        <textarea
-                          className="inp mt-1 !py-1 !text-xs"
-                          rows={2}
-                          value={editingRemark.text}
-                          onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
-                        />
-                        <input
-                          className="inp mt-1 !py-1 !text-xs"
-                          placeholder="Done by (KAM)…"
-                          value={editingRemark.kam}
-                          onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
-                        />
-                        <div className="mt-1 flex gap-2">
-                          <button
-                            type="button" disabled={busy}
-                            className="text-[11px] font-semibold text-exicom-teal hover:underline"
-                            onClick={saveEditedRemark}
-                          >
-                            {busy ? "Saving…" : "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            className="text-[11px] font-semibold text-slate-400 hover:text-slate-600"
-                            onClick={() => setEditingRemark(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(() => {
+                const events = viewing.stage_events || [];
+                const stageDate = (key: string) => events.find((e) => e.stage === key)?.created_at;
+                return STAGES.map((s, i) => {
+                  const reachedAt = stageDate(s.key);
+                  const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
+                  const done = reachedAt != null;
+                  const duration = reachedAt
+                    ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
+                    : null;
+                  const delayed = duration != null && duration >= 2;
+                  return (
+                    <div
+                      key={s.key}
+                      className={`rounded-lg border p-3 ${delayed ? "border-rose-300 bg-rose-50" : "border-slate-200"}`}
+                    >
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        {s.label}
                       </div>
-                    ) : (
-                      <div key={e.id} className="text-xs text-slate-600">
-                        <span className="rounded bg-exicom-teal/10 px-1.5 py-0.5 text-[10px] font-semibold text-exicom-tealDark">
-                          {stageLabel(e.stage)}
-                        </span>{" "}
-                        <span className="italic">"{e.remarks}"</span>{" "}
-                        <span className="text-slate-400">({fmtDateTime(e.created_at)})</span>{" "}
-                        <button
-                          type="button"
-                          className="text-[11px] font-semibold text-exicom-teal hover:underline"
-                          onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at, kam: e.kam || "" })}
-                        >
-                          Edit
-                        </button>
+                      <div className={`mt-1 text-2xl font-bold ${delayed ? "text-rose-700" : "text-slate-800"}`}>
+                        {duration == null ? "—" : `${duration}`}
+                        {duration != null && <span className="text-xs font-semibold"> day{duration === 1 ? "" : "s"}</span>}
                       </div>
-                    )
-                  )}
-                </div>
-              );
-            })()}
+                      <div className="mt-0.5 text-[11px] text-slate-400">
+                        {done ? "Reached" : "Not reached yet"}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           </div>
         </div>
       )}
