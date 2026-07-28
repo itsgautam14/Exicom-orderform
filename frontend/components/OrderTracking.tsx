@@ -763,7 +763,16 @@ export default function OrderTracking() {
                                 <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
                                 <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
                                 <td className="px-3 py-2 text-slate-600">
-                                  {e.remarks ? `${e.remarks} (${fmtDateTime(e.created_at)})` : "—"}
+                                  {e.remarks ? (
+                                    <div className="flex items-start justify-between gap-3">
+                                      <span>{e.remarks}</span>
+                                      <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-slate-400">
+                                        {fmtDateTime(e.created_at)}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    "—"
+                                  )}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-2 text-right">
                                   <button
