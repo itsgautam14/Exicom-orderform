@@ -13,6 +13,14 @@ const STAGES: { key: string; label: string }[] = [
   { key: "dispatched", label: "Dispatched" },
 ];
 
+// Short form used in the Logs table's Activity column.
+const STAGE_SHORT_LABEL: Record<string, string> = {
+  so_created: "SO Created",
+  in_production: "In Production",
+  fg_ready: "FG Ready",
+  dispatched: "Dispatched",
+};
+
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
@@ -683,30 +691,100 @@ export default function OrderTracking() {
                   {/* logs — every stage transition, in order, KAM + timestamp + note */}
                   {events.length > 0 && (
                     <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
-                      <table className="w-full min-w-[640px] text-sm">
+                      <table className="w-full min-w-[720px] text-sm">
                         <thead>
                           <tr className="bg-lime-500 text-left text-xs font-semibold text-white">
                             <th className="px-3 py-2">Stages</th>
                             <th className="px-3 py-2">Activity</th>
-                            <th className="px-3 py-2">Time Stamp</th>
+                            <th className="px-3 py-2">Time</th>
                             <th className="px-3 py-2">Done by</th>
                             <th className="px-3 py-2">Notes</th>
+                            <th className="px-3 py-2"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {events.map((e) => (
-                            <tr key={e.id} className="border-t border-slate-100">
-                              <td className="px-3 py-2 font-semibold text-slate-700">
-                                {STAGES.find((s) => s.key === e.stage)?.label || e.stage}
-                              </td>
-                              <td className="px-3 py-2 text-slate-600">
-                                Marked “{STAGES.find((s) => s.key === e.stage)?.label || e.stage}”
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
-                              <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
-                              <td className="px-3 py-2 text-slate-600">{e.remarks || "—"}</td>
-                            </tr>
-                          ))}
+                          {events.map((e) =>
+                            editingRemark?.eventId === e.id ? (
+                              <tr key={e.id} className="border-t border-slate-100">
+                                <td colSpan={6} className="px-3 py-2">
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                    <div>
+                                      <label className="lbl">Date</label>
+                                      <input
+                                        type="date"
+                                        className="inp !py-1 !text-xs"
+                                        value={editingRemark.date}
+                                        onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="lbl">Done by (KAM)</label>
+                                      <input
+                                        className="inp !py-1 !text-xs"
+                                        value={editingRemark.kam}
+                                        onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="lbl">Notes</label>
+                                      <input
+                                        className="inp !py-1 !text-xs"
+                                        value={editingRemark.text}
+                                        onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 flex gap-2">
+                                    <button
+                                      type="button" disabled={busy}
+                                      className="text-xs font-semibold text-exicom-teal hover:underline"
+                                      onClick={saveEditedRemark}
+                                    >
+                                      {busy ? "Saving…" : "Save"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-xs font-semibold text-slate-400 hover:text-slate-600"
+                                      onClick={() => setEditingRemark(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : (
+                              <tr key={e.id} className="border-t border-slate-100">
+                                <td className="px-3 py-2 font-semibold text-slate-700">
+                                  {STAGES.find((s) => s.key === e.stage)?.label || e.stage}
+                                </td>
+                                <td className="px-3 py-2 text-slate-600">
+                                  {STAGE_SHORT_LABEL[e.stage] || e.stage}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
+                                <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
+                                <td className="px-3 py-2 text-slate-600">
+                                  {e.remarks ? `${e.remarks} (${fmtDateTime(e.created_at)})` : "—"}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2 text-right">
+                                  <button
+                                    type="button"
+                                    className="text-xs font-semibold text-exicom-teal hover:underline"
+                                    onClick={() =>
+                                      setEditingRemark({
+                                        eventId: e.id,
+                                        text: e.remarks,
+                                        date: toDateOnly(e.created_at),
+                                        originalIso: e.created_at,
+                                        kam: e.kam || "",
+                                      })
+                                    }
+                                  >
+                                    Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          )}
                         </tbody>
                       </table>
                     </div>
