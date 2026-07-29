@@ -559,7 +559,7 @@ def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
     return len(objs)
 
 
-TRACKING_STAGES = ["so_created", "in_production", "fg_ready", "dispatched"]
+TRACKING_STAGES = ["so_created", "fg_ready", "dispatched"]
 
 
 def advance_tracking_stage(

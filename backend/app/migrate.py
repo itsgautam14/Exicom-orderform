@@ -117,6 +117,33 @@ def _remove_premature_tracking() -> None:
         db.close()
 
 
+def _remove_in_production_stage() -> None:
+    """One-time cleanup: "In Production" was dropped from the Fulfillment
+    Tracker entirely. Bump any row currently sitting there forward to "FG
+    Ready" (so it doesn't point at a stage that no longer exists), and delete
+    every in_production stage-history entry outright.
+    """
+    from app import models
+
+    db = SessionLocal()
+    try:
+        bumped = (
+            db.query(models.OrderTracking)
+            .filter(models.OrderTracking.current_stage == "in_production")
+            .update({"current_stage": "fg_ready"})
+        )
+        deleted = (
+            db.query(models.TrackingStageEvent)
+            .filter(models.TrackingStageEvent.stage == "in_production")
+            .delete()
+        )
+        if bumped or deleted:
+            db.commit()
+            print(f"Removed 'In Production' stage: bumped {bumped} row(s) to FG Ready, deleted {deleted} log entr(y/ies).")
+    finally:
+        db.close()
+
+
 def run() -> None:
     with engine.begin() as conn:
         for table, column, ddl in _COLUMNS:
@@ -125,6 +152,7 @@ def run() -> None:
             ))
     _backfill_tracking()
     _remove_premature_tracking()
+    _remove_in_production_stage()
     print("Schema migration complete.")
 
 

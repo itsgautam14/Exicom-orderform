@@ -8,7 +8,6 @@ const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
 const STAGES: { key: string; label: string }[] = [
   { key: "so_created", label: "Sales Order Created" },
-  { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
 ];
@@ -16,7 +15,6 @@ const STAGES: { key: string; label: string }[] = [
 // Short form used in the Logs table's Activity column.
 const STAGE_SHORT_LABEL: Record<string, string> = {
   so_created: "SO Created",
-  in_production: "In Production",
   fg_ready: "FG Ready",
   dispatched: "Dispatched",
 };
@@ -985,7 +983,7 @@ export default function OrderTracking() {
                     )}
 
                     <label className="lbl mt-3">
-                      Remarks for “{selected.label}” {selected.key === "in_production" ? "(reason for delay, notes, etc.)" : "(optional)"}
+                      Remarks for “{selected.label}” (optional)
                     </label>
                     <textarea
                       className="inp" rows={2} value={stageRemarks}
