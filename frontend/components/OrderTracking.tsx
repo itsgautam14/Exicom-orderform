@@ -26,12 +26,10 @@ function fmtDateTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
-// "HH:MM", 24-hour.
-function fmtTime(iso: string): string {
+// Date only, no time — e.g. for the Logs table, which has no room for both.
+function fmtDate(iso: string): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
 }
 
 function daysBetween(a: string, b: string): number {
@@ -856,13 +854,17 @@ export default function OrderTracking() {
 
                   {/* logs — every stage transition, in order, KAM + timestamp + note */}
                   {events.length > 0 && (
-                    <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                    <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Logs
+                      </div>
+                      <div className="overflow-x-auto rounded-lg border border-slate-200">
                       <table className="w-full min-w-[720px] text-sm">
                         <thead>
-                          <tr className="bg-lime-500 text-left text-xs font-semibold text-white">
+                          <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
                             <th className="px-3 py-2">Stages</th>
                             <th className="px-3 py-2">Activity</th>
-                            <th className="px-3 py-2">Time</th>
+                            <th className="px-3 py-2">Date</th>
                             <th className="px-3 py-2">Done by</th>
                             <th className="px-3 py-2">Notes</th>
                             <th className="px-3 py-2"></th>
@@ -926,14 +928,14 @@ export default function OrderTracking() {
                                 <td className="px-3 py-2 text-slate-600">
                                   {STAGE_SHORT_LABEL[e.stage] || e.stage}
                                 </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtTime(e.created_at)}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtDate(e.created_at)}</td>
                                 <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
                                 <td className="px-3 py-2 text-slate-600">
                                   {e.remarks ? (
                                     <div className="flex items-start justify-between gap-3">
                                       <span>{e.remarks}</span>
                                       <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-slate-400">
-                                        {fmtDateTime(e.created_at)}
+                                        {fmtDate(e.created_at)}
                                       </span>
                                     </div>
                                   ) : (
@@ -962,6 +964,7 @@ export default function OrderTracking() {
                           )}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
 
