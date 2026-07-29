@@ -221,34 +221,23 @@ function todayPlus30(): string {
   return d.toLocaleDateString("en-GB").replace(/\//g, "/");
 }
 
-const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-
-// Quote number: assigned on download from an atomic server counter (globally unique,
-// sequential across the whole team) → e.g. 2026-july-02-143022 (year-month-seq-time).
-// While editing, the form shows a "DRAFT" placeholder; the real number is reserved
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+// Quote number: DD-MM-YYYY-HH-MM-SS, the moment the number is issued by the
+// server. While editing, the form shows a date-only "DRAFT" placeholder (SSR-safe
+// — no time component → no hydration mismatch); the real timestamp is reserved
 // only when a PDF is issued.
-function monthKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${MONTHS[now.getMonth()]}`;
+function dateKey(d: Date = new Date()): string {
+  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
-function timeStamp(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
-// Deterministic draft placeholder (SSR-safe — no time component → no hydration mismatch).
 function draftQuoteNumber(): string {
-  return `${monthKey()}-DRAFT`;
+  return `${dateKey()}-DRAFT`;
 }
-// Offline fallback if the server counter is unreachable: per-browser sequence + timestamp.
+// Offline fallback if the server is unreachable: same format, local clock.
 function localQuoteNumber(): string {
-  let seq = 1;
-  if (typeof window !== "undefined") {
-    const stored = parseInt(localStorage.getItem(`quote_seq_${monthKey()}`) || "1", 10);
-    seq = Number.isFinite(stored) && stored >= 1 ? stored : 1;
-    localStorage.setItem(`quote_seq_${monthKey()}`, String(seq + 1)); // consume this one
-  }
-  return `${monthKey()}-${String(seq).padStart(2, "0")}-${timeStamp()}`;
+  const d = new Date();
+  return `${dateKey(d)}-${pad2(d.getHours())}-${pad2(d.getMinutes())}-${pad2(d.getSeconds())}`;
 }
 
 const BLANK_ORDER = (): OrderInput => ({
@@ -688,7 +677,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     if (!finalizedNumber.current) {
       try {
         const { quote_number } = await api.nextQuoteNumber();
-        finalizedNumber.current = `${quote_number}-${timeStamp()}`;
+        finalizedNumber.current = quote_number;
       } catch {
         finalizedNumber.current = localQuoteNumber();
       }
@@ -1047,7 +1036,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                       onClick={requestPricing}
                       disabled={busy}
                     >
-                      {busy ? "Sending…" : "Pricing Approval"}
+                      {busy ? "Sending…" : "Request Pricing Approval"}
                     </button>
                   </div>
                   <label className="lbl mt-2 text-amber-700">Reason for quoting below pricebook *</label>

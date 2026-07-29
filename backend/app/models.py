@@ -164,14 +164,6 @@ class LogisticsRate(Base):
     )
 
 
-class QuoteCounter(Base):
-    """Atomic per-month counter that hands out globally-unique quote sequence numbers."""
-    __tablename__ = "quote_counters"
-
-    period: Mapped[str] = mapped_column(String(16), primary_key=True)  # e.g. "2026-JUL"
-    value: Mapped[int] = mapped_column(Integer, default=0)
-
-
 class OrderTracking(Base):
     """Post-sale order tracking rows (from the 'order tracking' sheet).
 

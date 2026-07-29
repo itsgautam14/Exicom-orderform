@@ -78,11 +78,9 @@ export const api = {
 
   // ---- orders ----
 
-  // Atomically reserve the next globally-unique quote number from the server.
-  nextQuoteNumber: (): Promise<{ period: string; sequence: number; quote_number: string }> =>
-    fetch(`${BASE}/api/orders/next-number`, { method: "POST" }).then(
-      json<{ period: string; sequence: number; quote_number: string }>
-    ),
+  // Reserve a quote number stamped with the current moment (DD-MM-YYYY-HH-MM-SS).
+  nextQuoteNumber: (): Promise<{ quote_number: string }> =>
+    fetch(`${BASE}/api/orders/next-number`, { method: "POST" }).then(json<{ quote_number: string }>),
 
   createOrder: (o: OrderInput): Promise<OrderOut> =>
     fetch(`${BASE}/api/orders`, {

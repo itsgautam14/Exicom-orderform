@@ -199,7 +199,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
   // saved; this just flips the order's own status to reflect it's a real
   // order) and immediately downloads the PO-styled PDF (no Exicom letterhead).
   async function markOrderReceived(o: OrderOut) {
-    if (!confirm(`Mark ${o.quote_number} as PO/Order Received? It'll show in SO Order Tracking and download the PO.`)) return;
+    if (!confirm(`Mark ${o.quote_number} as Generate PO/Start order tracking? It'll show in SO Order Tracking and download the PO.`)) return;
     setBusy(true);
     try {
       await api.markSoCreated(o.id);
@@ -451,7 +451,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         onClick={() => markOrderReceived(o)}
                         disabled={busy}
                       >
-                        PO/Order Received
+                        Generate PO/Start order tracking
                       </button>
                     )}
                     {!isAdmin && onEdit && filter === "submitted" && isSubmittedGroup(o.status) && (
