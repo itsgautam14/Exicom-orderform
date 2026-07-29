@@ -21,13 +21,9 @@ const STAGE_SHORT_LABEL: Record<string, string> = {
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
-}
-
-// Date only, no time — e.g. for the Logs table, which has no room for both.
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString();
+  if (Number.isNaN(d.getTime())) return iso;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 function daysBetween(a: string, b: string): number {
@@ -879,7 +875,9 @@ export default function OrderTracking() {
                           </tr>
                         </thead>
                         <tbody>
-                          {events.map((e) =>
+                          {[...events]
+                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                            .map((e) =>
                             editingRemark?.eventId === e.id ? (
                               <tr key={e.id} className="border-t border-slate-100">
                                 <td colSpan={6} className="px-3 py-2">
@@ -936,20 +934,9 @@ export default function OrderTracking() {
                                 <td className="px-3 py-2 text-slate-600">
                                   {STAGE_SHORT_LABEL[e.stage] || e.stage}
                                 </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtDate(e.created_at)}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-slate-600">{fmtDateTime(e.created_at)}</td>
                                 <td className="px-3 py-2 text-slate-600">{e.kam || "—"}</td>
-                                <td className="px-3 py-2 text-slate-600">
-                                  {e.remarks ? (
-                                    <div className="flex items-start justify-between gap-3">
-                                      <span>{e.remarks}</span>
-                                      <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-slate-400">
-                                        {fmtDate(e.created_at)}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
+                                <td className="px-3 py-2 text-slate-600">{e.remarks || "—"}</td>
                                 <td className="whitespace-nowrap px-3 py-2 text-right">
                                   <button
                                     type="button"
