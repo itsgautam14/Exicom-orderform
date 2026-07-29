@@ -301,7 +301,7 @@ class StageEventUpdate(BaseModel):
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
-    current_stage: str = "so_created"
+    current_stage: str = "in_production"
     doc_filename: str = ""
     doc_content_type: str = ""
     stage_events: list[StageEventOut] = []

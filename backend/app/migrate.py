@@ -41,7 +41,7 @@ _COLUMNS = [
     ("orders", "po_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
-    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'so_created'"),
+    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'in_production'"),
     ("order_trackings", "doc_data", "BYTEA"),
     ("order_trackings", "doc_filename", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "doc_content_type", "VARCHAR(100) DEFAULT ''"),
@@ -82,9 +82,9 @@ def _backfill_tracking() -> None:
         for obj in db.query(models.Order).filter(models.Order.status == "so_created").all():
             crud._sync_tracking_from_order(db, obj)
         # Rows created before the fulfillment tracker existed have no stage
-        # history yet — seed "so_created" so the tracker isn't blank for them.
+        # history yet — seed "in_production" so the tracker isn't blank for them.
         for row in db.query(models.OrderTracking).filter(~models.OrderTracking.stage_events.any()).all():
-            row.stage_events.append(models.TrackingStageEvent(stage="so_created"))
+            row.stage_events.append(models.TrackingStageEvent(stage="in_production"))
         db.commit()
     finally:
         db.close()
@@ -117,11 +117,13 @@ def _remove_premature_tracking() -> None:
         db.close()
 
 
-def _remove_in_production_stage() -> None:
-    """One-time cleanup: "In Production" was dropped from the Fulfillment
-    Tracker entirely. Bump any row currently sitting there forward to "FG
-    Ready" (so it doesn't point at a stage that no longer exists), and delete
-    every in_production stage-history entry outright.
+def _restore_in_production_stage() -> None:
+    """One-time cleanup: "In Production" is back as the Fulfillment Tracker's
+    first stage, replacing "SO Created" (which no longer exists as a tracker
+    stage — it's a distinct concept from the Order's own "so_created" status).
+    Relabel any existing tracker history/position still pointing at the old
+    "so_created" stage name to "in_production" — same slot in the pipeline,
+    just the restored name.
     """
     from app import models
 
@@ -129,17 +131,17 @@ def _remove_in_production_stage() -> None:
     try:
         bumped = (
             db.query(models.OrderTracking)
-            .filter(models.OrderTracking.current_stage == "in_production")
-            .update({"current_stage": "fg_ready"})
+            .filter(models.OrderTracking.current_stage == "so_created")
+            .update({"current_stage": "in_production"})
         )
-        deleted = (
+        relabeled = (
             db.query(models.TrackingStageEvent)
-            .filter(models.TrackingStageEvent.stage == "in_production")
-            .delete()
+            .filter(models.TrackingStageEvent.stage == "so_created")
+            .update({"stage": "in_production"})
         )
-        if bumped or deleted:
+        if bumped or relabeled:
             db.commit()
-            print(f"Removed 'In Production' stage: bumped {bumped} row(s) to FG Ready, deleted {deleted} log entr(y/ies).")
+            print(f"Restored 'In Production' stage: relabeled {bumped} row(s) and {relabeled} log entr(y/ies) from SO Created.")
     finally:
         db.close()
 
@@ -152,7 +154,7 @@ def run() -> None:
             ))
     _backfill_tracking()
     _remove_premature_tracking()
-    _remove_in_production_stage()
+    _restore_in_production_stage()
     print("Schema migration complete.")
 
 

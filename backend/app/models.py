@@ -225,9 +225,9 @@ class OrderTracking(Base):
     bulk_date: Mapped[str] = mapped_column(String(64), default="")
     bulk_kam: Mapped[str] = mapped_column(String(128), default="")
 
-    # Fulfillment pipeline: so_created -> fg_ready -> dispatched.
+    # Fulfillment pipeline: in_production -> fg_ready -> dispatched.
     # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
-    current_stage: Mapped[str] = mapped_column(String(32), default="so_created")
+    current_stage: Mapped[str] = mapped_column(String(32), default="in_production")
 
     # Signed quotation / PO document, stored inline (small files — no object
     # storage configured). doc_filename is blank when nothing's been uploaded.
@@ -253,7 +253,7 @@ class TrackingStageEvent(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     tracking_id: Mapped[str] = mapped_column(ForeignKey("order_trackings.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(32))  # so_created | fg_ready | dispatched
+    stage: Mapped[str] = mapped_column(String(32))  # in_production | fg_ready | dispatched
     remarks: Mapped[str] = mapped_column(Text, default="")
     # Who logged this stage entry — hand-entered, not inferred from anywhere else.
     kam: Mapped[str] = mapped_column(String(128), default="")

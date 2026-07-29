@@ -7,14 +7,14 @@ import type { OrderTracking } from "@/lib/types";
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
 const STAGES: { key: string; label: string }[] = [
-  { key: "so_created", label: "Sales Order Created" },
+  { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
 ];
 
 // Short form used in the Logs table's Activity column.
 const STAGE_SHORT_LABEL: Record<string, string> = {
-  so_created: "SO Created",
+  in_production: "In Production",
   fg_ready: "FG Ready",
   dispatched: "Dispatched",
 };
@@ -89,7 +89,7 @@ export default function OrderTracking() {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Partial<OrderTracking> | null>(null);
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
-  const [selectedStage, setSelectedStage] = useState<string>("so_created");
+  const [selectedStage, setSelectedStage] = useState<string>("in_production");
   const [stageRemarks, setStageRemarks] = useState("");
   const [stageKam, setStageKam] = useState("");
   const [editingRemark, setEditingRemark] = useState<

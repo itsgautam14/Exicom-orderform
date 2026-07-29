@@ -458,7 +458,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             total_quantity=total_quantity,
             transport_mode=transport_mode,
             # Seed the first fulfillment stage so the tracker has a starting point.
-            stage_events=[models.TrackingStageEvent(stage="so_created")],
+            stage_events=[models.TrackingStageEvent(stage="in_production")],
         ))
     else:
         row.partner = partner
@@ -518,7 +518,7 @@ def get_tracking(db: Session, tracking_id: str) -> models.OrderTracking | None:
 def create_tracking(db: Session, data: schemas.OrderTrackingCreate) -> models.OrderTracking:
     obj = models.OrderTracking(
         **data.model_dump(),
-        stage_events=[models.TrackingStageEvent(stage="so_created")],
+        stage_events=[models.TrackingStageEvent(stage="in_production")],
     )
     db.add(obj)
     db.commit()
@@ -551,7 +551,7 @@ def delete_tracking(db: Session, obj: models.OrderTracking) -> None:
 
 def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
     objs = [
-        models.OrderTracking(**r, stage_events=[models.TrackingStageEvent(stage="so_created")])
+        models.OrderTracking(**r, stage_events=[models.TrackingStageEvent(stage="in_production")])
         for r in rows
     ]
     db.add_all(objs)
@@ -559,7 +559,7 @@ def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
     return len(objs)
 
 
-TRACKING_STAGES = ["so_created", "fg_ready", "dispatched"]
+TRACKING_STAGES = ["in_production", "fg_ready", "dispatched"]
 
 
 def advance_tracking_stage(
