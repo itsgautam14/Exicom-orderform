@@ -365,6 +365,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const finalizedNumber = useRef<string | null>(null); // the issued quote number for this draft
   const persistedId = useRef<string | null>(null); // backend id once this quote is recorded
+  // Set right before setOrder() in saveOrder(), so the resulting [order] effect
+  // run skips scheduling an autosave — otherwise it fires ~2s later with
+  // isFinal=false and silently reverts the just-submitted status back to draft.
+  const skipNextAutoSave = useRef(false);
   const approvalNoteRef = useRef<HTMLTextAreaElement>(null);
 
   // A line's "Pricing Approval" button. If the approval reason is still empty,
@@ -735,6 +739,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   useEffect(() => {
     clearTimeout(autoSaveTimer.current);
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
+      return;
+    }
     autoSaveTimer.current = setTimeout(() => { autoSave(); }, 2000);
     return () => clearTimeout(autoSaveTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -767,6 +775,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     try {
       const quoteNumber = await ensureNumber();
       const issued = { ...order, quote_number: quoteNumber };
+      skipNextAutoSave.current = true;
       setOrder(issued);
       await persistOrder(issued, true); // finalize: send it to the Approval panel
       const needsApproval = isLogisticsDraft(issued) || belowPricebookAny || paymentCustom;
