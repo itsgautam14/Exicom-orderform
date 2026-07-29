@@ -229,6 +229,12 @@ class OrderTrackingBase(BaseModel):
     dispatch3_date: str = ""
     dispatch3_kam: str = ""
 
+    # Single consolidated dispatch, used when dispatch_in_tranches is False.
+    bulk_product: str = ""
+    bulk_qty: Optional[int] = None
+    bulk_date: str = ""
+    bulk_kam: str = ""
+
 
 class OrderTrackingCreate(OrderTrackingBase):
     pass
@@ -261,6 +267,11 @@ class OrderTrackingUpdate(BaseModel):
     dispatch3_qty: Optional[int] = None
     dispatch3_date: Optional[str] = None
     dispatch3_kam: Optional[str] = None
+
+    bulk_product: Optional[str] = None
+    bulk_qty: Optional[int] = None
+    bulk_date: Optional[str] = None
+    bulk_kam: Optional[str] = None
 
 
 class StageEventOut(BaseModel):

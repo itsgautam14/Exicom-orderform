@@ -225,6 +225,14 @@ class OrderTracking(Base):
     dispatch3_date: Mapped[str] = mapped_column(String(64), default="")
     dispatch3_kam: Mapped[str] = mapped_column(String(128), default="")
 
+    # Single consolidated dispatch for orders that ship as one bulk lot
+    # (dispatch_in_tranches == False) — tracks product + quantity instead of
+    # the 3 generic tranche slots above.
+    bulk_product: Mapped[str] = mapped_column(String(255), default="")
+    bulk_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bulk_date: Mapped[str] = mapped_column(String(64), default="")
+    bulk_kam: Mapped[str] = mapped_column(String(128), default="")
+
     # Fulfillment pipeline: so_created -> in_production -> fg_ready -> dispatched.
     # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
     current_stage: Mapped[str] = mapped_column(String(32), default="so_created")

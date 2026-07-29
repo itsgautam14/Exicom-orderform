@@ -163,6 +163,13 @@ export interface OrderTracking {
   dispatch3_qty?: number | null;
   dispatch3_date?: string;
   dispatch3_kam?: string;
+
+  /** Single consolidated dispatch, used when dispatch_in_tranches is false. */
+  bulk_product?: string;
+  bulk_qty?: number | null;
+  bulk_date?: string;
+  bulk_kam?: string;
+
   /** Fulfillment pipeline position: "so_created" | "in_production" | "fg_ready" | "dispatched". */
   current_stage: string;
   doc_filename: string;

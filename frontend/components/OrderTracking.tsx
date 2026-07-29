@@ -99,9 +99,9 @@ export default function OrderTracking() {
   const [editingRemark, setEditingRemark] = useState<
     { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
-  const [editingDispatch, setEditingDispatch] = useState<1 | 2 | 3 | null>(null);
-  const [dispatchDraft, setDispatchDraft] = useState<{ qty: number | null; date: string; kam: string }>({
-    qty: null, date: "", kam: "",
+  const [editingDispatch, setEditingDispatch] = useState<1 | 2 | 3 | "bulk" | null>(null);
+  const [dispatchDraft, setDispatchDraft] = useState<{ product: string; qty: number | null; date: string; kam: string }>({
+    product: "", qty: null, date: "", kam: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -201,12 +201,22 @@ export default function OrderTracking() {
     setEditingDispatch(null);
   }, [viewing?.id]);
 
-  function startEditDispatch(n: 1 | 2 | 3) {
+  function startEditDispatch(n: 1 | 2 | 3 | "bulk") {
     if (!viewing) return;
+    if (n === "bulk") {
+      setDispatchDraft({
+        product: viewing.bulk_product || "",
+        qty: viewing.bulk_qty ?? null,
+        date: viewing.bulk_date || "",
+        kam: viewing.bulk_kam || "",
+      });
+      setEditingDispatch("bulk");
+      return;
+    }
     const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
     const date = n === 1 ? viewing.dispatch1_date : n === 2 ? viewing.dispatch2_date : viewing.dispatch3_date;
     const kam = n === 1 ? viewing.dispatch1_kam : n === 2 ? viewing.dispatch2_kam : viewing.dispatch3_kam;
-    setDispatchDraft({ qty: qty ?? null, date: date || "", kam: kam || "" });
+    setDispatchDraft({ product: "", qty: qty ?? null, date: date || "", kam: kam || "" });
     setEditingDispatch(n);
   }
 
@@ -216,7 +226,14 @@ export default function OrderTracking() {
     try {
       const n = editingDispatch;
       const payload: Partial<OrderTracking> =
-        n === 1
+        n === "bulk"
+          ? {
+              bulk_product: dispatchDraft.product,
+              bulk_qty: dispatchDraft.qty,
+              bulk_date: dispatchDraft.date,
+              bulk_kam: dispatchDraft.kam,
+            }
+          : n === 1
           ? { dispatch1_qty: dispatchDraft.qty, dispatch1_date: dispatchDraft.date, dispatch1_kam: dispatchDraft.kam }
           : n === 2
           ? { dispatch2_qty: dispatchDraft.qty, dispatch2_date: dispatchDraft.date, dispatch2_kam: dispatchDraft.kam }
@@ -441,7 +458,7 @@ export default function OrderTracking() {
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Dispatch Details
               </div>
-              <p className="text-sm text-slate-500">
+              <p className="mb-3 text-sm text-slate-500">
                 Not dispatching in tranches.{" "}
                 <button
                   className="font-semibold text-exicom-teal hover:underline"
@@ -450,6 +467,111 @@ export default function OrderTracking() {
                   Change
                 </button>
               </p>
+
+              {/* bulk order — single consolidated dispatch */}
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Bulk Order Dispatch
+              </div>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                {(() => {
+                  const bulkColor = delayColor(viewing.bulk_date);
+                  const bulkPrice =
+                    viewing.bulk_qty && viewing.value != null && viewing.total_quantity
+                      ? (viewing.value / viewing.total_quantity) * viewing.bulk_qty
+                      : null;
+
+                  if (editingDispatch === "bulk") {
+                    return (
+                      <div className="p-3">
+                        <div className="mb-2 text-xs font-semibold text-slate-700">Bulk Order</div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                          <div>
+                            <label className="lbl">Product</label>
+                            <input
+                              className="inp"
+                              value={dispatchDraft.product}
+                              onChange={(e) => setDispatchDraft((d) => ({ ...d, product: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="lbl">Quantity</label>
+                            <input
+                              className="inp" type="number" step="1"
+                              value={dispatchDraft.qty === null ? "" : dispatchDraft.qty}
+                              onChange={(e) =>
+                                setDispatchDraft((d) => ({
+                                  ...d,
+                                  qty: e.target.value === "" ? null : Math.round(parseFloat(e.target.value)),
+                                }))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="lbl">Tentative Dispatch Date</label>
+                            <input
+                              className="inp" type="date" value={dispatchDraft.date}
+                              onChange={(e) => setDispatchDraft((d) => ({ ...d, date: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="lbl">KAM</label>
+                            <input
+                              className="inp" value={dispatchDraft.kam}
+                              onChange={(e) => setDispatchDraft((d) => ({ ...d, kam: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-2 text-[11px] text-slate-500">
+                          Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <button className="btn btn-primary" disabled={busy} onClick={saveDispatch}>
+                            {busy ? "Saving…" : "Save"}
+                          </button>
+                          <button className="btn" onClick={() => setEditingDispatch(null)}>Cancel</button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                      <div className="flex min-w-[90px] items-center gap-2 font-semibold text-slate-700">
+                        <span
+                          className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                            bulkColor === "green" ? "bg-emerald-500" : bulkColor === "amber" ? "bg-amber-500" : bulkColor === "red" ? "bg-rose-500" : "bg-slate-300"
+                          }`}
+                        />
+                        Bulk Order
+                      </div>
+                      <div className="text-slate-500">
+                        Product: <span className="font-medium text-slate-700">{viewing.bulk_product || "—"}</span>
+                      </div>
+                      <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{viewing.bulk_qty ?? "—"}</span></div>
+                      <div className="text-slate-500">
+                        Date:{" "}
+                        <span className={`font-medium ${bulkColor === "amber" ? "text-amber-700" : bulkColor === "red" ? "text-rose-700" : "text-slate-700"}`}>
+                          {viewing.bulk_date || "—"}
+                        </span>
+                      </div>
+                      <div className="text-slate-500">KAM: <span className="font-medium text-slate-700">{viewing.bulk_kam || "—"}</span></div>
+                      <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
+                      <div className="text-slate-500">
+                        Price:{" "}
+                        <span className="font-medium text-slate-700">
+                          {bulkPrice == null ? "—" : `${viewing.currency || ""} ${fmtNum(bulkPrice)}`}
+                        </span>
+                      </div>
+                      <button
+                        className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
+                        onClick={() => startEditDispatch("bulk")}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           ) : (
           <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
