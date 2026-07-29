@@ -675,7 +675,17 @@ export default function OrderTracking() {
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fulfillment Tracker
             </div>
-            <p className="mb-3 text-xs text-slate-400">Click a stage below to record it manually.</p>
+            <p className="mb-2 text-xs text-slate-400">Select a stage below to record it manually.</p>
+            <div className="mb-3 flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500">Stage</label>
+              <select
+                className="inp !w-auto !py-1 !text-xs"
+                value={selectedStage}
+                onChange={(e) => setSelectedStage(e.target.value)}
+              >
+                {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
+            </div>
             {(() => {
               // Defensive: older/in-flight API responses may not include stage_events yet.
               const events = viewing.stage_events || [];
