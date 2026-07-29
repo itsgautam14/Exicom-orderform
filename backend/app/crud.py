@@ -609,6 +609,9 @@ def save_tracking_document(
     obj.doc_filename = filename
     obj.doc_content_type = content_type
     obj.doc_data = data
+    # Log it against whichever stage the order is at right now, so it shows
+    # up in the Logs table even though it isn't itself a stage transition.
+    obj.stage_events.append(models.TrackingStageEvent(stage=obj.current_stage, remarks="Document uploaded"))
     db.commit()
     db.refresh(obj)
     return obj

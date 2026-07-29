@@ -301,8 +301,12 @@ export default function OrderTracking() {
       const createdAt = editingRemark.date
         ? mergeDateKeepTime(editingRemark.date, editingRemark.originalIso)
         : undefined;
+      // If nothing was written in Notes, still leave a trace of what
+      // happened instead of a blank log row.
+      const dateChanged = editingRemark.date !== toDateOnly(editingRemark.originalIso);
+      const text = editingRemark.text.trim() || (dateChanged ? "Date changed" : "Edit option used");
       const updated = await api.updateStageRemark(
-        viewing.id, editingRemark.eventId, editingRemark.text, createdAt, editingRemark.kam
+        viewing.id, editingRemark.eventId, text, createdAt, editingRemark.kam
       );
       setViewing(updated);
       setEditingRemark(null);
