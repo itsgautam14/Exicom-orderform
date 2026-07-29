@@ -204,12 +204,9 @@ export default function OrderTracking() {
   function startEditDispatch(n: 1 | 2 | 3 | "bulk") {
     if (!viewing) return;
     if (n === "bulk") {
-      setDispatchDraft({
-        product: viewing.bulk_product || "",
-        qty: viewing.bulk_qty ?? null,
-        date: viewing.bulk_date || "",
-        kam: viewing.bulk_kam || "",
-      });
+      // Product/quantity are fetched from the order itself — only the date
+      // and KAM are ever hand-entered here.
+      setDispatchDraft({ product: "", qty: null, date: viewing.bulk_date || "", kam: viewing.bulk_kam || "" });
       setEditingDispatch("bulk");
       return;
     }
@@ -228,8 +225,10 @@ export default function OrderTracking() {
       const payload: Partial<OrderTracking> =
         n === "bulk"
           ? {
-              bulk_product: dispatchDraft.product,
-              bulk_qty: dispatchDraft.qty,
+              // Keep bulk_product/bulk_qty in sync with the order itself —
+              // never hand-entered.
+              bulk_product: viewing.ordered,
+              bulk_qty: viewing.total_quantity,
               bulk_date: dispatchDraft.date,
               bulk_kam: dispatchDraft.kam,
             }
@@ -475,37 +474,22 @@ export default function OrderTracking() {
               <div className="overflow-hidden rounded-lg border border-slate-200">
                 {(() => {
                   const bulkColor = delayColor(viewing.bulk_date);
-                  const bulkPrice =
-                    viewing.bulk_qty && viewing.value != null && viewing.total_quantity
-                      ? (viewing.value / viewing.total_quantity) * viewing.bulk_qty
-                      : null;
+                  // The whole order ships in one go, so product/quantity/price
+                  // are fetched straight from the order — nothing to type in.
+                  const bulkProduct = viewing.ordered || "—";
+                  const bulkQty = viewing.total_quantity ?? null;
+                  const bulkPrice = viewing.value ?? null;
 
                   if (editingDispatch === "bulk") {
                     return (
                       <div className="p-3">
                         <div className="mb-2 text-xs font-semibold text-slate-700">Bulk Order</div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                          <div>
-                            <label className="lbl">Product</label>
-                            <input
-                              className="inp"
-                              value={dispatchDraft.product}
-                              onChange={(e) => setDispatchDraft((d) => ({ ...d, product: e.target.value }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="lbl">Quantity</label>
-                            <input
-                              className="inp" type="number" step="1"
-                              value={dispatchDraft.qty === null ? "" : dispatchDraft.qty}
-                              onChange={(e) =>
-                                setDispatchDraft((d) => ({
-                                  ...d,
-                                  qty: e.target.value === "" ? null : Math.round(parseFloat(e.target.value)),
-                                }))
-                              }
-                            />
-                          </div>
+                        <div className="mb-3 text-xs text-slate-500">
+                          Product: <span className="font-semibold text-slate-700">{bulkProduct}</span>{" "}
+                          · Quantity: <span className="font-semibold text-slate-700">{bulkQty ?? "—"}</span>{" "}
+                          (fetched from the order)
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
                             <label className="lbl">Tentative Dispatch Date</label>
                             <input
@@ -545,9 +529,9 @@ export default function OrderTracking() {
                         Bulk Order
                       </div>
                       <div className="text-slate-500">
-                        Product: <span className="font-medium text-slate-700">{viewing.bulk_product || "—"}</span>
+                        Product: <span className="font-medium text-slate-700">{bulkProduct}</span>
                       </div>
-                      <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{viewing.bulk_qty ?? "—"}</span></div>
+                      <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{bulkQty ?? "—"}</span></div>
                       <div className="text-slate-500">
                         Date:{" "}
                         <span className={`font-medium ${bulkColor === "amber" ? "text-amber-700" : bulkColor === "red" ? "text-rose-700" : "text-slate-700"}`}>
@@ -586,6 +570,11 @@ export default function OrderTracking() {
                 Not dispatching in tranches after all?
               </button>
             </div>
+            <p className="mb-2 text-xs text-slate-500">
+              Product: <span className="font-semibold text-slate-700">{viewing.ordered || "—"}</span>{" "}
+              · Total Quantity: <span className="font-semibold text-slate-700">{viewing.total_quantity ?? "—"}</span>{" "}
+              — split this across the slots below.
+            </p>
             <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
               {([1, 2, 3] as const).map((n) => {
                 const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
