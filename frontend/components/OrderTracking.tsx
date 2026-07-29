@@ -675,17 +675,7 @@ export default function OrderTracking() {
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fulfillment Tracker
             </div>
-            <p className="mb-2 text-xs text-slate-400">Select a stage below to record it manually.</p>
-            <div className="mb-3 flex items-center gap-2">
-              <label className="text-xs font-semibold text-slate-500">Stage</label>
-              <select
-                className="inp !w-auto !py-1 !text-xs"
-                value={selectedStage}
-                onChange={(e) => setSelectedStage(e.target.value)}
-              >
-                {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-              </select>
-            </div>
+            <p className="mb-2 text-xs text-slate-400">Click a tab to view/record that stage.</p>
             {(() => {
               // Defensive: older/in-flight API responses may not include stage_events yet.
               const events = viewing.stage_events || [];
@@ -693,59 +683,139 @@ export default function OrderTracking() {
               const stageDate = (key: string) =>
                 events.find((e) => e.stage === key)?.created_at;
               const selected = STAGES.find((s) => s.key === selectedStage) || STAGES[0];
+              const selectedIdx = STAGES.findIndex((s) => s.key === selected.key);
               const selectedStageRemarks = events.filter((e) => e.stage === selected.key && e.remarks);
+              const primaryEvent = events.find((e) => e.stage === selected.key);
+              const reachedAt = primaryEvent?.created_at;
+              const nextReachedAt = STAGES[selectedIdx + 1] ? stageDate(STAGES[selectedIdx + 1].key) : undefined;
+              const done = reachedAt != null;
+              const active = selectedIdx === currentIdx;
+              const duration = reachedAt
+                ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
+                : null;
+              // Extra remarks beyond the primary event (rare — a stage
+              // re-triggered more than once); the primary's own remark
+              // is edited inline with its date below instead.
+              const extraStageRemarks = events.filter(
+                (e) => e.stage === selected.key && e.remarks && e.id !== primaryEvent?.id
+              );
               return (
                 <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                  {/* stage tabs */}
+                  <div className="mb-3 flex gap-1 border-b border-slate-200">
                     {STAGES.map((s, i) => {
-                      const primaryEvent = events.find((e) => e.stage === s.key);
-                      const reachedAt = primaryEvent?.created_at;
-                      const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
-                      const done = reachedAt != null;
-                      const active = i === currentIdx;
+                      const tabDone = stageDate(s.key) != null;
                       const isSelected = s.key === selectedStage;
-                      const duration = reachedAt
-                        ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
-                        : null;
-                      // Extra remarks beyond the primary event (rare — a stage
-                      // re-triggered more than once); the primary's own remark
-                      // is edited inline with its date below instead.
-                      const stageRemarks = events.filter(
-                        (e) => e.stage === s.key && e.remarks && e.id !== primaryEvent?.id
-                      );
                       return (
-                        <div
+                        <button
                           key={s.key}
-                          role="button"
-                          tabIndex={0}
+                          type="button"
                           onClick={() => setSelectedStage(s.key)}
-                          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelectedStage(s.key)}
-                          className={`cursor-pointer rounded-lg border p-2.5 text-left transition ${
+                          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition ${
                             isSelected
-                              ? "border-exicom-teal ring-2 ring-exicom-teal/40 bg-exicom-teal/5"
-                              : active
-                              ? "border-exicom-teal bg-exicom-teal/5"
-                              : done
-                              ? "border-slate-200 hover:border-exicom-teal/40"
-                              : "border-dashed border-slate-200 opacity-60 hover:opacity-100"
+                              ? "border-exicom-teal text-exicom-teal"
+                              : "border-transparent text-slate-500 hover:text-slate-700"
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                            <span className={`inline-block h-2 w-2 rounded-full ${done ? "bg-exicom-teal" : "bg-slate-300"}`} />
-                            {s.label}
-                          </div>
-                          {primaryEvent && editingRemark?.eventId === primaryEvent.id ? (
-                            <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                          <span className={`inline-block h-2 w-2 rounded-full ${tabDone ? "bg-exicom-teal" : "bg-slate-300"}`} />
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* selected stage's card */}
+                  <div
+                    className={`rounded-lg border p-3 text-left ${
+                      active
+                        ? "border-exicom-teal bg-exicom-teal/5"
+                        : done
+                        ? "border-slate-200"
+                        : "border-dashed border-slate-200 opacity-60"
+                    }`}
+                  >
+                    {primaryEvent && editingRemark?.eventId === primaryEvent.id ? (
+                      <div>
+                        <input
+                          type="date"
+                          className="inp !py-1 !text-[11px]"
+                          value={editingRemark.date}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
+                        />
+                        <textarea
+                          className="inp mt-1 !py-1 !text-[11px]"
+                          rows={2}
+                          placeholder="Remarks (optional)…"
+                          value={editingRemark.text}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                        />
+                        <input
+                          className="inp mt-1 !py-1 !text-[11px]"
+                          placeholder="Done by (KAM)…"
+                          value={editingRemark.kam}
+                          onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                        />
+                        <div className="mt-1 flex gap-2">
+                          <button
+                            type="button" disabled={busy}
+                            className="text-[10px] font-semibold text-exicom-teal hover:underline"
+                            onClick={saveEditedRemark}
+                          >
+                            {busy ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
+                            onClick={() => setEditingRemark(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-slate-500">
+                        {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}{" "}
+                        {primaryEvent && (
+                          <button
+                            type="button"
+                            className="font-semibold text-exicom-teal hover:underline"
+                            onClick={() => {
+                              setEditingRemark({
+                                eventId: primaryEvent.id,
+                                text: primaryEvent.remarks,
+                                date: toDateOnly(primaryEvent.created_at),
+                                originalIso: primaryEvent.created_at,
+                                kam: primaryEvent.kam || "",
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {primaryEvent?.remarks && (
+                          <div className="mt-0.5 italic">"{primaryEvent.remarks}"</div>
+                        )}
+                      </div>
+                    )}
+                    {duration != null && (
+                      <div className="mt-1 text-[11px] font-semibold text-slate-600">
+                        {active ? `${duration} day${duration === 1 ? "" : "s"} so far` : `Took ${duration} day${duration === 1 ? "" : "s"}`}
+                      </div>
+                    )}
+                    {extraStageRemarks.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {extraStageRemarks.map((e) =>
+                          editingRemark?.eventId === e.id ? (
+                            <div key={e.id}>
                               <input
                                 type="date"
-                                className="inp !py-1 !text-[11px]"
+                                className="inp mb-1 !py-1 !text-[11px]"
                                 value={editingRemark.date}
                                 onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
                               />
                               <textarea
-                                className="inp mt-1 !py-1 !text-[11px]"
+                                className="inp !py-1 !text-[11px]"
                                 rows={2}
-                                placeholder="Remarks (optional)…"
                                 value={editingRemark.text}
                                 onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
                               />
@@ -773,95 +843,21 @@ export default function OrderTracking() {
                               </div>
                             </div>
                           ) : (
-                            <div className="mt-1 text-[11px] text-slate-500">
-                              {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}{" "}
-                              {primaryEvent && (
-                                <button
-                                  type="button"
-                                  className="font-semibold text-exicom-teal hover:underline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingRemark({
-                                      eventId: primaryEvent.id,
-                                      text: primaryEvent.remarks,
-                                      date: toDateOnly(primaryEvent.created_at),
-                                      originalIso: primaryEvent.created_at,
-                                      kam: primaryEvent.kam || "",
-                                    });
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                              )}
-                              {primaryEvent?.remarks && (
-                                <div className="mt-0.5 italic">"{primaryEvent.remarks}"</div>
-                              )}
+                            <div key={e.id} className="text-[11px] italic text-slate-500">
+                              "{e.remarks}"{" "}
+                              <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>{" "}
+                              <button
+                                type="button"
+                                className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
+                                onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at, kam: e.kam || "" })}
+                              >
+                                Edit
+                              </button>
                             </div>
-                          )}
-                          {duration != null && (
-                            <div className="mt-1 text-[11px] font-semibold text-slate-600">
-                              {active ? `${duration} day${duration === 1 ? "" : "s"} so far` : `Took ${duration} day${duration === 1 ? "" : "s"}`}
-                            </div>
-                          )}
-                          {stageRemarks.length > 0 && (
-                            <div className="mt-1 space-y-1" onClick={(e) => e.stopPropagation()}>
-                              {stageRemarks.map((e) =>
-                                editingRemark?.eventId === e.id ? (
-                                  <div key={e.id}>
-                                    <input
-                                      type="date"
-                                      className="inp mb-1 !py-1 !text-[11px]"
-                                      value={editingRemark.date}
-                                      onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
-                                    />
-                                    <textarea
-                                      className="inp !py-1 !text-[11px]"
-                                      rows={2}
-                                      value={editingRemark.text}
-                                      onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
-                                    />
-                                    <input
-                                      className="inp mt-1 !py-1 !text-[11px]"
-                                      placeholder="Done by (KAM)…"
-                                      value={editingRemark.kam}
-                                      onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
-                                    />
-                                    <div className="mt-1 flex gap-2">
-                                      <button
-                                        type="button" disabled={busy}
-                                        className="text-[10px] font-semibold text-exicom-teal hover:underline"
-                                        onClick={saveEditedRemark}
-                                      >
-                                        {busy ? "Saving…" : "Save"}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="text-[10px] font-semibold text-slate-400 hover:text-slate-600"
-                                        onClick={() => setEditingRemark(null)}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div key={e.id} className="text-[11px] italic text-slate-500">
-                                    "{e.remarks}"{" "}
-                                    <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>{" "}
-                                    <button
-                                      type="button"
-                                      className="not-italic text-[10px] font-semibold text-exicom-teal hover:underline"
-                                      onClick={() => setEditingRemark({ eventId: e.id, text: e.remarks, date: toDateOnly(e.created_at), originalIso: e.created_at, kam: e.kam || "" })}
-                                    >
-                                      Edit
-                                    </button>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* logs — every stage transition, in order, KAM + timestamp + note */}
