@@ -6,6 +6,10 @@ import type { OrderTracking } from "@/lib/types";
 
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
+// Shared admin password, same sessionStorage key as AdminGate/CatalogGate —
+// unlocking any one of them unlocks this too.
+const ADMIN_PW_KEY = "catalog_admin_pw";
+
 const STAGES: { key: string; label: string }[] = [
   { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
@@ -96,6 +100,10 @@ export default function OrderTracking() {
     product: "", qty: null, date: "", kam: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
+  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | null>(null);
+  const [plannedDraft, setPlannedDraft] = useState("");
+  const [editingExpected, setEditingExpected] = useState(false);
+  const [expectedDraft, setExpectedDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -261,6 +269,69 @@ export default function OrderTracking() {
     try {
       const updated = await api.deleteStageRemark(viewing.id, eventId);
       setViewing(updated);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Prompts for the admin password (once per session) before letting a
+  // locked planned-date field be edited. Shared with AdminGate/CatalogGate's
+  // sessionStorage key, so unlocking any one admin area unlocks this too.
+  async function ensureAdmin(): Promise<boolean> {
+    if (typeof window !== "undefined" && sessionStorage.getItem(ADMIN_PW_KEY)) return true;
+    const pw = window.prompt("Admin password required to edit this field:");
+    if (!pw) return false;
+    const ok = await api.verifyAdmin(pw);
+    if (!ok) {
+      alert("Incorrect password.");
+      return false;
+    }
+    sessionStorage.setItem(ADMIN_PW_KEY, pw);
+    return true;
+  }
+
+  async function startEditPlanned(which: "production" | "dispatch") {
+    if (!viewing) return;
+    if (!(await ensureAdmin())) return;
+    setPlannedDraft((which === "production" ? viewing.planned_production_date : viewing.planned_dispatch_date) || "");
+    setEditingPlanned(which);
+  }
+
+  async function savePlanned() {
+    if (!viewing || !editingPlanned) return;
+    setBusy(true);
+    try {
+      const body =
+        editingPlanned === "production"
+          ? { planned_production_date: plannedDraft }
+          : { planned_dispatch_date: plannedDraft };
+      const updated = await api.updatePlannedDates(viewing.id, body);
+      setViewing(updated);
+      setEditingPlanned(null);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditExpected() {
+    if (!viewing) return;
+    setExpectedDraft(viewing.expected_dispatch_date || "");
+    setEditingExpected(true);
+  }
+
+  async function saveExpected() {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateTracking(viewing.id, { expected_dispatch_date: expectedDraft });
+      setViewing(updated);
+      setEditingExpected(false);
       reload();
     } catch (e) {
       alert((e as Error).message);
@@ -458,6 +529,88 @@ export default function OrderTracking() {
                   Delete
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* planned & expected dates — the first two are locked behind the admin password */}
+          <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Planned Dates
+            </div>
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                <div className="min-w-[170px] font-semibold text-slate-700">
+                  Planned Production Date <span className="font-normal text-slate-400">(admin only)</span>
+                </div>
+                {editingPlanned === "production" ? (
+                  <>
+                    <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-slate-600">{viewing.planned_production_date || "—"}</div>
+                    <button
+                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
+                      onClick={() => startEditPlanned("production")}
+                    >
+                      Edit
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                <div className="min-w-[170px] font-semibold text-slate-700">
+                  Planned Dispatch Date <span className="font-normal text-slate-400">(admin only)</span>
+                </div>
+                {editingPlanned === "dispatch" ? (
+                  <>
+                    <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-slate-600">{viewing.planned_dispatch_date || "—"}</div>
+                    <button
+                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
+                      onClick={() => startEditPlanned("dispatch")}
+                    >
+                      Edit
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                <div className="min-w-[170px] font-semibold text-slate-700">Expected Dispatch Date</div>
+                {editingExpected ? (
+                  <>
+                    <input className="inp !w-auto" type="date" value={expectedDraft} onChange={(e) => setExpectedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveExpected}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingExpected(false)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-slate-600">{viewing.expected_dispatch_date || "—"}</div>
+                    <button className="ml-auto text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
+                      Edit
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 

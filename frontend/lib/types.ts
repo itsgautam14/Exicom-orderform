@@ -159,6 +159,13 @@ export interface OrderTracking {
   status: string;
   notes: string;
 
+  /** Freely editable by anyone. */
+  expected_dispatch_date?: string;
+  /** Locked — only settable via api.updatePlannedDates (admin password required). */
+  planned_production_date?: string;
+  /** Locked — only settable via api.updatePlannedDates (admin password required). */
+  planned_dispatch_date?: string;
+
   /** Null until the "dispatch in tranches?" prompt is answered. */
   dispatch_in_tranches?: boolean | null;
   /** Open-ended list of dispatch tranche slots — add/remove as many as needed. */

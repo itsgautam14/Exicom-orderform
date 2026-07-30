@@ -603,6 +603,23 @@ def update_stage_event_remarks(
     return obj
 
 
+def update_planned_dates(
+    db: Session,
+    obj: models.OrderTracking,
+    planned_production_date: str | None,
+    planned_dispatch_date: str | None,
+) -> models.OrderTracking:
+    """Set the locked planned-date fields. Only reachable through the
+    password-gated /planned-dates endpoint — never through update_tracking."""
+    if planned_production_date is not None:
+        obj.planned_production_date = planned_production_date
+    if planned_dispatch_date is not None:
+        obj.planned_dispatch_date = planned_dispatch_date
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def delete_stage_event(db: Session, obj: models.OrderTracking, event_id: str) -> models.OrderTracking | None:
     """Remove a log entry outright (e.g. a stray/blank one), unlike
     update_stage_event_remarks which corrects one in place. If the deleted

@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
+from app.auth import require_admin
 from app.database import get_db
 
 router = APIRouter(prefix="/api/tracking", tags=["tracking"])
@@ -45,6 +46,21 @@ def delete_tracking(tracking_id: str, db: Session = Depends(get_db)):
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
     crud.delete_tracking(db, obj)
+
+
+# Locked planned-date fields -- the only write path for them. Everything else
+# on a tracking row is open (see the module docstring); these two specifically
+# require the admin password.
+@router.put(
+    "/{tracking_id}/planned-dates",
+    response_model=schemas.OrderTrackingOut,
+    dependencies=[Depends(require_admin)],
+)
+def update_planned_dates(tracking_id: str, payload: schemas.PlannedDatesUpdate, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    return crud.update_planned_dates(db, obj, payload.planned_production_date, payload.planned_dispatch_date)
 
 
 # --- Signed document upload / view --------------------------------------------
