@@ -110,6 +110,52 @@ def update_stage_remark(
     return updated
 
 
+@router.delete("/{tracking_id}/stage/{event_id}", response_model=schemas.OrderTrackingOut)
+def delete_stage_remark(tracking_id: str, event_id: str, db: Session = Depends(get_db)):
+    """Remove a log entry outright (e.g. a stray/blank one)."""
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    updated = crud.delete_stage_event(db, obj, event_id)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Log entry not found")
+    return updated
+
+
+# --- Dispatch tranche slots (Dispatch Details, dispatch_in_tranches=True) -----
+
+@router.post("/{tracking_id}/dispatch", response_model=schemas.OrderTrackingOut)
+def add_dispatch(tracking_id: str, payload: schemas.TrackingDispatchIn, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    return crud.add_tracking_dispatch(db, obj, payload.qty, payload.date)
+
+
+@router.put("/{tracking_id}/dispatch/{dispatch_id}", response_model=schemas.OrderTrackingOut)
+def update_dispatch(
+    tracking_id: str, dispatch_id: str, payload: schemas.TrackingDispatchIn, db: Session = Depends(get_db)
+):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    updated = crud.update_tracking_dispatch(db, obj, dispatch_id, payload.qty, payload.date)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dispatch slot not found")
+    return updated
+
+
+@router.delete("/{tracking_id}/dispatch/{dispatch_id}", response_model=schemas.OrderTrackingOut)
+def delete_dispatch(tracking_id: str, dispatch_id: str, db: Session = Depends(get_db)):
+    obj = crud.get_tracking(db, tracking_id)
+    if not obj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
+    updated = crud.delete_tracking_dispatch(db, obj, dispatch_id)
+    if not updated:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Dispatch slot not found")
+    return updated
+
+
 # --- Excel import ------------------------------------------------------------
 
 def _norm(h) -> str:

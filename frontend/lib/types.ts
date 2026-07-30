@@ -130,6 +130,13 @@ export interface TrackingStageEvent {
   created_at: string;
 }
 
+export interface TrackingDispatch {
+  id: string;
+  qty: number | null;
+  date: string;
+  created_at: string;
+}
+
 export interface OrderTracking {
   id: string;
   /** Links back to the quotation this row was generated from; blank if added manually. */
@@ -154,15 +161,8 @@ export interface OrderTracking {
 
   /** Null until the "dispatch in tranches?" prompt is answered. */
   dispatch_in_tranches?: boolean | null;
-  dispatch1_qty?: number | null;
-  dispatch1_date?: string;
-  dispatch1_kam?: string;
-  dispatch2_qty?: number | null;
-  dispatch2_date?: string;
-  dispatch2_kam?: string;
-  dispatch3_qty?: number | null;
-  dispatch3_date?: string;
-  dispatch3_kam?: string;
+  /** Open-ended list of dispatch tranche slots — add/remove as many as needed. */
+  dispatches?: TrackingDispatch[];
 
   /** Single consolidated dispatch, used when dispatch_in_tranches is false. */
   bulk_product?: string;

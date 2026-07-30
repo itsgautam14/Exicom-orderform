@@ -217,17 +217,10 @@ class OrderTrackingBase(BaseModel):
     status: str = ""
     notes: str = ""
 
-    # Null until the Yes/No "dispatch in tranches?" prompt is answered.
+    # Null until the Yes/No "dispatch in tranches?" prompt is answered. The
+    # tranche slots themselves live in the TrackingDispatch table (see
+    # TrackingDispatchOut / OrderTrackingOut.dispatches), not here.
     dispatch_in_tranches: Optional[bool] = None
-    dispatch1_qty: Optional[int] = None
-    dispatch1_date: str = ""
-    dispatch1_kam: str = ""
-    dispatch2_qty: Optional[int] = None
-    dispatch2_date: str = ""
-    dispatch2_kam: str = ""
-    dispatch3_qty: Optional[int] = None
-    dispatch3_date: str = ""
-    dispatch3_kam: str = ""
 
     # Single consolidated dispatch, used when dispatch_in_tranches is False.
     bulk_product: str = ""
@@ -258,15 +251,6 @@ class OrderTrackingUpdate(BaseModel):
     notes: Optional[str] = None
 
     dispatch_in_tranches: Optional[bool] = None
-    dispatch1_qty: Optional[int] = None
-    dispatch1_date: Optional[str] = None
-    dispatch1_kam: Optional[str] = None
-    dispatch2_qty: Optional[int] = None
-    dispatch2_date: Optional[str] = None
-    dispatch2_kam: Optional[str] = None
-    dispatch3_qty: Optional[int] = None
-    dispatch3_date: Optional[str] = None
-    dispatch3_kam: Optional[str] = None
 
     bulk_product: Optional[str] = None
     bulk_qty: Optional[int] = None
@@ -298,6 +282,19 @@ class StageEventUpdate(BaseModel):
     created_at: Optional[dt.datetime] = None
 
 
+class TrackingDispatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    qty: Optional[int] = None
+    date: str = ""
+    created_at: dt.datetime
+
+
+class TrackingDispatchIn(BaseModel):
+    qty: Optional[int] = None
+    date: str = ""
+
+
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -305,3 +302,4 @@ class OrderTrackingOut(OrderTrackingBase):
     doc_filename: str = ""
     doc_content_type: str = ""
     stage_events: list[StageEventOut] = []
+    dispatches: list[TrackingDispatchOut] = []

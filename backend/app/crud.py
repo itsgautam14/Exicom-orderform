@@ -603,6 +603,60 @@ def update_stage_event_remarks(
     return obj
 
 
+def delete_stage_event(db: Session, obj: models.OrderTracking, event_id: str) -> models.OrderTracking | None:
+    """Remove a log entry outright (e.g. a stray/blank one), unlike
+    update_stage_event_remarks which corrects one in place. If the deleted
+    entry was the most recent, current_stage falls back to whatever's now the
+    latest remaining entry (or the first pipeline stage if none are left)."""
+    event = next((e for e in obj.stage_events if e.id == event_id), None)
+    if not event:
+        return None
+    obj.stage_events.remove(event)
+    db.delete(event)
+    remaining = sorted(obj.stage_events, key=lambda e: e.created_at)
+    obj.current_stage = remaining[-1].stage if remaining else TRACKING_STAGES[0]
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def add_tracking_dispatch(
+    db: Session, obj: models.OrderTracking, qty: int | None, date: str
+) -> models.OrderTracking:
+    """Append a new dispatch tranche slot — the open-ended replacement for
+    the old fixed dispatch1/2/3 columns."""
+    obj.dispatches.append(models.TrackingDispatch(qty=qty, date=date))
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def update_tracking_dispatch(
+    db: Session, obj: models.OrderTracking, dispatch_id: str, qty: int | None, date: str
+) -> models.OrderTracking | None:
+    d = next((x for x in obj.dispatches if x.id == dispatch_id), None)
+    if not d:
+        return None
+    d.qty = qty
+    d.date = date
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def delete_tracking_dispatch(
+    db: Session, obj: models.OrderTracking, dispatch_id: str
+) -> models.OrderTracking | None:
+    d = next((x for x in obj.dispatches if x.id == dispatch_id), None)
+    if not d:
+        return None
+    obj.dispatches.remove(d)
+    db.delete(d)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 def save_tracking_document(
     db: Session, obj: models.OrderTracking, filename: str, content_type: str, data: bytes
 ) -> models.OrderTracking:

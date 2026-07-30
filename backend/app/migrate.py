@@ -146,6 +146,40 @@ def _restore_in_production_stage() -> None:
         db.close()
 
 
+def _migrate_dispatch_slots_to_table() -> None:
+    """One-time migration: the old fixed dispatch1/2/3 columns are replaced by
+    the open-ended tracking_dispatches table (a tracked order can now have as
+    many dispatch slots as it actually ships in, not just 3). Copy any
+    populated slot into a real TrackingDispatch row — qty + date only, the
+    per-slot KAM is dropped along with the rest of the fixed-slot design.
+    Skips rows that already have dispatch rows, so this only runs once.
+    """
+    from app import models
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(models.OrderTracking)
+            .filter(~models.OrderTracking.dispatches.any())
+            .all()
+        )
+        migrated = 0
+        for row in rows:
+            for qty, date in (
+                (row.dispatch1_qty, row.dispatch1_date),
+                (row.dispatch2_qty, row.dispatch2_date),
+                (row.dispatch3_qty, row.dispatch3_date),
+            ):
+                if qty is not None or (date or "").strip():
+                    row.dispatches.append(models.TrackingDispatch(qty=qty, date=date or ""))
+                    migrated += 1
+        if migrated:
+            db.commit()
+            print(f"Migrated {migrated} dispatch slot(s) into the new tracking_dispatches table.")
+    finally:
+        db.close()
+
+
 def run() -> None:
     with engine.begin() as conn:
         for table, column, ddl in _COLUMNS:
@@ -155,6 +189,7 @@ def run() -> None:
     _backfill_tracking()
     _remove_premature_tracking()
     _restore_in_production_stage()
+    _migrate_dispatch_slots_to_table()
     print("Schema migration complete.")
 
 

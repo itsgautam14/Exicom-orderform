@@ -91,7 +91,7 @@ export default function OrderTracking() {
   const [editingRemark, setEditingRemark] = useState<
     { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
-  const [editingDispatch, setEditingDispatch] = useState<1 | 2 | 3 | "bulk" | null>(null);
+  const [editingDispatch, setEditingDispatch] = useState<string | "bulk" | "new" | null>(null);
   const [dispatchDraft, setDispatchDraft] = useState<{ product: string; qty: number | null; date: string; kam: string }>({
     product: "", qty: null, date: "", kam: "",
   });
@@ -193,7 +193,7 @@ export default function OrderTracking() {
     setEditingDispatch(null);
   }, [viewing?.id]);
 
-  function startEditDispatch(n: 1 | 2 | 3 | "bulk") {
+  function startEditDispatch(n: string | "bulk" | "new") {
     if (!viewing) return;
     if (n === "bulk") {
       // Product/quantity are fetched from the order itself — only the date
@@ -202,10 +202,13 @@ export default function OrderTracking() {
       setEditingDispatch("bulk");
       return;
     }
-    const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
-    const date = n === 1 ? viewing.dispatch1_date : n === 2 ? viewing.dispatch2_date : viewing.dispatch3_date;
-    const kam = n === 1 ? viewing.dispatch1_kam : n === 2 ? viewing.dispatch2_kam : viewing.dispatch3_kam;
-    setDispatchDraft({ product: "", qty: qty ?? null, date: date || "", kam: kam || "" });
+    if (n === "new") {
+      setDispatchDraft({ product: "", qty: null, date: "", kam: "" });
+      setEditingDispatch("new");
+      return;
+    }
+    const d = (viewing.dispatches || []).find((x) => x.id === n);
+    setDispatchDraft({ product: "", qty: d?.qty ?? null, date: d?.date || "", kam: "" });
     setEditingDispatch(n);
   }
 
@@ -213,25 +216,51 @@ export default function OrderTracking() {
     if (!viewing || !editingDispatch) return;
     setBusy(true);
     try {
-      const n = editingDispatch;
-      const payload: Partial<OrderTracking> =
-        n === "bulk"
-          ? {
-              // Keep bulk_product/bulk_qty in sync with the order itself —
-              // never hand-entered.
-              bulk_product: viewing.ordered,
-              bulk_qty: viewing.total_quantity,
-              bulk_date: dispatchDraft.date,
-              bulk_kam: dispatchDraft.kam,
-            }
-          : n === 1
-          ? { dispatch1_qty: dispatchDraft.qty, dispatch1_date: dispatchDraft.date, dispatch1_kam: dispatchDraft.kam }
-          : n === 2
-          ? { dispatch2_qty: dispatchDraft.qty, dispatch2_date: dispatchDraft.date, dispatch2_kam: dispatchDraft.kam }
-          : { dispatch3_qty: dispatchDraft.qty, dispatch3_date: dispatchDraft.date, dispatch3_kam: dispatchDraft.kam };
-      const updated = await api.updateTracking(viewing.id, payload);
+      let updated: OrderTracking;
+      if (editingDispatch === "bulk") {
+        updated = await api.updateTracking(viewing.id, {
+          // Keep bulk_product/bulk_qty in sync with the order itself —
+          // never hand-entered.
+          bulk_product: viewing.ordered,
+          bulk_qty: viewing.total_quantity,
+          bulk_date: dispatchDraft.date,
+          bulk_kam: dispatchDraft.kam,
+        });
+      } else if (editingDispatch === "new") {
+        updated = await api.addTrackingDispatch(viewing.id, dispatchDraft.qty, dispatchDraft.date);
+      } else {
+        updated = await api.updateTrackingDispatch(viewing.id, editingDispatch, dispatchDraft.qty, dispatchDraft.date);
+      }
       setViewing(updated);
       setEditingDispatch(null);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteDispatch(dispatchId: string) {
+    if (!viewing || !confirm("Remove this dispatch slot?")) return;
+    setBusy(true);
+    try {
+      const updated = await api.deleteTrackingDispatch(viewing.id, dispatchId);
+      setViewing(updated);
+      reload();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteLogEntry(eventId: string) {
+    if (!viewing || !confirm("Delete this log entry? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      const updated = await api.deleteStageRemark(viewing.id, eventId);
+      setViewing(updated);
       reload();
     } catch (e) {
       alert((e as Error).message);
@@ -572,29 +601,26 @@ export default function OrderTracking() {
               — split this across the slots below.
             </p>
             <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
-              {([1, 2, 3] as const).map((n) => {
-                const qty = n === 1 ? viewing.dispatch1_qty : n === 2 ? viewing.dispatch2_qty : viewing.dispatch3_qty;
-                const date = n === 1 ? viewing.dispatch1_date : n === 2 ? viewing.dispatch2_date : viewing.dispatch3_date;
-                const kam = n === 1 ? viewing.dispatch1_kam : n === 2 ? viewing.dispatch2_kam : viewing.dispatch3_kam;
-                const color = delayColor(date);
+              {(viewing.dispatches || []).map((d, idx) => {
+                const color = delayColor(d.date);
                 const price =
-                  qty && viewing.value != null && viewing.total_quantity
-                    ? (viewing.value / viewing.total_quantity) * qty
+                  d.qty && viewing.value != null && viewing.total_quantity
+                    ? (viewing.value / viewing.total_quantity) * d.qty
                     : null;
 
-                if (editingDispatch === n) {
+                if (editingDispatch === d.id) {
                   return (
-                    <div key={n} className="p-3">
-                      <div className="mb-2 text-xs font-semibold text-slate-700">Dispatch {n}</div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div key={d.id} className="p-3">
+                      <div className="mb-2 text-xs font-semibold text-slate-700">Dispatch {idx + 1}</div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <label className="lbl">Quantity</label>
                           <input
                             className="inp" type="number" step="1"
                             value={dispatchDraft.qty === null ? "" : dispatchDraft.qty}
                             onChange={(e) =>
-                              setDispatchDraft((d) => ({
-                                ...d,
+                              setDispatchDraft((dr) => ({
+                                ...dr,
                                 qty: e.target.value === "" ? null : Math.round(parseFloat(e.target.value)),
                               }))
                             }
@@ -604,14 +630,7 @@ export default function OrderTracking() {
                           <label className="lbl">Tentative Dispatch Date</label>
                           <input
                             className="inp" type="date" value={dispatchDraft.date}
-                            onChange={(e) => setDispatchDraft((d) => ({ ...d, date: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <label className="lbl">KAM</label>
-                          <input
-                            className="inp" value={dispatchDraft.kam}
-                            onChange={(e) => setDispatchDraft((d) => ({ ...d, kam: e.target.value }))}
+                            onChange={(e) => setDispatchDraft((dr) => ({ ...dr, date: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -629,23 +648,22 @@ export default function OrderTracking() {
                 }
 
                 return (
-                  <div key={n} className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
+                  <div key={d.id} className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
                     <div className="flex min-w-[90px] items-center gap-2 font-semibold text-slate-700">
                       <span
                         className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
                           color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
                         }`}
                       />
-                      Dispatch {n}
+                      Dispatch {idx + 1}
                     </div>
-                    <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{qty ?? "—"}</span></div>
+                    <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{d.qty ?? "—"}</span></div>
                     <div className="text-slate-500">
                       Date:{" "}
                       <span className={`font-medium ${color === "amber" ? "text-amber-700" : color === "red" ? "text-rose-700" : "text-slate-700"}`}>
-                        {date || "—"}
+                        {d.date || "—"}
                       </span>
                     </div>
-                    <div className="text-slate-500">KAM: <span className="font-medium text-slate-700">{kam || "—"}</span></div>
                     <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
                     <div className="text-slate-500">
                       Price:{" "}
@@ -653,16 +671,68 @@ export default function OrderTracking() {
                         {price == null ? "—" : `${viewing.currency || ""} ${fmtNum(price)}`}
                       </span>
                     </div>
-                    <button
-                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
-                      onClick={() => startEditDispatch(n)}
-                    >
-                      Edit
-                    </button>
+                    <div className="ml-auto flex gap-3">
+                      <button
+                        className="text-xs font-semibold text-exicom-teal hover:underline"
+                        onClick={() => startEditDispatch(d.id)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-xs font-semibold text-red-500 hover:text-red-700"
+                        onClick={() => deleteDispatch(d.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 );
               })}
+              {editingDispatch === "new" && (
+                <div className="p-3">
+                  <div className="mb-2 text-xs font-semibold text-slate-700">New Dispatch</div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="lbl">Quantity</label>
+                      <input
+                        className="inp" type="number" step="1"
+                        value={dispatchDraft.qty === null ? "" : dispatchDraft.qty}
+                        onChange={(e) =>
+                          setDispatchDraft((dr) => ({
+                            ...dr,
+                            qty: e.target.value === "" ? null : Math.round(parseFloat(e.target.value)),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="lbl">Tentative Dispatch Date</label>
+                      <input
+                        className="inp" type="date" value={dispatchDraft.date}
+                        onChange={(e) => setDispatchDraft((dr) => ({ ...dr, date: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-slate-500">
+                    Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button className="btn btn-primary" disabled={busy} onClick={saveDispatch}>
+                      {busy ? "Adding…" : "Add"}
+                    </button>
+                    <button className="btn" onClick={() => setEditingDispatch(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </div>
+            {editingDispatch !== "new" && (
+              <button
+                className="mt-2 text-xs font-semibold text-exicom-teal hover:underline"
+                onClick={() => startEditDispatch("new")}
+              >
+                + Add Dispatch
+              </button>
+            )}
           </div>
           )}
 
@@ -680,7 +750,6 @@ export default function OrderTracking() {
                 events.find((e) => e.stage === key)?.created_at;
               const selected = STAGES.find((s) => s.key === selectedStage) || STAGES[0];
               const selectedIdx = STAGES.findIndex((s) => s.key === selected.key);
-              const selectedStageRemarks = events.filter((e) => e.stage === selected.key && e.remarks);
               const primaryEvent = events.find((e) => e.stage === selected.key);
               const reachedAt = primaryEvent?.created_at;
               const nextReachedAt = STAGES[selectedIdx + 1] ? stageDate(STAGES[selectedIdx + 1].key) : undefined;
@@ -940,7 +1009,7 @@ export default function OrderTracking() {
                                 <td className="whitespace-nowrap px-3 py-2 text-right">
                                   <button
                                     type="button"
-                                    className="text-xs font-semibold text-exicom-teal hover:underline"
+                                    className="mr-3 text-xs font-semibold text-exicom-teal hover:underline"
                                     onClick={() =>
                                       setEditingRemark({
                                         eventId: e.id,
@@ -953,6 +1022,13 @@ export default function OrderTracking() {
                                   >
                                     Edit
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs font-semibold text-red-500 hover:text-red-700"
+                                    onClick={() => deleteLogEntry(e.id)}
+                                  >
+                                    Delete
+                                  </button>
                                 </td>
                               </tr>
                             )
@@ -964,18 +1040,7 @@ export default function OrderTracking() {
                   )}
 
                   <div className="mt-4 border-t border-slate-100 pt-3">
-                    {selectedStageRemarks.length > 0 && (
-                      <div className="mt-2 space-y-0.5">
-                        {selectedStageRemarks.map((e) => (
-                          <div key={e.id} className="text-xs italic text-slate-500">
-                            "{e.remarks}"{" "}
-                            <span className="not-italic text-slate-400">({fmtDateTime(e.created_at)})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <label className="lbl mt-3">
+                    <label className="lbl">
                       Remarks for “{selected.label}” (optional)
                     </label>
                     <textarea

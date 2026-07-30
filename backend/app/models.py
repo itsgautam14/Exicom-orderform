@@ -203,10 +203,10 @@ class OrderTracking(Base):
     # reveals the 3 dispatch slots below.
     dispatch_in_tranches: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
-    # Up to 3 partial-dispatch slots for this order. Quantity is hand-entered;
-    # its share of `value` (quantity / total_quantity * value) is computed on
-    # the fly in the UI, not stored. `date` is the tentative dispatch date —
-    # the UI colors it green/amber/red based on how many days past today it is.
+    # Legacy fixed 3-slot dispatch columns — superseded by the TrackingDispatch
+    # table (see `dispatches` below), which supports any number of slots. Kept
+    # only so migrate.py can copy any pre-existing data out of them; no longer
+    # read or written anywhere else.
     dispatch1_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     dispatch1_date: Mapped[str] = mapped_column(String(64), default="")
     dispatch1_kam: Mapped[str] = mapped_column(String(128), default="")
@@ -244,6 +244,10 @@ class OrderTracking(Base):
         back_populates="tracking", cascade="all, delete-orphan",
         order_by="TrackingStageEvent.created_at", lazy="selectin",
     )
+    dispatches: Mapped[list["TrackingDispatch"]] = relationship(
+        back_populates="tracking", cascade="all, delete-orphan",
+        order_by="TrackingDispatch.created_at", lazy="selectin",
+    )
 
 
 class TrackingStageEvent(Base):
@@ -260,3 +264,22 @@ class TrackingStageEvent(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     tracking: Mapped["OrderTracking"] = relationship(back_populates="stage_events")
+
+
+class TrackingDispatch(Base):
+    """One dispatch tranche for an order shipping dispatch_in_tranches=True.
+
+    Replaces the old fixed dispatch1/2/3 columns with an open-ended list, so a
+    tracked order can have as many partial-dispatch slots as it actually ships
+    in instead of a hard cap of 3. No KAM here — unlike the fulfillment stage
+    log, dispatch slots don't record who logged them.
+    """
+    __tablename__ = "tracking_dispatches"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    tracking_id: Mapped[str] = mapped_column(ForeignKey("order_trackings.id", ondelete="CASCADE"), index=True)
+    qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    date: Mapped[str] = mapped_column(String(64), default="")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    tracking: Mapped["OrderTracking"] = relationship(back_populates="dispatches")

@@ -223,6 +223,28 @@ export const api = {
         ...(kam !== undefined ? { kam } : {}),
       }),
     }).then(json<OrderTracking>),
+
+  // Remove a log entry outright (e.g. a stray/blank one).
+  deleteStageRemark: (id: string, eventId: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/stage/${eventId}`, { method: "DELETE", headers: adminHeaders() }).then(json<OrderTracking>),
+
+  // Dispatch tranche slots — an open-ended list, add/edit/remove as many as needed.
+  addTrackingDispatch: (id: string, qty: number | null, date: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/dispatch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ qty, date }),
+    }).then(json<OrderTracking>),
+
+  updateTrackingDispatch: (id: string, dispatchId: string, qty: number | null, date: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/dispatch/${dispatchId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...adminHeaders() },
+      body: JSON.stringify({ qty, date }),
+    }).then(json<OrderTracking>),
+
+  deleteTrackingDispatch: (id: string, dispatchId: string): Promise<OrderTracking> =>
+    fetch(`${BASE}/api/tracking/${id}/dispatch/${dispatchId}`, { method: "DELETE", headers: adminHeaders() }).then(json<OrderTracking>),
 };
 
 export const API_BASE = BASE;
