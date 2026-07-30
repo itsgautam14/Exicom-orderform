@@ -537,13 +537,13 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
-                <div className="min-w-[170px] font-semibold text-slate-700">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="font-normal text-slate-400">(admin only)</span>
                 </div>
                 {editingPlanned === "production" ? (
-                  <>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
                       {busy ? "Saving…" : "Save"}
@@ -551,25 +551,22 @@ export default function OrderTracking() {
                     <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
                       Cancel
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div className="text-slate-600">{viewing.planned_production_date || "—"}</div>
-                    <button
-                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
-                      onClick={() => startEditPlanned("production")}
-                    >
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.planned_production_date || "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("production")}>
                       Edit
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
-                <div className="min-w-[170px] font-semibold text-slate-700">
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">
                   Planned Dispatch Date <span className="font-normal text-slate-400">(admin only)</span>
                 </div>
                 {editingPlanned === "dispatch" ? (
-                  <>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
                       {busy ? "Saving…" : "Save"}
@@ -577,23 +574,20 @@ export default function OrderTracking() {
                     <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
                       Cancel
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div className="text-slate-600">{viewing.planned_dispatch_date || "—"}</div>
-                    <button
-                      className="ml-auto text-xs font-semibold text-exicom-teal hover:underline"
-                      onClick={() => startEditPlanned("dispatch")}
-                    >
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.planned_dispatch_date || "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("dispatch")}>
                       Edit
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 p-3 text-sm">
-                <div className="min-w-[170px] font-semibold text-slate-700">Expected Dispatch Date</div>
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">Expected Dispatch Date</div>
                 {editingExpected ? (
-                  <>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input className="inp !w-auto" type="date" value={expectedDraft} onChange={(e) => setExpectedDraft(e.target.value)} />
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveExpected}>
                       {busy ? "Saving…" : "Save"}
@@ -601,14 +595,14 @@ export default function OrderTracking() {
                     <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingExpected(false)}>
                       Cancel
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <div className="text-slate-600">{viewing.expected_dispatch_date || "—"}</div>
-                    <button className="ml-auto text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.expected_dispatch_date || "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
                       Edit
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
