@@ -203,7 +203,11 @@ class OrderTracking(Base):
     # regular open update_tracking path.
     planned_production_date: Mapped[str] = mapped_column(String(64), default="")
     planned_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
-    # Freely editable by anyone, unlike the two planned dates above.
+    # If the planned dispatch date changes after the fact, the revision is
+    # recorded here instead of overwriting planned_dispatch_date, so the
+    # originally-agreed date stays on record.
+    revised_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
+    # Freely editable by anyone, unlike the three fields above.
     expected_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
 
     # Whether this order dispatches in multiple tranches — null until the user
@@ -229,6 +233,7 @@ class OrderTracking(Base):
     # (dispatch_in_tranches == False) — tracks product + quantity instead of
     # the 3 generic tranche slots above.
     bulk_product: Mapped[str] = mapped_column(String(255), default="")
+    bulk_part_code: Mapped[str] = mapped_column(String(64), default="")
     bulk_qty: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     bulk_date: Mapped[str] = mapped_column(String(64), default="")
     bulk_kam: Mapped[str] = mapped_column(String(128), default="")

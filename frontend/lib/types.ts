@@ -165,6 +165,8 @@ export interface OrderTracking {
   planned_production_date?: string;
   /** Locked — only settable via api.updatePlannedDates (admin password required). */
   planned_dispatch_date?: string;
+  /** Locked — a change to planned_dispatch_date after the fact goes here instead, keeping the original. */
+  revised_dispatch_date?: string;
 
   /** Null until the "dispatch in tranches?" prompt is answered. */
   dispatch_in_tranches?: boolean | null;
@@ -173,6 +175,7 @@ export interface OrderTracking {
 
   /** Single consolidated dispatch, used when dispatch_in_tranches is false. */
   bulk_product?: string;
+  bulk_part_code?: string;
   bulk_qty?: number | null;
   bulk_date?: string;
   bulk_kam?: string;

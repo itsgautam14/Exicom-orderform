@@ -75,6 +75,22 @@ function delayColor(dateStr?: string): "green" | "amber" | "red" | null {
   return "red";
 }
 
+// Dispatch-plan status shown in the main table: how many days past the
+// planned/revised dispatch date today is. Green on/before, Amber up to 2
+// days late, Red beyond that — different thresholds from delayColor above.
+function dispatchStatusColor(dateStr?: string): "green" | "amber" | "red" | null {
+  if (!dateStr) return null;
+  const planned = new Date(dateStr);
+  if (Number.isNaN(planned.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  planned.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - planned.getTime()) / 86400000);
+  if (diffDays <= 0) return "green";
+  if (diffDays <= 2) return "amber";
+  return "red";
+}
+
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
   date_of_order: "", value: null, currency: "", notes: "", total_quantity: null,
@@ -96,11 +112,11 @@ export default function OrderTracking() {
     { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
   const [editingDispatch, setEditingDispatch] = useState<string | "bulk" | "new" | null>(null);
-  const [dispatchDraft, setDispatchDraft] = useState<{ product: string; qty: number | null; date: string; kam: string }>({
-    product: "", qty: null, date: "", kam: "",
+  const [dispatchDraft, setDispatchDraft] = useState<{ product: string; partCode: string; qty: number | null; date: string; kam: string }>({
+    product: "", partCode: "", qty: null, date: "", kam: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
-  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | null>(null);
+  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | "revised" | null>(null);
   const [plannedDraft, setPlannedDraft] = useState("");
   const [editingExpected, setEditingExpected] = useState(false);
   const [expectedDraft, setExpectedDraft] = useState("");
@@ -123,8 +139,6 @@ export default function OrderTracking() {
   useEffect(() => { reload(); }, []);
 
   // ---- dashboard stats ----
-  const stats = useMemo(() => ({ count: rows.length }), [rows]);
-
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return rows;
@@ -204,19 +218,22 @@ export default function OrderTracking() {
   function startEditDispatch(n: string | "bulk" | "new") {
     if (!viewing) return;
     if (n === "bulk") {
-      // Product/quantity are fetched from the order itself — only the date
-      // and KAM are ever hand-entered here.
-      setDispatchDraft({ product: "", qty: null, date: viewing.bulk_date || "", kam: viewing.bulk_kam || "" });
+      // Product/quantity are fetched from the order itself — only the date,
+      // KAM and part code are ever hand-entered here.
+      setDispatchDraft({
+        product: "", partCode: viewing.bulk_part_code || "", qty: null,
+        date: viewing.bulk_date || "", kam: viewing.bulk_kam || "",
+      });
       setEditingDispatch("bulk");
       return;
     }
     if (n === "new") {
-      setDispatchDraft({ product: "", qty: null, date: "", kam: "" });
+      setDispatchDraft({ product: "", partCode: "", qty: null, date: "", kam: "" });
       setEditingDispatch("new");
       return;
     }
     const d = (viewing.dispatches || []).find((x) => x.id === n);
-    setDispatchDraft({ product: "", qty: d?.qty ?? null, date: d?.date || "", kam: "" });
+    setDispatchDraft({ product: "", partCode: "", qty: d?.qty ?? null, date: d?.date || "", kam: "" });
     setEditingDispatch(n);
   }
 
@@ -230,6 +247,7 @@ export default function OrderTracking() {
           // Keep bulk_product/bulk_qty in sync with the order itself —
           // never hand-entered.
           bulk_product: viewing.ordered,
+          bulk_part_code: dispatchDraft.partCode,
           bulk_qty: viewing.total_quantity,
           bulk_date: dispatchDraft.date,
           bulk_kam: dispatchDraft.kam,
@@ -293,10 +311,14 @@ export default function OrderTracking() {
     return true;
   }
 
-  async function startEditPlanned(which: "production" | "dispatch") {
+  async function startEditPlanned(which: "production" | "dispatch" | "revised") {
     if (!viewing) return;
     if (!(await ensureAdmin())) return;
-    setPlannedDraft((which === "production" ? viewing.planned_production_date : viewing.planned_dispatch_date) || "");
+    const current =
+      which === "production" ? viewing.planned_production_date
+      : which === "dispatch" ? viewing.planned_dispatch_date
+      : viewing.revised_dispatch_date;
+    setPlannedDraft(current || "");
     setEditingPlanned(which);
   }
 
@@ -307,7 +329,9 @@ export default function OrderTracking() {
       const body =
         editingPlanned === "production"
           ? { planned_production_date: plannedDraft }
-          : { planned_dispatch_date: plannedDraft };
+          : editingPlanned === "dispatch"
+          ? { planned_dispatch_date: plannedDraft }
+          : { revised_dispatch_date: plannedDraft };
       const updated = await api.updatePlannedDates(viewing.id, body);
       setViewing(updated);
       setEditingPlanned(null);
@@ -451,14 +475,6 @@ export default function OrderTracking() {
         </div>
       </div>
 
-      {/* dashboard cards */}
-      <div className="mb-5 grid grid-cols-1 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tracked Orders</div>
-          <div className="mt-1 text-2xl font-bold text-slate-800">{stats.count}</div>
-        </div>
-      </div>
-
       {/* editor */}
       {editing && (
         <div className="card mb-5 border-exicom-teal/40 bg-slate-50">
@@ -504,9 +520,9 @@ export default function OrderTracking() {
           </div>
 
           {/* signed document */}
-          <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+          <div className={`mb-5 rounded-lg border bg-white p-3 ${viewing.doc_filename ? "border-slate-200" : "border-rose-300"}`}>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Signed Quotation / PO Document
+              Signed Quotation / PO Document <span className="text-rose-500">*</span>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {viewing.doc_filename ? (
@@ -518,7 +534,7 @@ export default function OrderTracking() {
                   📄 View {viewing.doc_filename}
                 </a>
               ) : (
-                <span className="text-sm text-slate-400">No document uploaded yet.</span>
+                <span className="text-sm font-semibold text-rose-600">Required — no document uploaded yet.</span>
               )}
               <input ref={docInput} type="file" className="hidden" onChange={onUploadDoc} />
               <button className="btn" disabled={busy} onClick={() => docInput.current?.click()}>
@@ -537,7 +553,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="font-normal text-slate-400">(admin only)</span>
@@ -579,6 +595,29 @@ export default function OrderTracking() {
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-slate-600">{viewing.planned_dispatch_date || "—"}</span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("dispatch")}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">
+                  Revised Dispatch Date <span className="font-normal text-slate-400">(admin only)</span>
+                </div>
+                {editingPlanned === "revised" ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.revised_dispatch_date || "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("revised")}>
                       Edit
                     </button>
                   </div>
@@ -661,7 +700,14 @@ export default function OrderTracking() {
                           · Quantity: <span className="font-semibold text-slate-700">{bulkQty ?? "—"}</span>{" "}
                           (fetched from the order)
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div>
+                            <label className="lbl">Part Code</label>
+                            <input
+                              className="inp" value={dispatchDraft.partCode}
+                              onChange={(e) => setDispatchDraft((d) => ({ ...d, partCode: e.target.value }))}
+                            />
+                          </div>
                           <div>
                             <label className="lbl">Tentative Dispatch Date</label>
                             <input
@@ -703,6 +749,7 @@ export default function OrderTracking() {
                       <div className="text-slate-500">
                         Product: <span className="font-medium text-slate-700">{bulkProduct}</span>
                       </div>
+                      <div className="text-slate-500">Part Code: <span className="font-medium text-slate-700">{viewing.bulk_part_code || "—"}</span></div>
                       <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{bulkQty ?? "—"}</span></div>
                       <div className="text-slate-500">
                         Date:{" "}
@@ -888,7 +935,7 @@ export default function OrderTracking() {
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Fulfillment Tracker
             </div>
-            <p className="mb-2 text-xs text-slate-400">Click a tab to view/record that stage.</p>
+            <p className="mb-2 text-xs text-slate-400">Select a stage below to view/record it.</p>
             {(() => {
               // Defensive: older/in-flight API responses may not include stage_events yet.
               const events = viewing.stage_events || [];
@@ -913,27 +960,16 @@ export default function OrderTracking() {
               );
               return (
                 <>
-                  {/* stage tabs */}
-                  <div className="mb-3 flex gap-1 border-b border-slate-200">
-                    {STAGES.map((s, i) => {
-                      const tabDone = stageDate(s.key) != null;
-                      const isSelected = s.key === selectedStage;
-                      return (
-                        <button
-                          key={s.key}
-                          type="button"
-                          onClick={() => setSelectedStage(s.key)}
-                          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-semibold transition ${
-                            isSelected
-                              ? "border-exicom-teal text-exicom-teal"
-                              : "border-transparent text-slate-500 hover:text-slate-700"
-                          }`}
-                        >
-                          <span className={`inline-block h-2 w-2 rounded-full ${tabDone ? "bg-exicom-teal" : "bg-slate-300"}`} />
-                          {s.label}
-                        </button>
-                      );
-                    })}
+                  {/* stage picker */}
+                  <div className="mb-3 flex items-center gap-2">
+                    <label className="text-xs font-semibold text-slate-500">Stage</label>
+                    <select
+                      className="inp !w-auto !py-1 !text-xs"
+                      value={selectedStage}
+                      onChange={(e) => setSelectedStage(e.target.value)}
+                    >
+                      {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
                   </div>
 
                   {/* selected stage's card */}
@@ -1278,6 +1314,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
+                <th className="px-3 py-2">Dispatch</th>
                 <th className="w-96 px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -1301,6 +1338,25 @@ export default function OrderTracking() {
                     >
                       {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                     </select>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {(() => {
+                      const effectiveDate = r.revised_dispatch_date || r.planned_dispatch_date;
+                      const color = dispatchStatusColor(effectiveDate);
+                      if (!color) return <span className="text-slate-400">—</span>;
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
+                            }`}
+                          />
+                          <span className={color === "amber" ? "text-amber-700" : color === "red" ? "text-rose-700" : "text-emerald-700"}>
+                            {effectiveDate}
+                          </span>
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="w-96 max-w-sm px-3 py-1.5 align-top text-slate-500">
                     {(() => {

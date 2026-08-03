@@ -229,6 +229,7 @@ class OrderTrackingBase(BaseModel):
 
     # Single consolidated dispatch, used when dispatch_in_tranches is False.
     bulk_product: str = ""
+    bulk_part_code: str = ""
     bulk_qty: Optional[int] = None
     bulk_date: str = ""
     bulk_kam: str = ""
@@ -260,6 +261,7 @@ class OrderTrackingUpdate(BaseModel):
     dispatch_in_tranches: Optional[bool] = None
 
     bulk_product: Optional[str] = None
+    bulk_part_code: Optional[str] = None
     bulk_qty: Optional[int] = None
     bulk_date: Optional[str] = None
     bulk_kam: Optional[str] = None
@@ -306,6 +308,9 @@ class PlannedDatesUpdate(BaseModel):
     """Body for the password-gated /planned-dates endpoint only."""
     planned_production_date: Optional[str] = None
     planned_dispatch_date: Optional[str] = None
+    # A change to planned_dispatch_date after it's already set once should be
+    # sent here instead, so the originally-agreed date is preserved.
+    revised_dispatch_date: Optional[str] = None
 
 
 class OrderTrackingOut(OrderTrackingBase):
@@ -315,6 +320,7 @@ class OrderTrackingOut(OrderTrackingBase):
     doc_filename: str = ""
     doc_content_type: str = ""
     planned_production_date: str = ""
+    revised_dispatch_date: str = ""
     planned_dispatch_date: str = ""
     stage_events: list[StageEventOut] = []
     dispatches: list[TrackingDispatchOut] = []
