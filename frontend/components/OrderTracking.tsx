@@ -14,6 +14,8 @@ const STAGES: { key: string; label: string }[] = [
   { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
+  { key: "shipment", label: "Shipment" },
+  { key: "receipt", label: "Receipt" },
 ];
 
 // Short form used in the Logs table's Activity column.
@@ -21,6 +23,8 @@ const STAGE_SHORT_LABEL: Record<string, string> = {
   in_production: "In Production",
   fg_ready: "FG Ready",
   dispatched: "Dispatched",
+  shipment: "Shipment",
+  receipt: "Receipt",
 };
 
 function fmtDateTime(iso: string): string {
@@ -1250,7 +1254,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Summary
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {(() => {
                 const events = viewing.stage_events || [];
                 const stageDate = (key: string) => events.find((e) => e.stage === key)?.created_at;

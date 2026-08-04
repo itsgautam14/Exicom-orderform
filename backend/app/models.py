@@ -238,7 +238,7 @@ class OrderTracking(Base):
     bulk_date: Mapped[str] = mapped_column(String(64), default="")
     bulk_kam: Mapped[str] = mapped_column(String(128), default="")
 
-    # Fulfillment pipeline: in_production -> fg_ready -> dispatched.
+    # Fulfillment pipeline: in_production -> fg_ready -> dispatched -> shipment -> receipt.
     # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
     current_stage: Mapped[str] = mapped_column(String(32), default="in_production")
 
@@ -270,7 +270,7 @@ class TrackingStageEvent(Base):
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     tracking_id: Mapped[str] = mapped_column(ForeignKey("order_trackings.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(32))  # in_production | fg_ready | dispatched
+    stage: Mapped[str] = mapped_column(String(32))  # in_production | fg_ready | dispatched | shipment | receipt
     remarks: Mapped[str] = mapped_column(Text, default="")
     # Who logged this stage entry — hand-entered, not inferred from anywhere else.
     kam: Mapped[str] = mapped_column(String(128), default="")
