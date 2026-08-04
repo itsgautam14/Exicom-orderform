@@ -1323,23 +1323,12 @@ export default function OrderTracking() {
                         dispatchStatusColor(r.expected_dispatch_date)
                       );
                       return (
-                        <div className="flex items-start gap-1.5 text-xs">
-                          <span
-                            className={`mt-1 inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
-                            }`}
-                          />
-                          <div className="flex flex-col gap-0.5">
-                            <div>
-                              <span className="text-slate-400">Planned:</span>{" "}
-                              <span className="font-medium text-slate-700">{r.planned_dispatch_date || "—"}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400">Expected:</span>{" "}
-                              <span className="font-medium text-slate-700">{r.expected_dispatch_date || "—"}</span>
-                            </div>
-                          </div>
-                        </div>
+                        <span
+                          title={`Planned: ${r.planned_dispatch_date || "—"} · Expected: ${r.expected_dispatch_date || "—"}`}
+                          className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                            color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
+                          }`}
+                        />
                       );
                     })()}
                   </td>
