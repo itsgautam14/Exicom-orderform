@@ -6,10 +6,6 @@ import type { OrderTracking } from "@/lib/types";
 
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
-// Shared admin password, same sessionStorage key as AdminGate/CatalogGate —
-// unlocking any one of them unlocks this too.
-const ADMIN_PW_KEY = "catalog_admin_pw";
-
 const STAGES: { key: string; label: string }[] = [
   { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
@@ -294,25 +290,8 @@ export default function OrderTracking() {
     }
   }
 
-  // Prompts for the admin password (once per session) before letting a
-  // locked planned-date field be edited. Shared with AdminGate/CatalogGate's
-  // sessionStorage key, so unlocking any one admin area unlocks this too.
-  async function ensureAdmin(): Promise<boolean> {
-    if (typeof window !== "undefined" && sessionStorage.getItem(ADMIN_PW_KEY)) return true;
-    const pw = window.prompt("Admin password required to edit this field:");
-    if (!pw) return false;
-    const ok = await api.verifyAdmin(pw);
-    if (!ok) {
-      alert("Incorrect password.");
-      return false;
-    }
-    sessionStorage.setItem(ADMIN_PW_KEY, pw);
-    return true;
-  }
-
-  async function startEditPlanned(which: "production" | "dispatch") {
+  function startEditPlanned(which: "production" | "dispatch") {
     if (!viewing) return;
-    if (!(await ensureAdmin())) return;
     setPlannedDraft((which === "production" ? viewing.planned_production_date : viewing.planned_dispatch_date) || "");
     setEditingPlanned(which);
   }
@@ -325,7 +304,7 @@ export default function OrderTracking() {
         editingPlanned === "production"
           ? { planned_production_date: plannedDraft }
           : { planned_dispatch_date: plannedDraft };
-      const updated = await api.updatePlannedDates(viewing.id, body);
+      const updated = await api.updateTracking(viewing.id, body);
       setViewing(updated);
       setEditingPlanned(null);
       reload();
@@ -542,7 +521,7 @@ export default function OrderTracking() {
             </div>
           </div>
 
-          {/* planned & expected dates — the first two are locked behind the admin password */}
+          {/* planned & expected dates */}
           <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
@@ -550,7 +529,7 @@ export default function OrderTracking() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
-                  Planned Production Date <span className="font-normal text-slate-400">(admin only)</span>
+                  Planned Production Date
                 </div>
                 {editingPlanned === "production" ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -573,7 +552,7 @@ export default function OrderTracking() {
               </div>
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
-                  Planned Dispatch Date <span className="font-normal text-slate-400">(admin only)</span>
+                  Planned Dispatch Date
                 </div>
                 {editingPlanned === "dispatch" ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">

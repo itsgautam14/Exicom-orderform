@@ -245,18 +245,6 @@ export const api = {
 
   deleteTrackingDispatch: (id: string, dispatchId: string): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/dispatch/${dispatchId}`, { method: "DELETE", headers: adminHeaders() }).then(json<OrderTracking>),
-
-  // Planned Production/Dispatch Date — locked fields, admin password required
-  // (401 if adminHeaders() has none stored yet or it's wrong).
-  updatePlannedDates: (
-    id: string,
-    body: { planned_production_date?: string; planned_dispatch_date?: string }
-  ): Promise<OrderTracking> =>
-    fetch(`${BASE}/api/tracking/${id}/planned-dates`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify(body),
-    }).then(json<OrderTracking>),
 };
 
 export const API_BASE = BASE;

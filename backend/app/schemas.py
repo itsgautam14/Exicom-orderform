@@ -218,9 +218,9 @@ class OrderTrackingBase(BaseModel):
     status: str = ""
     notes: str = ""
 
-    # Freely editable by anyone. planned_production_date / planned_dispatch_date
-    # are deliberately NOT in this base schema — they can only be set through
-    # the password-gated PlannedDatesUpdate / /planned-dates endpoint below.
+    # Freely editable by anyone.
+    planned_production_date: str = ""
+    planned_dispatch_date: str = ""
     expected_dispatch_date: str = ""
 
     # Null until the Yes/No "dispatch in tranches?" prompt is answered. The
@@ -258,6 +258,8 @@ class OrderTrackingUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = None
 
+    planned_production_date: Optional[str] = None
+    planned_dispatch_date: Optional[str] = None
     expected_dispatch_date: Optional[str] = None
 
     dispatch_in_tranches: Optional[bool] = None
@@ -306,19 +308,11 @@ class TrackingDispatchIn(BaseModel):
     date: str = ""
 
 
-class PlannedDatesUpdate(BaseModel):
-    """Body for the password-gated /planned-dates endpoint only."""
-    planned_production_date: Optional[str] = None
-    planned_dispatch_date: Optional[str] = None
-
-
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
     current_stage: str = "in_production"
     doc_filename: str = ""
     doc_content_type: str = ""
-    planned_production_date: str = ""
-    planned_dispatch_date: str = ""
     stage_events: list[StageEventOut] = []
     dispatches: list[TrackingDispatchOut] = []
