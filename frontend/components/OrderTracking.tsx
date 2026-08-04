@@ -95,6 +95,15 @@ function dispatchStatusColor(dateStr?: string): "green" | "amber" | "red" | null
   return "red";
 }
 
+// Worst of two statuses (red > amber > green), for a single combined flag.
+function worstColor(...colors: ("green" | "amber" | "red" | null)[]): "green" | "amber" | "red" | null {
+  const rank = { red: 3, amber: 2, green: 1 } as const;
+  return colors.reduce<"green" | "amber" | "red" | null>(
+    (worst, c) => (c && (!worst || rank[c] > rank[worst]) ? c : worst),
+    null
+  );
+}
+
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
   date_of_order: "", value: null, currency: "", notes: "", total_quantity: null,
@@ -1308,25 +1317,31 @@ export default function OrderTracking() {
                     })()}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    <div className="flex flex-col gap-1 text-xs">
-                      {[
-                        { label: "Planned", value: r.planned_dispatch_date },
-                        { label: "Expected", value: r.expected_dispatch_date },
-                      ].map(({ label, value }) => {
-                        const color = dispatchStatusColor(value);
-                        return (
-                          <div key={label} className="flex items-center gap-1.5">
-                            <span
-                              className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${
-                                color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
-                              }`}
-                            />
-                            <span className="text-slate-400">{label}:</span>
-                            <span className="font-medium text-slate-700">{value || "—"}</span>
+                    {(() => {
+                      const color = worstColor(
+                        dispatchStatusColor(r.planned_dispatch_date),
+                        dispatchStatusColor(r.expected_dispatch_date)
+                      );
+                      return (
+                        <div className="flex items-start gap-1.5 text-xs">
+                          <span
+                            className={`mt-1 inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
+                            }`}
+                          />
+                          <div className="flex flex-col gap-0.5">
+                            <div>
+                              <span className="text-slate-400">Planned:</span>{" "}
+                              <span className="font-medium text-slate-700">{r.planned_dispatch_date || "—"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400">Expected:</span>{" "}
+                              <span className="font-medium text-slate-700">{r.expected_dispatch_date || "—"}</span>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="w-96 max-w-sm px-3 py-1.5 align-top text-slate-500">
                     {(() => {
