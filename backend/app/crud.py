@@ -696,10 +696,8 @@ def save_tracking_document(
     obj.doc_content_type = content_type
     obj.doc_data = data
     # The signed PO/quotation is the actual evidence the order was placed —
-    # if Order Date hasn't been filled in yet, use the upload date rather
-    # than leaving it blank. Never overwrites an already-recorded date.
-    if not (obj.date_of_order or "").strip():
-        obj.date_of_order = dt.date.today().isoformat()
+    # Order Date always reflects the moment it was uploaded.
+    obj.date_of_order = dt.date.today().isoformat()
     # Log it against whichever stage the order is at right now, so it shows
     # up in the Logs table even though it isn't itself a stage transition.
     obj.stage_events.append(models.TrackingStageEvent(stage=obj.current_stage, remarks="Document uploaded"))
