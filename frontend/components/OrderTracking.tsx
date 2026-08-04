@@ -79,19 +79,19 @@ function delayColor(dateStr?: string): "green" | "amber" | "red" | null {
   return "red";
 }
 
-// Dispatch-plan status shown in the main table: how many days past the
-// planned/revised dispatch date today is. Green on/before, Amber up to 2
-// days late, Red beyond that — different thresholds from delayColor above.
+// Status for Planned/Expected Dispatch Date: Green while more than 2 days
+// remain, Amber once within 2 days of the date (before or up to 2 days
+// after), Red once more than 2 days overdue.
 function dispatchStatusColor(dateStr?: string): "green" | "amber" | "red" | null {
   if (!dateStr) return null;
-  const planned = new Date(dateStr);
-  if (Number.isNaN(planned.getTime())) return null;
+  const target = new Date(dateStr);
+  if (Number.isNaN(target.getTime())) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  planned.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((today.getTime() - planned.getTime()) / 86400000);
-  if (diffDays <= 0) return "green";
-  if (diffDays <= 2) return "amber";
+  target.setHours(0, 0, 0, 0);
+  const daysRemaining = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (daysRemaining > 2) return "green";
+  if (daysRemaining >= -2) return "amber";
   return "red";
 }
 
@@ -120,7 +120,7 @@ export default function OrderTracking() {
     qty: null, date: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
-  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | "revised" | null>(null);
+  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | null>(null);
   const [plannedDraft, setPlannedDraft] = useState("");
   const [editingExpected, setEditingExpected] = useState(false);
   const [expectedDraft, setExpectedDraft] = useState("");
@@ -301,14 +301,10 @@ export default function OrderTracking() {
     return true;
   }
 
-  async function startEditPlanned(which: "production" | "dispatch" | "revised") {
+  async function startEditPlanned(which: "production" | "dispatch") {
     if (!viewing) return;
     if (!(await ensureAdmin())) return;
-    const current =
-      which === "production" ? viewing.planned_production_date
-      : which === "dispatch" ? viewing.planned_dispatch_date
-      : viewing.revised_dispatch_date;
-    setPlannedDraft(current || "");
+    setPlannedDraft((which === "production" ? viewing.planned_production_date : viewing.planned_dispatch_date) || "");
     setEditingPlanned(which);
   }
 
@@ -319,9 +315,7 @@ export default function OrderTracking() {
       const body =
         editingPlanned === "production"
           ? { planned_production_date: plannedDraft }
-          : editingPlanned === "dispatch"
-          ? { planned_dispatch_date: plannedDraft }
-          : { revised_dispatch_date: plannedDraft };
+          : { planned_dispatch_date: plannedDraft };
       const updated = await api.updatePlannedDates(viewing.id, body);
       setViewing(updated);
       setEditingPlanned(null);
@@ -544,7 +538,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="font-normal text-slate-400">(admin only)</span>
@@ -604,41 +598,6 @@ export default function OrderTracking() {
                 )}
               </div>
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
-                <div className="font-semibold text-slate-700">
-                  Revised Dispatch Date <span className="font-normal text-slate-400">(admin only)</span>
-                </div>
-                {editingPlanned === "revised" ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
-                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
-                      {busy ? "Saving…" : "Save"}
-                    </button>
-                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-slate-600">
-                      {(() => {
-                        const color = dispatchStatusColor(viewing.revised_dispatch_date);
-                        return color ? (
-                          <span
-                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
-                            }`}
-                          />
-                        ) : null;
-                      })()}
-                      {viewing.revised_dispatch_date || "—"}
-                    </span>
-                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("revised")}>
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">Expected Dispatch Date</div>
                 {editingExpected ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -652,7 +611,19 @@ export default function OrderTracking() {
                   </div>
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-slate-600">{viewing.expected_dispatch_date || "—"}</span>
+                    <span className="inline-flex items-center gap-1.5 text-slate-600">
+                      {(() => {
+                        const color = dispatchStatusColor(viewing.expected_dispatch_date);
+                        return color ? (
+                          <span
+                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
+                            }`}
+                          />
+                        ) : null;
+                      })()}
+                      {viewing.expected_dispatch_date || "—"}
+                    </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
                       Edit
                     </button>
@@ -1314,6 +1285,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
+                <th className="px-3 py-2">Planned / Expected</th>
                 <th className="w-96 px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -1334,6 +1306,27 @@ export default function OrderTracking() {
                       const stageLabel = STAGES.find((s) => s.key === r.current_stage)?.label || r.current_stage;
                       return <span className="text-sm font-semibold text-slate-700">{stageLabel}</span>;
                     })()}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <div className="flex flex-col gap-1 text-xs">
+                      {[
+                        { label: "Planned", value: r.planned_dispatch_date },
+                        { label: "Expected", value: r.expected_dispatch_date },
+                      ].map(({ label, value }) => {
+                        const color = dispatchStatusColor(value);
+                        return (
+                          <div key={label} className="flex items-center gap-1.5">
+                            <span
+                              className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${
+                                color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
+                              }`}
+                            />
+                            <span className="text-slate-400">{label}:</span>
+                            <span className="font-medium text-slate-700">{value || "—"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </td>
                   <td className="w-96 max-w-sm px-3 py-1.5 align-top text-slate-500">
                     {(() => {

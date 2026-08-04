@@ -60,9 +60,7 @@ def update_planned_dates(tracking_id: str, payload: schemas.PlannedDatesUpdate, 
     obj = crud.get_tracking(db, tracking_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
-    return crud.update_planned_dates(
-        db, obj, payload.planned_production_date, payload.planned_dispatch_date, payload.revised_dispatch_date
-    )
+    return crud.update_planned_dates(db, obj, payload.planned_production_date, payload.planned_dispatch_date)
 
 
 # --- Signed document upload / view --------------------------------------------

@@ -250,7 +250,7 @@ export const api = {
   // (401 if adminHeaders() has none stored yet or it's wrong).
   updatePlannedDates: (
     id: string,
-    body: { planned_production_date?: string; planned_dispatch_date?: string; revised_dispatch_date?: string }
+    body: { planned_production_date?: string; planned_dispatch_date?: string }
   ): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/planned-dates`, {
       method: "PUT",

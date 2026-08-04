@@ -206,11 +206,7 @@ class OrderTracking(Base):
     # regular open update_tracking path.
     planned_production_date: Mapped[str] = mapped_column(String(64), default="")
     planned_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
-    # If the planned dispatch date changes after the fact, the revision is
-    # recorded here instead of overwriting planned_dispatch_date, so the
-    # originally-agreed date stays on record.
-    revised_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
-    # Freely editable by anyone, unlike the three fields above.
+    # Freely editable by anyone, unlike the two fields above.
     expected_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
 
     # Whether this order dispatches in multiple tranches — null until the user
