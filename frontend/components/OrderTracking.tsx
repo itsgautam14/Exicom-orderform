@@ -173,16 +173,6 @@ export default function OrderTracking() {
   }
 
   // Quick stage change directly from the list, without opening the detail view.
-  async function changeStage(row: OrderTracking, stage: string) {
-    if (stage === row.current_stage) return;
-    try {
-      await api.advanceTrackingStage(row.id, stage, "");
-      reload();
-    } catch (e) {
-      alert((e as Error).message);
-    }
-  }
-
   // Answers (or re-answers) the "dispatch in tranches?" prompt gating Dispatch Details.
   async function setDispatchInTranches(value: boolean) {
     if (!viewing) return;
@@ -1318,7 +1308,6 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Order Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
-                <th className="px-3 py-2">Dispatch</th>
                 <th className="w-96 px-3 py-2">Remarks</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -1335,30 +1324,19 @@ export default function OrderTracking() {
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    <select
-                      className="inp !w-auto !py-1 !text-xs"
-                      value={r.current_stage}
-                      onChange={(e) => changeStage(r, e.target.value)}
-                    >
-                      {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                    </select>
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2">
                     {(() => {
                       const effectiveDate = r.revised_dispatch_date || r.planned_dispatch_date;
                       const color = dispatchStatusColor(effectiveDate);
-                      if (!color) return <span className="text-slate-400">—</span>;
+                      const stageLabel = STAGES.find((s) => s.key === r.current_stage)?.label || r.current_stage;
                       return (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
+                        <div className="flex items-center gap-1.5" title={effectiveDate ? `Dispatch date: ${effectiveDate}` : undefined}>
                           <span
-                            className={`inline-block h-2.5 w-2.5 rounded-full ${
-                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
+                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
                             }`}
                           />
-                          <span className={color === "amber" ? "text-amber-700" : color === "red" ? "text-rose-700" : "text-emerald-700"}>
-                            {effectiveDate}
-                          </span>
-                        </span>
+                          <span className="text-sm font-semibold text-slate-700">{stageLabel}</span>
+                        </div>
                       );
                     })()}
                   </td>
