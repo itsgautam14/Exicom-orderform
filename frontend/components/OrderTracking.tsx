@@ -116,8 +116,8 @@ export default function OrderTracking() {
     { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
   const [editingDispatch, setEditingDispatch] = useState<string | "bulk" | "new" | null>(null);
-  const [dispatchDraft, setDispatchDraft] = useState<{ product: string; partCode: string; qty: number | null; date: string; kam: string }>({
-    product: "", partCode: "", qty: null, date: "", kam: "",
+  const [dispatchDraft, setDispatchDraft] = useState<{ qty: number | null; date: string }>({
+    qty: null, date: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
   const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | "revised" | null>(null);
@@ -212,22 +212,19 @@ export default function OrderTracking() {
   function startEditDispatch(n: string | "bulk" | "new") {
     if (!viewing) return;
     if (n === "bulk") {
-      // Product/quantity are fetched from the order itself — only the date,
-      // KAM and part code are ever hand-entered here.
-      setDispatchDraft({
-        product: "", partCode: viewing.bulk_part_code || "", qty: null,
-        date: viewing.bulk_date || "", kam: viewing.bulk_kam || "",
-      });
+      // Product/quantity/part code are fetched from the order itself — only
+      // the date is ever hand-entered here.
+      setDispatchDraft({ qty: null, date: viewing.bulk_date || "" });
       setEditingDispatch("bulk");
       return;
     }
     if (n === "new") {
-      setDispatchDraft({ product: "", partCode: "", qty: null, date: "", kam: "" });
+      setDispatchDraft({ qty: null, date: "" });
       setEditingDispatch("new");
       return;
     }
     const d = (viewing.dispatches || []).find((x) => x.id === n);
-    setDispatchDraft({ product: "", partCode: "", qty: d?.qty ?? null, date: d?.date || "", kam: "" });
+    setDispatchDraft({ qty: d?.qty ?? null, date: d?.date || "" });
     setEditingDispatch(n);
   }
 
@@ -238,13 +235,12 @@ export default function OrderTracking() {
       let updated: OrderTracking;
       if (editingDispatch === "bulk") {
         updated = await api.updateTracking(viewing.id, {
-          // Keep bulk_product/bulk_qty in sync with the order itself —
-          // never hand-entered.
+          // Keep bulk_product/bulk_part_code/bulk_qty in sync with the order
+          // itself — never hand-entered.
           bulk_product: viewing.ordered,
-          bulk_part_code: dispatchDraft.partCode,
+          bulk_part_code: viewing.part_code,
           bulk_qty: viewing.total_quantity,
           bulk_date: dispatchDraft.date,
-          bulk_kam: dispatchDraft.kam,
         });
       } else if (editingDispatch === "new") {
         updated = await api.addTrackingDispatch(viewing.id, dispatchDraft.qty, dispatchDraft.date);
@@ -487,6 +483,7 @@ export default function OrderTracking() {
               </select>
             </div>
             {numField("Total Quantity", "total_quantity")}
+            {textField("Part Code", "part_code")}
           </div>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {areaField("Ordered", "ordered")}
@@ -587,7 +584,19 @@ export default function OrderTracking() {
                   </div>
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-slate-600">{viewing.planned_dispatch_date || "—"}</span>
+                    <span className="inline-flex items-center gap-1.5 text-slate-600">
+                      {(() => {
+                        const color = dispatchStatusColor(viewing.planned_dispatch_date);
+                        return color ? (
+                          <span
+                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
+                            }`}
+                          />
+                        ) : null;
+                      })()}
+                      {viewing.planned_dispatch_date || "—"}
+                    </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("dispatch")}>
                       Edit
                     </button>
@@ -610,7 +619,19 @@ export default function OrderTracking() {
                   </div>
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-slate-600">{viewing.revised_dispatch_date || "—"}</span>
+                    <span className="inline-flex items-center gap-1.5 text-slate-600">
+                      {(() => {
+                        const color = dispatchStatusColor(viewing.revised_dispatch_date);
+                        return color ? (
+                          <span
+                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-rose-500"
+                            }`}
+                          />
+                        ) : null;
+                      })()}
+                      {viewing.revised_dispatch_date || "—"}
+                    </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("revised")}>
                       Edit
                     </button>
@@ -679,9 +700,10 @@ export default function OrderTracking() {
               <div className="overflow-hidden rounded-lg border border-slate-200">
                 {(() => {
                   const bulkColor = delayColor(viewing.bulk_date);
-                  // The whole order ships in one go, so product/quantity/price
+                  // The whole order ships in one go, so product/part code/quantity/price
                   // are fetched straight from the order — nothing to type in.
                   const bulkProduct = viewing.ordered || "—";
+                  const bulkPartCode = viewing.part_code || "—";
                   const bulkQty = viewing.total_quantity ?? null;
                   const bulkPrice = viewing.value ?? null;
 
@@ -691,31 +713,16 @@ export default function OrderTracking() {
                         <div className="mb-2 text-xs font-semibold text-slate-700">Bulk Order</div>
                         <div className="mb-3 text-xs text-slate-500">
                           Product: <span className="font-semibold text-slate-700">{bulkProduct}</span>{" "}
+                          · Part Code: <span className="font-semibold text-slate-700">{bulkPartCode}</span>{" "}
                           · Quantity: <span className="font-semibold text-slate-700">{bulkQty ?? "—"}</span>{" "}
                           (fetched from the order)
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                          <div>
-                            <label className="lbl">Part Code</label>
-                            <input
-                              className="inp" value={dispatchDraft.partCode}
-                              onChange={(e) => setDispatchDraft((d) => ({ ...d, partCode: e.target.value }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="lbl">Tentative Dispatch Date</label>
-                            <input
-                              className="inp" type="date" value={dispatchDraft.date}
-                              onChange={(e) => setDispatchDraft((d) => ({ ...d, date: e.target.value }))}
-                            />
-                          </div>
-                          <div>
-                            <label className="lbl">KAM</label>
-                            <input
-                              className="inp" value={dispatchDraft.kam}
-                              onChange={(e) => setDispatchDraft((d) => ({ ...d, kam: e.target.value }))}
-                            />
-                          </div>
+                        <div>
+                          <label className="lbl">Tentative Dispatch Date</label>
+                          <input
+                            className="inp" type="date" value={dispatchDraft.date}
+                            onChange={(e) => setDispatchDraft((d) => ({ ...d, date: e.target.value }))}
+                          />
                         </div>
                         <div className="mt-2 text-[11px] text-slate-500">
                           Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
@@ -743,7 +750,7 @@ export default function OrderTracking() {
                       <div className="text-slate-500">
                         Product: <span className="font-medium text-slate-700">{bulkProduct}</span>
                       </div>
-                      <div className="text-slate-500">Part Code: <span className="font-medium text-slate-700">{viewing.bulk_part_code || "—"}</span></div>
+                      <div className="text-slate-500">Part Code: <span className="font-medium text-slate-700">{bulkPartCode}</span></div>
                       <div className="text-slate-500">Qty: <span className="font-medium text-slate-700">{bulkQty ?? "—"}</span></div>
                       <div className="text-slate-500">
                         Date:{" "}
@@ -751,7 +758,6 @@ export default function OrderTracking() {
                           {viewing.bulk_date || "—"}
                         </span>
                       </div>
-                      <div className="text-slate-500">KAM: <span className="font-medium text-slate-700">{viewing.bulk_kam || "—"}</span></div>
                       <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
                       <div className="text-slate-500">
                         Price:{" "}
@@ -1325,19 +1331,8 @@ export default function OrderTracking() {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     {(() => {
-                      const effectiveDate = r.revised_dispatch_date || r.planned_dispatch_date;
-                      const color = dispatchStatusColor(effectiveDate);
                       const stageLabel = STAGES.find((s) => s.key === r.current_stage)?.label || r.current_stage;
-                      return (
-                        <div className="flex items-center gap-1.5" title={effectiveDate ? `Dispatch date: ${effectiveDate}` : undefined}>
-                          <span
-                            className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-                              color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
-                            }`}
-                          />
-                          <span className="text-sm font-semibold text-slate-700">{stageLabel}</span>
-                        </div>
-                      );
+                      return <span className="text-sm font-semibold text-slate-700">{stageLabel}</span>;
                     })()}
                   </td>
                   <td className="w-96 max-w-sm px-3 py-1.5 align-top text-slate-500">

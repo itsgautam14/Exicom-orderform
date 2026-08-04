@@ -419,6 +419,15 @@ def _order_items_summary(order: models.Order) -> str:
     return "; ".join(parts)
 
 
+def _order_items_part_codes(order: models.Order) -> str:
+    codes = []
+    for it in order.items:
+        code = (it.product_code or "").strip()
+        if code and code not in codes:
+            codes.append(code)
+    return ", ".join(codes)
+
+
 def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     """Create or refresh the SO Order Tracking row generated from this quotation.
 
@@ -438,6 +447,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     market = obj.bill_to_country or ""
     kam = obj.proposed_by or ""
     ordered = _order_items_summary(obj)
+    part_code = _order_items_part_codes(obj)
     date_of_order = obj.quote_date or ""
     value = compute_totals(obj)["grand_total"]
     currency = obj.currency or ""
@@ -452,6 +462,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             market=market,
             kam=kam,
             ordered=ordered,
+            part_code=part_code,
             date_of_order=date_of_order,
             value=value,
             currency=currency,
@@ -465,6 +476,7 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
         row.market = market
         row.kam = kam
         row.ordered = ordered
+        row.part_code = part_code
         row.date_of_order = date_of_order
         row.value = value
         row.currency = currency

@@ -146,6 +146,8 @@ export interface OrderTracking {
   market: string;
   kam: string;
   ordered: string;
+  /** Product code(s), auto-filled from the linked quotation's line items — never hand-typed. */
+  part_code?: string;
   specifications: string;
   date_of_order: string;
   value: number | null;

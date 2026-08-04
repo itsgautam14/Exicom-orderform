@@ -206,6 +206,7 @@ class OrderTrackingBase(BaseModel):
     market: str = ""  # destination country — shown in the UI as "Country"
     kam: str = ""
     ordered: str = ""
+    part_code: str = ""
     specifications: str = ""
     date_of_order: str = ""
     value: Optional[float] = None
@@ -245,6 +246,7 @@ class OrderTrackingUpdate(BaseModel):
     market: Optional[str] = None
     kam: Optional[str] = None
     ordered: Optional[str] = None
+    part_code: Optional[str] = None
     specifications: Optional[str] = None
     date_of_order: Optional[str] = None
     value: Optional[float] = None

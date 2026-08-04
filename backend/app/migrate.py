@@ -40,6 +40,7 @@ _COLUMNS = [
     ("orders", "eori_number", "VARCHAR(32) DEFAULT ''"),
     ("orders", "po_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "part_code", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
     ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'in_production'"),
     ("order_trackings", "doc_data", "BYTEA"),

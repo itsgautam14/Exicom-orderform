@@ -181,6 +181,9 @@ class OrderTracking(Base):
     market: Mapped[str] = mapped_column(String(128), default="")
     kam: Mapped[str] = mapped_column(String(128), default="")
     ordered: Mapped[str] = mapped_column(Text, default="")
+    # Product code(s) from the linked Order's line items — auto-filled like
+    # `ordered`, never hand-typed (see crud._sync_tracking_from_order).
+    part_code: Mapped[str] = mapped_column(String(255), default="")
     specifications: Mapped[str] = mapped_column(Text, default="")
     date_of_order: Mapped[str] = mapped_column(String(64), default="")
     value: Mapped[Optional[float]] = mapped_column(Numeric(16, 2), nullable=True)
