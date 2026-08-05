@@ -640,7 +640,7 @@ export default function OrderTracking() {
                 Dispatch Details
               </div>
               <p className="mb-3 text-sm text-slate-500">
-                No multiple dispatches for this order.{" "}
+                Are there multiple dispatches in this order?{" "}
                 <button
                   className="font-semibold text-exicom-teal hover:underline"
                   onClick={() => setDispatchInTranches(true)}
