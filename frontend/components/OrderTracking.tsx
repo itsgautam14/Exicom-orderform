@@ -641,11 +641,15 @@ export default function OrderTracking() {
               </div>
               <p className="mb-3 text-sm text-slate-500">
                 Are there multiple dispatches in this order?{" "}
+                <button className="font-semibold text-slate-700" disabled>
+                  No
+                </button>{" "}
+                /{" "}
                 <button
                   className="font-semibold text-exicom-teal hover:underline"
                   onClick={() => setDispatchInTranches(true)}
                 >
-                  Change
+                  Yes
                 </button>
               </p>
 
@@ -738,12 +742,19 @@ export default function OrderTracking() {
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Dispatch Details
               </div>
-              <button
-                className="text-xs font-semibold text-slate-400 hover:text-slate-600"
-                onClick={() => setDispatchInTranches(false)}
-              >
-                Not multiple dispatches after all?
-              </button>
+              <div className="text-xs text-slate-400">
+                Multiple dispatches?{" "}
+                <button className="font-semibold text-slate-700" disabled>
+                  Yes
+                </button>{" "}
+                /{" "}
+                <button
+                  className="font-semibold text-exicom-teal hover:underline"
+                  onClick={() => setDispatchInTranches(false)}
+                >
+                  No
+                </button>
+              </div>
             </div>
             <p className="mb-2 text-xs text-slate-500">
               Product: <span className="font-semibold text-slate-700">{viewing.ordered || "—"}</span>{" "}
