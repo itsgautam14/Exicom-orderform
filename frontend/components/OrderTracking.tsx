@@ -91,15 +91,6 @@ function dispatchStatusColor(dateStr?: string): "green" | "amber" | "red" | null
   return "red";
 }
 
-// Worst of two statuses (red > amber > green), for a single combined flag.
-function worstColor(...colors: ("green" | "amber" | "red" | null)[]): "green" | "amber" | "red" | null {
-  const rank = { red: 3, amber: 2, green: 1 } as const;
-  return colors.reduce<"green" | "amber" | "red" | null>(
-    (worst, c) => (c && (!worst || rank[c] > rank[worst]) ? c : worst),
-    null
-  );
-}
-
 const BLANK: Partial<OrderTracking> = {
   partner: "", market: "", kam: "", ordered: "", specifications: "",
   date_of_order: "", value: null, currency: "", notes: "", total_quantity: null,
@@ -1297,17 +1288,17 @@ export default function OrderTracking() {
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
                     {(() => {
-                      const color = worstColor(
-                        dispatchStatusColor(r.planned_dispatch_date),
-                        dispatchStatusColor(r.expected_dispatch_date)
-                      );
+                      const plannedColor = dispatchStatusColor(r.planned_dispatch_date);
+                      const expectedColor = dispatchStatusColor(r.expected_dispatch_date);
+                      const dotClass = (color: "green" | "amber" | "red" | null) =>
+                        `inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                          color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
+                        }`;
                       return (
-                        <span
-                          title={`Planned: ${r.planned_dispatch_date || "—"} · Expected: ${r.expected_dispatch_date || "—"}`}
-                          className={`inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-                            color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
-                          }`}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          <span title={`Planned: ${r.planned_dispatch_date || "—"}`} className={dotClass(plannedColor)} />
+                          <span title={`Expected: ${r.expected_dispatch_date || "—"}`} className={dotClass(expectedColor)} />
+                        </div>
                       );
                     })()}
                   </td>
