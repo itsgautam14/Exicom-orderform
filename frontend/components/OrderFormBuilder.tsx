@@ -444,8 +444,11 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   // Auto-compute the transport cost from a registered rate (INR) × quantity, converted to the
   // order currency. If the country has no registered rate, leave the cost for manual entry.
+  // Once a freight charge is present — whether from this auto-fill or entered by hand during
+  // logistics approval — never overwrite it; changing the country resets it to 0 to opt back in.
   useEffect(() => {
     if (order.incoterms !== "CIF" || !order.transport_country) return;
+    if (order.freight_charge) return;
     const info = logistics[order.transport_country];
     const isAir = order.transport_mode === "Airways";
     const rateInr = info ? (isAir ? airRate(info, order.transport_qty || 0) : info.sea) : null;
@@ -454,7 +457,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     const inr = rateInr * (order.transport_qty || 0);
     const converted = Math.round(inr * (order.currency === "INR" ? 1 : fx.rate));
     setOrder((o) => (o.freight_charge !== converted ? { ...o, freight_charge: converted } : o));
-  }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate, logistics]);
+  }, [order.incoterms, order.transport_country, order.transport_mode, order.transport_qty, order.currency, fx.rate, logistics, order.freight_charge]);
 
   // FOB: a fixed transportation cost (INR 17,250) converted live to the order currency.
   useEffect(() => {
