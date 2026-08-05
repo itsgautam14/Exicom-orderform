@@ -747,6 +747,7 @@ export default function OrderTracking() {
             </div>
             <p className="mb-2 text-xs text-slate-500">
               Product: <span className="font-semibold text-slate-700">{viewing.ordered || "—"}</span>{" "}
+              · Part Code: <span className="font-semibold text-slate-700">{viewing.part_code || "—"}</span>{" "}
               · Total Quantity: <span className="font-semibold text-slate-700">{viewing.total_quantity ?? "—"}</span>{" "}
               — split this across the slots below.
             </p>
@@ -785,7 +786,8 @@ export default function OrderTracking() {
                         </div>
                       </div>
                       <div className="mt-2 text-[11px] text-slate-500">
-                        Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
+                        Part Code: <span className="font-semibold text-slate-700">{viewing.part_code || "—"}</span>{" "}
+                        · Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
                       </div>
                       <div className="mt-3 flex gap-2">
                         <button className="btn btn-primary" disabled={busy} onClick={saveDispatch}>
@@ -814,6 +816,7 @@ export default function OrderTracking() {
                         {d.date || "—"}
                       </span>
                     </div>
+                    <div className="text-slate-500">Part Code: <span className="font-medium text-slate-700">{viewing.part_code || "—"}</span></div>
                     <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
                     <div className="text-slate-500">
                       Price:{" "}
@@ -864,7 +867,8 @@ export default function OrderTracking() {
                     </div>
                   </div>
                   <div className="mt-2 text-[11px] text-slate-500">
-                    Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
+                    Part Code: <span className="font-semibold text-slate-700">{viewing.part_code || "—"}</span>{" "}
+                    · Mode: <span className="font-semibold text-slate-700">{viewing.transport_mode || "—"}</span>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button className="btn btn-primary" disabled={busy} onClick={saveDispatch}>
