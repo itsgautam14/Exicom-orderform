@@ -1329,7 +1329,7 @@ export default function OrderTracking() {
                     })()}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right">
-                    <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); setEditingRemark(null); }}>View</button>
+                    <button className="mr-2 text-xs font-semibold text-exicom-teal hover:text-exicom-ink" onClick={() => { setViewing(r); setEditing(null); setEditingRemark(null); }}>Edit</button>
                     <button className="text-xs font-semibold text-red-500 hover:text-red-700" onClick={() => del(r.id)}>Delete</button>
                   </td>
                 </tr>
