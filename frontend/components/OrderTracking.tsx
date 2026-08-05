@@ -359,6 +359,10 @@ export default function OrderTracking() {
 
   async function saveStage(stage: string) {
     if (!viewing) return;
+    if (!viewing.planned_production_date || !viewing.planned_dispatch_date || !viewing.expected_dispatch_date) {
+      alert("Fill in Planned Production Date, Planned Dispatch Date and Expected Dispatch Date (see Planned Dates above) before adding a remark.");
+      return;
+    }
     setBusy(true);
     try {
       const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks, stageKam);
@@ -520,7 +524,7 @@ export default function OrderTracking() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
-                  Planned Production Date
+                  Planned Production Date <span className="text-rose-500">*</span>
                 </div>
                 {editingPlanned === "production" ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -543,7 +547,7 @@ export default function OrderTracking() {
               </div>
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
-                  Planned Dispatch Date
+                  Planned Dispatch Date <span className="text-rose-500">*</span>
                 </div>
                 {editingPlanned === "dispatch" ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -577,7 +581,9 @@ export default function OrderTracking() {
                 )}
               </div>
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
-                <div className="font-semibold text-slate-700">Expected Dispatch Date</div>
+                <div className="font-semibold text-slate-700">
+                  Expected Dispatch Date <span className="text-rose-500">*</span>
+                </div>
                 {editingExpected ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input className="inp !w-auto" type="date" value={expectedDraft} onChange={(e) => setExpectedDraft(e.target.value)} />
