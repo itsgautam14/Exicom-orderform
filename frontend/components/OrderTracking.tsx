@@ -624,7 +624,7 @@ export default function OrderTracking() {
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Dispatch Details
               </div>
-              <p className="mb-3 text-sm text-slate-600">Do you want to dispatch in tranches?</p>
+              <p className="mb-3 text-sm text-slate-600">Are there multiple dispatches in this order?</p>
               <div className="flex gap-2">
                 <button className="btn btn-primary" disabled={busy} onClick={() => setDispatchInTranches(true)}>
                   Yes
@@ -640,7 +640,7 @@ export default function OrderTracking() {
                 Dispatch Details
               </div>
               <p className="mb-3 text-sm text-slate-500">
-                Not dispatching in tranches.{" "}
+                No multiple dispatches for this order.{" "}
                 <button
                   className="font-semibold text-exicom-teal hover:underline"
                   onClick={() => setDispatchInTranches(true)}
@@ -742,7 +742,7 @@ export default function OrderTracking() {
                 className="text-xs font-semibold text-slate-400 hover:text-slate-600"
                 onClick={() => setDispatchInTranches(false)}
               >
-                Not dispatching in tranches after all?
+                Not multiple dispatches after all?
               </button>
             </div>
             <p className="mb-2 text-xs text-slate-500">
