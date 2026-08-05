@@ -1295,9 +1295,15 @@ export default function OrderTracking() {
                           color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : color === "red" ? "bg-rose-500" : "bg-slate-300"
                         }`;
                       return (
-                        <div className="flex items-center gap-1.5">
-                          <span title={`Planned: ${r.planned_dispatch_date || "—"}`} className={dotClass(plannedColor)} />
-                          <span title={`Expected: ${r.expected_dispatch_date || "—"}`} className={dotClass(expectedColor)} />
+                        <div className="flex flex-col gap-1 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span title={r.planned_dispatch_date || "—"} className={dotClass(plannedColor)} />
+                            <span className="text-slate-500">Planned</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span title={r.expected_dispatch_date || "—"} className={dotClass(expectedColor)} />
+                            <span className="text-slate-500">Expected</span>
+                          </div>
                         </div>
                       );
                     })()}
