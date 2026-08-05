@@ -123,6 +123,7 @@ export default function OrderTracking() {
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
+  const stageRemarksRef = useRef<HTMLTextAreaElement>(null);
 
   async function reload() {
     setLoading(true);
@@ -994,7 +995,7 @@ export default function OrderTracking() {
                     ) : (
                       <div className="text-[11px] text-slate-500">
                         {reachedAt ? fmtDateTime(reachedAt) : "Not reached yet"}{" "}
-                        {primaryEvent && (
+                        {primaryEvent ? (
                           <button
                             type="button"
                             className="font-semibold text-exicom-teal hover:underline"
@@ -1006,6 +1007,17 @@ export default function OrderTracking() {
                                 originalIso: primaryEvent.created_at,
                                 kam: primaryEvent.kam || "",
                               });
+                            }}
+                          >
+                            Edit
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="font-semibold text-exicom-teal hover:underline"
+                            onClick={() => {
+                              stageRemarksRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                              stageRemarksRef.current?.focus();
                             }}
                           >
                             Edit
@@ -1198,6 +1210,7 @@ export default function OrderTracking() {
                       Remarks for “{selected.label}” (optional)
                     </label>
                     <textarea
+                      ref={stageRemarksRef}
                       className="inp" rows={2} value={stageRemarks}
                       onChange={(e) => setStageRemarks(e.target.value)}
                       placeholder="Why is it moving now / any delay reason…"
