@@ -14,7 +14,7 @@ The Load Balancing Kit pair (HE521683, HE521684) is flat-rate, no MoQ
 tiers and no MSRP/discount toggle in either currency: EUR is a flat 150
 (single phase) / 180 (three phase) regardless of quantity. USD is a flat
 price converted from that EUR figure at this product's historical
-EUR/USD ratio (EUR = USD × 0.84): 178.57 / 214.29.
+EUR/USD ratio (EUR = USD × 0.84), rounded to a whole number: 179 / 214.
 
 Run idempotently:        python -m app.seed
 Wipe & reload catalog:   python -m app.seed --reset
@@ -305,22 +305,22 @@ SEED_PRODUCTS = [
         code_note='Accessories',
         product_name='Load Balancing Kit (Single Charger) - Single Phase',
         description='',
-        unit_price=178.57,
+        unit_price=179.0,
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 178.57]], 'EUR': [[1, None, 150.0]]},
+        prices={'USD': [[1, None, 179.0]], 'EUR': [[1, None, 150.0]]},
     ),
     dict(
         product_code='HE521684',
         code_note='Accessories',
         product_name='Load Balancing Kit (Single Charger) - Three Phase',
         description='',
-        unit_price=214.29,
+        unit_price=214.0,
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 214.29]], 'EUR': [[1, None, 180.0]]},
+        prices={'USD': [[1, None, 214.0]], 'EUR': [[1, None, 180.0]]},
     ),
     dict(
         product_code='HE-INCABLE',
