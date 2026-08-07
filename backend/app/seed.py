@@ -10,11 +10,11 @@ HE531501) were hand-updated from "pricing book euro.xlsx" (40%/43.5%/47%
 MoQ discount tiers off list price). A future regen from the master
 pricebook must carry these same EUR numbers forward or they'll be lost.
 
-Same applies to the Load Balancing Kit pair (HE521683, HE521684): EUR_ND is
-the MSRP (single phase 250, three phase 300) with the same 40/43.5/47% MoQ
-tiers off it; USD is a flat price converted from the EUR net (tier-1) price
-at this product's historical EUR/USD ratio (EUR = USD × 0.84), not tiered —
-the with/without-discount toggle only ever applies to EUR.
+The Load Balancing Kit pair (HE521683, HE521684) is flat-rate, no MoQ
+tiers and no MSRP/discount toggle in either currency: EUR is a flat 150
+(single phase) / 180 (three phase) regardless of quantity. USD is a flat
+price converted from that EUR figure at this product's historical
+EUR/USD ratio (EUR = USD × 0.84): 178.57 / 214.29.
 
 Run idempotently:        python -m app.seed
 Wipe & reload catalog:   python -m app.seed --reset
@@ -309,7 +309,7 @@ SEED_PRODUCTS = [
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 178.57]], 'EUR': [[1, 50, 150.0], [51, 150, 141.25], [151, None, 132.5]], 'EUR_ND': [[1, None, 250.0]]},
+        prices={'USD': [[1, None, 178.57]], 'EUR': [[1, None, 150.0]]},
     ),
     dict(
         product_code='HE521684',
@@ -320,7 +320,7 @@ SEED_PRODUCTS = [
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 214.29]], 'EUR': [[1, 50, 180.0], [51, 150, 169.5], [151, None, 159.0]], 'EUR_ND': [[1, None, 300.0]]},
+        prices={'USD': [[1, None, 214.29]], 'EUR': [[1, None, 180.0]]},
     ),
     dict(
         product_code='HE-INCABLE',
