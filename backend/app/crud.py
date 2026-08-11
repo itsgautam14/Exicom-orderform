@@ -82,7 +82,8 @@ def compute_totals(order: models.Order) -> dict:
     input_cable_total = 0.0
     for it in order.items:
         disc = float(it.discount_pct or 0)
-        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0))
+        net_price = round(float(it.unit_price) * (1 - disc / 100.0))
+        line_total = net_price * int(it.quantity)
         subtotal += line_total
         if (it.input_cable or "") == "Yes":
             input_cable_total += INPUT_CABLE_PRICE * int(it.quantity)
@@ -99,6 +100,7 @@ def compute_totals(order: models.Order) -> dict:
             "discount_pct": disc,
             "eur_discount": it.eur_discount or "",
             "input_cable": it.input_cable or "",
+            "net_price": net_price,
             "line_total": line_total,
         })
 

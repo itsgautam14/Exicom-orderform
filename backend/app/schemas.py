@@ -94,6 +94,9 @@ class OrderItemOut(OrderItemIn):
     model_config = ConfigDict(from_attributes=True)
     id: str
     position: int = 0
+    # unit_price is the MRP/list price; net_price is that minus discount_pct —
+    # what the customer actually pays per unit. line_total = net_price * quantity.
+    net_price: float = 0
     line_total: float = 0
 
 

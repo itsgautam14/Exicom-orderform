@@ -388,6 +388,17 @@ html, body {
 <div class="section-header">Order Items</div>
 <table class="items">
   <thead>
+    {% if order.currency == 'EUR' %}
+    <tr>
+      <th style="width:16%">Product Code</th>
+      <th style="width:32%">Name / Description</th>
+      <th class="r" style="width:12%">Price</th>
+      <th class="c" style="width:8%">Disc %</th>
+      <th class="r" style="width:12%">Net Price</th>
+      <th class="c" style="width:6%">QTY</th>
+      <th class="r" style="width:14%">Total Value</th>
+    </tr>
+    {% else %}
     <tr>
       <th style="width:16%">Product Code</th>
       <th style="width:32%">Name / Description</th>
@@ -397,9 +408,28 @@ html, body {
       <th class="c" style="width:8%">Disc %</th>
       <th class="r" style="width:17%">Total Price</th>
     </tr>
+    {% endif %}
   </thead>
   <tbody>
     {% for item in order['items'] %}
+    {% if order.currency == 'EUR' %}
+    <tr>
+      <td>
+        <div class="code-main">{{ item.product_code }}</div>
+        {% if item.code_note %}<div class="code-sub">{{ item.code_note | replace('\n', '<br/>') | safe }}</div>{% endif %}
+      </td>
+      <td>
+        <div class="item-name">{{ item.product_name }}</div>
+        {% if item.description %}<div class="item-desc">{{ item.description | replace('\n', '<br/>') | safe }}</div>{% endif %}
+        {% if item.input_cable %}<div class="item-desc">Input cable: {{ item.input_cable }}{% if item.input_cable == 'Yes' %} (1.5 m){% endif %}</div>{% endif %}
+      </td>
+      <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.unit_price) }}</td>
+      <td class="c">{% if item.discount_pct %}{{ "%g"|format(item.discount_pct) }}%{% else %}—{% endif %}</td>
+      <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.net_price) }}</td>
+      <td class="c">{{ item.quantity }}</td>
+      <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.line_total) }}</td>
+    </tr>
+    {% else %}
     <tr>
       <td>
         <div class="code-main">{{ item.product_code }}</div>
@@ -416,6 +446,7 @@ html, body {
       <td class="c">{% if item.discount_pct %}{{ "%g"|format(item.discount_pct) }}%{% else %}—{% endif %}</td>
       <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.line_total) }}</td>
     </tr>
+    {% endif %}
     {% endfor %}
   </tbody>
 </table>

@@ -142,11 +142,12 @@ def _build_order_data(payload: schemas.OrderCreate, db: Session | None = None) -
     input_cable_total = 0.0
     for i, it in enumerate(payload.items):
         disc = float(it.discount_pct or 0)
-        line_total = round(float(it.unit_price) * int(it.quantity) * (1 - disc / 100.0))
+        net_price = round(float(it.unit_price) * (1 - disc / 100.0))
+        line_total = net_price * int(it.quantity)
         subtotal += line_total
         if (it.input_cable or "") == "Yes":
             input_cable_total += crud.INPUT_CABLE_PRICE * int(it.quantity)
-        items.append({**it.model_dump(), "id": str(i), "position": i, "line_total": line_total})
+        items.append({**it.model_dump(), "id": str(i), "position": i, "net_price": net_price, "line_total": line_total})
     tax_amount = round(subtotal * float(payload.tax_rate or 0) / 100.0)
     input_cable_total = round(input_cable_total)
     freight_charge = round(float(payload.freight_charge or 0))
