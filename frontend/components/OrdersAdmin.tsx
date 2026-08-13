@@ -333,8 +333,8 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                   <tr>
                     <th className="px-2 py-1.5">Product</th>
                     <th className="px-2 py-1.5 text-right">Qty</th>
-                    <th className="px-2 py-1.5 text-right">Quoted Price</th>
-                    <th className="px-2 py-1.5 text-right">Pricebook Price</th>
+                    <th className="px-2 py-1.5 text-right">MSRP</th>
+                    <th className="px-2 py-1.5 text-right">Discount Price</th>
                   </tr>
                 </thead>
                 <tbody>
