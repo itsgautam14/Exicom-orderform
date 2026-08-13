@@ -317,10 +317,6 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
               <div className="text-slate-700">{reviewing.proposed_by || "—"}</div>
             </div>
             <div>
-              <div className="text-[11px] font-semibold uppercase text-slate-400">Total</div>
-              <div className="font-semibold text-slate-800">{money(reviewing.grand_total, reviewing.currency)}</div>
-            </div>
-            <div>
               <div className="text-[11px] font-semibold uppercase text-slate-400">Date</div>
               <div className="text-slate-700">{reviewing.quote_date || "—"}</div>
             </div>
