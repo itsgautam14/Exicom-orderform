@@ -1001,37 +1001,12 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 const p = it.catalog_id
                   ? catalog.find((c) => c.id === it.catalog_id)
                   : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
-                const eurMsrpActive = order.currency === "EUR" && hasEurNoDiscount(p);
+                const catalogLinked = !!p;
                 const netPrice = Math.round(it.unit_price * (1 - (it.discount_pct || 0) / 100));
-
-                if (!eurMsrpActive) {
-                  return (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="lbl">Qty *</label>
-                        <input className="inp" type="number" min="1" value={it.quantity}
-                          onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
-                      </div>
-                      <div>
-                        <label className="lbl">Unit Price ({order.currency}) *</label>
-                        <input className="inp" type="number" step="1" value={it.unit_price}
-                          onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
-                      </div>
-                      <div>
-                        <label className="lbl">Discount %</label>
-                        <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
-                          onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
-                      </div>
-                      <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
-                    </div>
-                  );
-                }
-
-                // EUR catalog products with the with/without-discount toggle: MSRP and
-                // Discount % normally drive the price. Both MSRP and the after-discount
-                // Unit Price are still editable by hand for a one-off override — editing
-                // Unit Price directly back-solves Discount % (against the current MSRP)
-                // rather than touching MSRP, since MSRP is the reference list price.
+                // Editing Discount % or the after-discount Unit Price directly clears
+                // eur_discount so the pricebook/approval check re-evaluates this line
+                // against the catalog price instead of treating it as the pre-vetted
+                // MSRP tier discount.
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -1041,13 +1016,20 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     </div>
                     <div>
                       <label className="lbl">MSRP ({order.currency})</label>
-                      <input className="inp" type="number" step="1" value={it.unit_price}
-                        onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
+                      <input
+                        className={catalogLinked ? "inp bg-slate-100" : "inp"}
+                        type="number" step="1" value={it.unit_price}
+                        disabled={catalogLinked}
+                        onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })}
+                      />
                     </div>
                     <div>
                       <label className="lbl">Discount %</label>
                       <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
-                        onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
+                        onChange={(e) => setItem(i, {
+                          discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
+                          eur_discount: "",
+                        })} />
                     </div>
                     <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
                     <div className="col-span-2">
@@ -1059,7 +1041,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                           const pct = it.unit_price > 0
                             ? Math.min(100, Math.max(0, (1 - typed / it.unit_price) * 100))
                             : 0;
-                          setItem(i, { discount_pct: Math.round(pct * 100) / 100 });
+                          setItem(i, { discount_pct: Math.round(pct * 100) / 100, eur_discount: "" });
                         }}
                       />
                     </div>
