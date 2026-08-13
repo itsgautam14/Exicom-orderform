@@ -1028,8 +1028,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 }
 
                 // EUR catalog products with the with/without-discount toggle: MSRP and
-                // Discount % drive the price, so Unit Price shown here is the resulting
-                // net (after-discount) price — read-only, not hand-typed.
+                // Discount % normally drive the price. Both MSRP and the after-discount
+                // Unit Price are still editable by hand for a one-off override — editing
+                // Unit Price directly back-solves Discount % (against the current MSRP)
+                // rather than touching MSRP, since MSRP is the reference list price.
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -1039,7 +1041,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     </div>
                     <div>
                       <label className="lbl">MSRP ({order.currency})</label>
-                      <input className="inp bg-slate-100" type="number" value={it.unit_price} disabled />
+                      <input className="inp" type="number" step="1" value={it.unit_price}
+                        onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
                     </div>
                     <div>
                       <label className="lbl">Discount %</label>
@@ -1049,7 +1052,16 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
                     <div className="col-span-2">
                       <label className="lbl">Unit Price ({order.currency}) — after discount</label>
-                      <input className="inp bg-slate-100" type="number" value={netPrice} disabled />
+                      <input
+                        className="inp" type="number" step="1" value={netPrice}
+                        onChange={(e) => {
+                          const typed = Math.round(parseFloat(e.target.value) || 0);
+                          const pct = it.unit_price > 0
+                            ? Math.min(100, Math.max(0, (1 - typed / it.unit_price) * 100))
+                            : 0;
+                          setItem(i, { discount_pct: Math.round(pct * 100) / 100 });
+                        }}
+                      />
                     </div>
                   </div>
                 );
