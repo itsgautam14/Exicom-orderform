@@ -449,15 +449,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     return () => { cancelled = true; };
   }, [order.currency]);
 
-  // EUR discount is a fixed MoQ scale (1-50=40%, 51-150=43.5%, 151+=47%), never
-  // hand-typed — keep every MSRP-bearing line's discount_pct in sync with its
-  // quantity whenever quantity or currency changes. Only applies to catalog
-  // products that actually have an MSRP (EUR_ND) — Accessories and any other
-  // EUR product without one stay at their flat catalog price, undiscounted.
-  // Also self-heals the sanctioned-discount flag: if a catalog-linked line's
-  // MSRP still matches the catalog's real price (no genuine override
-  // happened), it's restored to "with" so it doesn't sit stuck needing
-  // approval — this runs on its own, no need to re-touch Net Price.
+  // EUR discount defaults to a fixed MoQ scale (1-50=40%, 51-150=43.5%,
+  // 151+=47%) whenever quantity or currency changes, for catalog products
+  // that actually have an MSRP (EUR_ND) — Accessories and anything else
+  // without one stay at their flat catalog price, undiscounted. MSRP itself
+  // NEVER changes — it's healed back to the catalog's true price here too,
+  // undoing any drift from before this fix. A discount that was pushed away
+  // from the tier value by editing the after-discount Unit Price (which
+  // adjusts Discount %, never MSRP) sticks until the next quantity/currency
+  // change resyncs it to the tier default.
   useEffect(() => {
     if (order.currency !== "EUR") return;
     setOrder((o) => {
@@ -465,18 +465,21 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
       const items = o.items.map((it) => {
         const p = catalogProductFor(it);
         if (!hasEurNoDiscount(p)) return it;
+        const trueMsrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
+        const roundedMsrp = trueMsrp != null ? Math.round(trueMsrp) : null;
         const pct = eurStandardDiscount(it.quantity || 0);
         let next = it;
         if (next.discount_pct !== pct) {
           next = { ...next, discount_pct: pct };
           changed = true;
         }
+        if (roundedMsrp != null && next.unit_price !== roundedMsrp) {
+          next = { ...next, unit_price: roundedMsrp };
+          changed = true;
+        }
         if (next.eur_discount !== "with") {
-          const trueMsrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
-          if (trueMsrp != null && Math.round(trueMsrp) === next.unit_price) {
-            next = { ...next, eur_discount: "with" };
-            changed = true;
-          }
+          next = { ...next, eur_discount: "with" };
+          changed = true;
         }
         return next;
       });
@@ -1089,27 +1092,24 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                         onChange={(e) => {
                           const typed = Math.round(parseFloat(e.target.value) || 0);
                           if (eurMsrpActive) {
-                            // Discount % is fixed to the standard tier and never changes —
-                            // solve for MSRP instead so the tier percentage stays exact.
-                            // Always compare against the catalog's TRUE MSRP, not the
-                            // line's current unit_price — that may already have drifted
-                            // from an earlier override, and comparing against a drifted
-                            // value would never let this settle back to "no approval
-                            // needed" even when re-typing the original price.
-                            const pct = it.discount_pct || 0;
+                            // MSRP never changes — solve for Discount % instead, always
+                            // against the catalog's TRUE MSRP (never the line's
+                            // unit_price directly, though at this point they should
+                            // already match — the sync effect keeps unit_price healed).
                             const trueMsrpRaw = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
                             const referenceMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
-                            const standardNet = Math.round(referenceMsrp * (1 - pct / 100));
-                            // Typing back the price the standard tier gives off the true
-                            // MSRP — not a real override. Heal MSRP back to the exact
-                            // catalog value (undoing any earlier drift) and restore the
-                            // sanctioned-discount flag.
+                            const standardPct = eurStandardDiscount(it.quantity || 0);
+                            const standardNet = Math.round(referenceMsrp * (1 - standardPct / 100));
+                            // Typing back the standard tier's own price off the true MSRP —
+                            // not a real override. Restore the sanctioned-discount flag.
                             if (typed === standardNet) {
-                              setItem(i, { unit_price: referenceMsrp, eur_discount: "with" });
+                              setItem(i, { discount_pct: standardPct, eur_discount: "with" });
                               return;
                             }
-                            const newMsrp = pct < 100 ? Math.round(typed / (1 - pct / 100)) : typed;
-                            setItem(i, { unit_price: newMsrp, eur_discount: "" });
+                            const pct = referenceMsrp > 0
+                              ? Math.min(100, Math.max(0, (1 - typed / referenceMsrp) * 100))
+                              : 0;
+                            setItem(i, { discount_pct: Math.round(pct * 100) / 100, eur_discount: "" });
                           } else {
                             const pct = it.unit_price > 0
                               ? Math.min(100, Math.max(0, (1 - typed / it.unit_price) * 100))
