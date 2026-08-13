@@ -1085,14 +1085,22 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                           if (order.currency === "EUR") {
                             // Discount % is fixed to the standard tier and never changes —
                             // solve for MSRP instead so the tier percentage stays exact.
+                            // Always compare against the catalog's TRUE MSRP, not the
+                            // line's current unit_price — that may already have drifted
+                            // from an earlier override, and comparing against a drifted
+                            // value would never let this settle back to "no approval
+                            // needed" even when re-typing the original price.
                             const pct = it.discount_pct || 0;
-                            const standardNet = Math.round(it.unit_price * (1 - pct / 100));
-                            // Typing back the same price the standard tier already gives —
-                            // not a real override. Restore the sanctioned-discount flag (in
-                            // case an earlier edit had cleared it) instead of leaving this
-                            // line stuck needing approval for a price that matches exactly.
+                            const linkedProduct = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+                            const trueMsrpRaw = linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2];
+                            const referenceMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
+                            const standardNet = Math.round(referenceMsrp * (1 - pct / 100));
+                            // Typing back the price the standard tier gives off the true
+                            // MSRP — not a real override. Heal MSRP back to the exact
+                            // catalog value (undoing any earlier drift) and restore the
+                            // sanctioned-discount flag.
                             if (typed === standardNet) {
-                              if (it.eur_discount !== "with") setItem(i, { eur_discount: "with" });
+                              setItem(i, { unit_price: referenceMsrp, eur_discount: "with" });
                               return;
                             }
                             const newMsrp = pct < 100 ? Math.round(typed / (1 - pct / 100)) : typed;
