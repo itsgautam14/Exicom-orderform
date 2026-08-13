@@ -1118,17 +1118,21 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 );
               })()}
               {(() => {
-                // Always shows the *original* (standard tier) discount price as a
-                // reference, regardless of any manual Net Price override — the real
-                // charged total (Subtotal/Grand Total/PDF) uses lineNet(it) elsewhere
-                // and does reflect an override.
+                // Always shows the *original* pricebook MSRP and standard-tier discount
+                // as a reference, regardless of any manual Net Price override that may
+                // have drifted it.unit_price away from the catalog's real price — the
+                // real charged total (Subtotal/Grand Total/PDF) uses lineNet(it)
+                // elsewhere and does reflect an override.
+                const linkedProduct = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+                const trueMsrpRaw = order.currency === "EUR" ? linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2] : undefined;
+                const originalMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
                 const originalPct = order.currency === "EUR" ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
-                const originalNet = it.unit_price * it.quantity * (1 - originalPct / 100);
+                const originalNet = originalMsrp * it.quantity * (1 - originalPct / 100);
                 return (
                   <div className="mt-1 text-right text-[11px] text-slate-500">
                     Line total: <span className="font-semibold text-slate-700">{cur} {fmt(originalNet)}</span>
                     {!!originalPct && (
-                      <span className="ml-1 text-emerald-600">({originalPct}% off {cur} {fmt(it.unit_price * it.quantity)})</span>
+                      <span className="ml-1 text-emerald-600">({originalPct}% off {cur} {fmt(originalMsrp * it.quantity)})</span>
                     )}
                   </div>
                 );
