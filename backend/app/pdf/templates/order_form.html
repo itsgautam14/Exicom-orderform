@@ -402,12 +402,11 @@ html, body {
     {% else %}
     <tr>
       <th style="width:16%">Product Code</th>
-      <th style="width:32%">Name / Description</th>
-      <th class="r" style="width:13%">Unit Price</th>
-      <th class="c" style="width:6%">QTY</th>
-      <th class="c" style="width:8%">Unit</th>
-      <th class="c" style="width:8%">Disc %</th>
-      <th class="r" style="width:17%">Total Price</th>
+      <th style="width:34%">Name / Description</th>
+      <th class="r" style="width:15%">Unit Price</th>
+      <th class="c" style="width:7%">QTY</th>
+      <th class="c" style="width:9%">Disc %</th>
+      <th class="r" style="width:19%">Total Price</th>
     </tr>
     {% endif %}
   </thead>
@@ -443,7 +442,6 @@ html, body {
       </td>
       <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.unit_price) }}</td>
       <td class="c">{{ item.quantity }}</td>
-      <td class="c">{{ item.unit }}</td>
       <td class="c">{% if item.discount_pct %}{{ "%g"|format(item.discount_pct) }}%{% else %}—{% endif %}</td>
       <td class="r">{{ order.currency }} {{ "{:,.0f}".format(item.line_total) }}</td>
     </tr>
