@@ -1080,12 +1080,22 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                   </div>
                 );
               })()}
-              <div className="mt-1 text-right text-[11px] text-slate-500">
-                Line total: <span className="font-semibold text-slate-700">{cur} {fmt(lineNet(it))}</span>
-                {!!(it.discount_pct && it.discount_pct > 0) && (
-                  <span className="ml-1 text-emerald-600">({it.discount_pct}% off {cur} {fmt(it.unit_price * it.quantity)})</span>
-                )}
-              </div>
+              {(() => {
+                // Always shows the *original* (standard tier) discount price as a
+                // reference, regardless of any manual Net Price override — the real
+                // charged total (Subtotal/Grand Total/PDF) uses lineNet(it) elsewhere
+                // and does reflect an override.
+                const originalPct = order.currency === "EUR" ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
+                const originalNet = it.unit_price * it.quantity * (1 - originalPct / 100);
+                return (
+                  <div className="mt-1 text-right text-[11px] text-slate-500">
+                    Line total: <span className="font-semibold text-slate-700">{cur} {fmt(originalNet)}</span>
+                    {!!originalPct && (
+                      <span className="ml-1 text-emerald-600">({originalPct}% off {cur} {fmt(it.unit_price * it.quantity)})</span>
+                    )}
+                  </div>
+                );
+              })()}
               {isBelowPricebook(it) && (
                 <div className="mt-1 rounded-md bg-amber-50 px-2 py-2 text-[10px] font-semibold text-amber-700">
                   <div className="flex justify-end">
