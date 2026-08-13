@@ -450,17 +450,21 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   }, [order.currency]);
 
   // EUR discount is a fixed MoQ scale (1-50=40%, 51-150=43.5%, 151+=47%), never
-  // hand-typed — keep every line's discount_pct in sync with its quantity
-  // whenever quantity or currency changes. Also self-heals the sanctioned-
-  // discount flag: if a catalog-linked line's MSRP still matches the
-  // catalog's real price (i.e. no genuine override happened), it's restored
-  // to "with" so it doesn't sit stuck needing approval — this runs on its
-  // own, it doesn't require the user to re-touch the Net Price field.
+  // hand-typed — keep every MSRP-bearing line's discount_pct in sync with its
+  // quantity whenever quantity or currency changes. Only applies to catalog
+  // products that actually have an MSRP (EUR_ND) — Accessories and any other
+  // EUR product without one stay at their flat catalog price, undiscounted.
+  // Also self-heals the sanctioned-discount flag: if a catalog-linked line's
+  // MSRP still matches the catalog's real price (no genuine override
+  // happened), it's restored to "with" so it doesn't sit stuck needing
+  // approval — this runs on its own, no need to re-touch Net Price.
   useEffect(() => {
     if (order.currency !== "EUR") return;
     setOrder((o) => {
       let changed = false;
       const items = o.items.map((it) => {
+        const p = catalogProductFor(it);
+        if (!hasEurNoDiscount(p)) return it;
         const pct = eurStandardDiscount(it.quantity || 0);
         let next = it;
         if (next.discount_pct !== pct) {
@@ -468,8 +472,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
           changed = true;
         }
         if (next.eur_discount !== "with") {
-          const p = catalogProductFor(next);
-          const trueMsrp = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
+          const trueMsrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
           if (trueMsrp != null && Math.round(trueMsrp) === next.unit_price) {
             next = { ...next, eur_discount: "with" };
             changed = true;
@@ -1040,6 +1043,11 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               {(() => {
                 const p = catalogProductFor(it);
                 const catalogLinked = !!p;
+                // Only catalog products with a real MSRP (EUR_ND) get the locked
+                // standard-tier discount mechanic — Accessories and anything else
+                // without one stay at their flat catalog price, discount_pct freely
+                // editable (defaulting to 0), same as any other currency.
+                const eurMsrpActive = order.currency === "EUR" && hasEurNoDiscount(p);
                 const netPrice = Math.round(it.unit_price * (1 - (it.discount_pct || 0) / 100));
                 // Editing Discount % or the after-discount Unit Price directly clears
                 // eur_discount so the pricebook/approval check re-evaluates this line
@@ -1064,9 +1072,9 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     <div>
                       <label className="lbl">Discount %</label>
                       <input
-                        className={order.currency === "EUR" ? "inp bg-slate-100" : "inp"}
+                        className={eurMsrpActive ? "inp bg-slate-100" : "inp"}
                         type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
-                        disabled={order.currency === "EUR"}
+                        disabled={eurMsrpActive}
                         onChange={(e) => setItem(i, {
                           discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
                           eur_discount: "",
@@ -1080,7 +1088,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                         className="inp" type="number" step="1" value={netPrice}
                         onChange={(e) => {
                           const typed = Math.round(parseFloat(e.target.value) || 0);
-                          if (order.currency === "EUR") {
+                          if (eurMsrpActive) {
                             // Discount % is fixed to the standard tier and never changes —
                             // solve for MSRP instead so the tier percentage stays exact.
                             // Always compare against the catalog's TRUE MSRP, not the
@@ -1089,8 +1097,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                             // value would never let this settle back to "no approval
                             // needed" even when re-typing the original price.
                             const pct = it.discount_pct || 0;
-                            const linkedProduct = catalogProductFor(it);
-                            const trueMsrpRaw = linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2];
+                            const trueMsrpRaw = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
                             const referenceMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
                             const standardNet = Math.round(referenceMsrp * (1 - pct / 100));
                             // Typing back the price the standard tier gives off the true
@@ -1122,9 +1129,12 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 // real charged total (Subtotal/Grand Total/PDF) uses lineNet(it)
                 // elsewhere and does reflect an override.
                 const linkedProduct = catalogProductFor(it);
-                const trueMsrpRaw = order.currency === "EUR" ? linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2] : undefined;
+                // Only products with a real MSRP (EUR_ND) get the standard-tier
+                // reference — Accessories etc. show their actual flat price/discount.
+                const eurMsrpActive = order.currency === "EUR" && hasEurNoDiscount(linkedProduct);
+                const trueMsrpRaw = eurMsrpActive ? linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2] : undefined;
                 const originalMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
-                const originalPct = order.currency === "EUR" ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
+                const originalPct = eurMsrpActive ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
                 const originalNet = originalMsrp * it.quantity * (1 - originalPct / 100);
                 return (
                   <div className="mt-1 text-right text-[11px] text-slate-500">
