@@ -467,8 +467,8 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
           next = { ...next, discount_pct: pct };
           changed = true;
         }
-        if (next.catalog_id && next.eur_discount !== "with") {
-          const p = catalog.find((c) => c.id === next.catalog_id);
+        if (next.eur_discount !== "with") {
+          const p = catalogProductFor(next);
           const trueMsrp = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
           if (trueMsrp != null && Math.round(trueMsrp) === next.unit_price) {
             next = { ...next, eur_discount: "with" };
@@ -1038,9 +1038,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
               {(() => {
-                const p = it.catalog_id
-                  ? catalog.find((c) => c.id === it.catalog_id)
-                  : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
+                const p = catalogProductFor(it);
                 const catalogLinked = !!p;
                 const netPrice = Math.round(it.unit_price * (1 - (it.discount_pct || 0) / 100));
                 // Editing Discount % or the after-discount Unit Price directly clears
@@ -1091,7 +1089,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                             // value would never let this settle back to "no approval
                             // needed" even when re-typing the original price.
                             const pct = it.discount_pct || 0;
-                            const linkedProduct = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+                            const linkedProduct = catalogProductFor(it);
                             const trueMsrpRaw = linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2];
                             const referenceMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
                             const standardNet = Math.round(referenceMsrp * (1 - pct / 100));
@@ -1123,7 +1121,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 // have drifted it.unit_price away from the catalog's real price — the
                 // real charged total (Subtotal/Grand Total/PDF) uses lineNet(it)
                 // elsewhere and does reflect an override.
-                const linkedProduct = it.catalog_id ? catalog.find((c) => c.id === it.catalog_id) : undefined;
+                const linkedProduct = catalogProductFor(it);
                 const trueMsrpRaw = order.currency === "EUR" ? linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2] : undefined;
                 const originalMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
                 const originalPct = order.currency === "EUR" ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
