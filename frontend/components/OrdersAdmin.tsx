@@ -334,6 +334,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     <th className="px-2 py-1.5">Product</th>
                     <th className="px-2 py-1.5 text-right">Qty</th>
                     <th className="px-2 py-1.5 text-right">MSRP</th>
+                    <th className="px-2 py-1.5 text-right">Discount %</th>
                     <th className="px-2 py-1.5 text-right">Discount Price</th>
                   </tr>
                 </thead>
@@ -348,6 +349,9 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         <td className="px-2 py-1.5 text-right text-slate-600">{it.quantity}</td>
                         <td className={`px-2 py-1.5 text-right font-semibold ${below ? "text-rose-600" : "text-slate-700"}`}>
                           {reviewing.currency} {Math.round(it.unit_price).toLocaleString("en-US")}
+                        </td>
+                        <td className="px-2 py-1.5 text-right text-slate-600">
+                          {it.discount_pct ? `${it.discount_pct}%` : "—"}
                         </td>
                         <td className="px-2 py-1.5 text-right text-slate-500">
                           {book == null ? "—" : `${reviewing.currency} ${Math.round(book).toLocaleString("en-US")}`}
