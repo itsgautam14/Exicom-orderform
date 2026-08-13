@@ -1070,10 +1070,18 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                         className="inp" type="number" step="1" value={netPrice}
                         onChange={(e) => {
                           const typed = Math.round(parseFloat(e.target.value) || 0);
-                          const pct = it.unit_price > 0
-                            ? Math.min(100, Math.max(0, (1 - typed / it.unit_price) * 100))
-                            : 0;
-                          setItem(i, { discount_pct: Math.round(pct * 100) / 100, eur_discount: "" });
+                          if (order.currency === "EUR") {
+                            // Discount % is fixed to the standard tier and never changes —
+                            // solve for MSRP instead so the tier percentage stays exact.
+                            const pct = it.discount_pct || 0;
+                            const newMsrp = pct < 100 ? Math.round(typed / (1 - pct / 100)) : typed;
+                            setItem(i, { unit_price: newMsrp, eur_discount: "" });
+                          } else {
+                            const pct = it.unit_price > 0
+                              ? Math.min(100, Math.max(0, (1 - typed / it.unit_price) * 100))
+                              : 0;
+                            setItem(i, { discount_pct: Math.round(pct * 100) / 100, eur_discount: "" });
+                          }
                         }}
                       />
                     </div>
