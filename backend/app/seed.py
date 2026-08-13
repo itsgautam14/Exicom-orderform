@@ -10,11 +10,13 @@ HE531501) were hand-updated from "pricing book euro.xlsx" (40%/43.5%/47%
 MoQ discount tiers off list price). A future regen from the master
 pricebook must carry these same EUR numbers forward or they'll be lost.
 
-The Load Balancing Kit pair (HE521683, HE521684) is flat-rate, no MoQ
-tiers and no MSRP/discount toggle in either currency: EUR is a flat 150
-(single phase) / 180 (three phase) regardless of quantity. USD is a flat
-price converted from that EUR figure at this product's historical
-EUR/USD ratio (EUR = USD × 0.84), rounded to a whole number: 179 / 214.
+The Load Balancing Kit pair (HE521683, HE521684) has its own EUR MoQ
+discount scale — 20% / 23% / 25% off MSRP (1-50 / 51-150 / 151+ units),
+distinct from the 40/43.5/47% scale used by the AC Charger products
+above. MSRP (EUR_ND) is 250 (single phase) / 300 (three phase). USD
+stays a flat price, converted from the tier-1 EUR net price at this
+product's historical EUR/USD ratio (EUR = USD × 0.84), rounded to a
+whole number: 238 / 286.
 
 Run idempotently:        python -m app.seed
 Wipe & reload catalog:   python -m app.seed --reset
@@ -305,22 +307,22 @@ SEED_PRODUCTS = [
         code_note='Accessories',
         product_name='Load Balancing Kit (Single Charger) - Single Phase',
         description='',
-        unit_price=179.0,
+        unit_price=238.0,
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 179.0]], 'EUR': [[1, None, 150.0]]},
+        prices={'USD': [[1, None, 238.0]], 'EUR': [[1, 50, 200.0], [51, 150, 192.5], [151, None, 187.5]], 'EUR_ND': [[1, None, 250.0]]},
     ),
     dict(
         product_code='HE521684',
         code_note='Accessories',
         product_name='Load Balancing Kit (Single Charger) - Three Phase',
         description='',
-        unit_price=214.0,
+        unit_price=286.0,
         currency='USD',
         unit='Nos.',
         category='Accessories',
-        prices={'USD': [[1, None, 214.0]], 'EUR': [[1, None, 180.0]]},
+        prices={'USD': [[1, None, 286.0]], 'EUR': [[1, 50, 240.0], [51, 150, 231.0], [151, None, 225.0]], 'EUR_ND': [[1, None, 300.0]]},
     ),
     dict(
         product_code='HE-INCABLE',

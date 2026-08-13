@@ -105,11 +105,20 @@ function hasEurNoDiscount(p?: CatalogProduct): boolean {
   return !!p?.prices?.[EUR_ND_KEY]?.length;
 }
 
-// The pricing book's exact MoQ discount tiers off list price: 1-50 units = 40%,
-// 51-150 = 43.5%, 151+ = 47%. Fixed business rates — shown directly rather than
-// re-derived from the (now whole-number-rounded) tier/MSRP prices, which would
-// only approximate these figures (e.g. 39.9% instead of a clean 40%).
-const EUR_TIER_DISCOUNTS = [40, 43.5, 47];
+// The pricing book's exact MoQ discount tiers off list price (1-50 / 51-150 /
+// 151+ units). AC Chargers use 40% / 43.5% / 47%; Load Balancing Kit has its
+// own scale of 20% / 23% / 25%. Explicit clean percentages per product family
+// rather than re-derived from the (now whole-number-rounded) tier/MSRP
+// prices, which would only approximate these figures (e.g. 39.9% instead of
+// a clean 40%).
+const EUR_TIER_DISCOUNTS_DEFAULT = [40, 43.5, 47];
+const EUR_TIER_DISCOUNTS_BY_CODE: Record<string, number[]> = {
+  HE521683: [20, 23, 25],
+  HE521684: [20, 23, 25],
+};
+function eurDiscountScaleFor(p?: CatalogProduct): number[] {
+  return (p && EUR_TIER_DISCOUNTS_BY_CODE[p.product_code]) || EUR_TIER_DISCOUNTS_DEFAULT;
+}
 function eurTierIndex(p: CatalogProduct, qty: number): number {
   const tiers = p.prices?.EUR;
   if (!tiers || !tiers.length) return 0;
@@ -119,12 +128,12 @@ function eurTierIndex(p: CatalogProduct, qty: number): number {
   }
   return 0;
 }
-// Fixed EUR MoQ discount scale, independent of any one product's tier array:
-// 1-50 units = 40%, 51-150 = 43.5%, 151+ = 47%.
-function eurStandardDiscount(qty: number): number {
-  if (qty <= 50) return EUR_TIER_DISCOUNTS[0];
-  if (qty <= 150) return EUR_TIER_DISCOUNTS[1];
-  return EUR_TIER_DISCOUNTS[2];
+// EUR MoQ discount for a specific product's own scale (see above).
+function eurStandardDiscount(p: CatalogProduct | undefined, qty: number): number {
+  const scale = eurDiscountScaleFor(p);
+  if (qty <= 50) return scale[0];
+  if (qty <= 150) return scale[1];
+  return scale[2];
 }
 // Pricebook price for a line, honouring the EUR with/without-discount choice.
 function catalogPrice(p: CatalogProduct, currency: string, qty: number, eurDiscount?: string): number | null {
@@ -153,7 +162,7 @@ function resolveCatalogPricing(
   const mode = requestedMode || "with";
   const msrp = p.prices?.[EUR_ND_KEY]?.[0]?.[2] ?? null;
   if (mode === "without") return { eur_discount: mode, unit_price: msrp, discount_pct: 0 };
-  const pct = EUR_TIER_DISCOUNTS[eurTierIndex(p, qty)] ?? 0;
+  const pct = eurDiscountScaleFor(p)[eurTierIndex(p, qty)] ?? 0;
   return { eur_discount: mode, unit_price: msrp, discount_pct: pct };
 }
 
@@ -467,7 +476,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
         if (!hasEurNoDiscount(p)) return it;
         const trueMsrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
         const roundedMsrp = trueMsrp != null ? Math.round(trueMsrp) : null;
-        const pct = eurStandardDiscount(it.quantity || 0);
+        const pct = eurStandardDiscount(p, it.quantity || 0);
         let next = it;
         if (next.discount_pct !== pct) {
           next = { ...next, discount_pct: pct };
@@ -1098,7 +1107,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                             // already match — the sync effect keeps unit_price healed).
                             const trueMsrpRaw = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
                             const referenceMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
-                            const standardPct = eurStandardDiscount(it.quantity || 0);
+                            const standardPct = eurStandardDiscount(p, it.quantity || 0);
                             const standardNet = Math.round(referenceMsrp * (1 - standardPct / 100));
                             // Typing back the standard tier's own price off the true MSRP —
                             // not a real override. Restore the sanctioned-discount flag.
@@ -1134,7 +1143,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                 const eurMsrpActive = order.currency === "EUR" && hasEurNoDiscount(linkedProduct);
                 const trueMsrpRaw = eurMsrpActive ? linkedProduct?.prices?.[EUR_ND_KEY]?.[0]?.[2] : undefined;
                 const originalMsrp = trueMsrpRaw != null ? Math.round(trueMsrpRaw) : it.unit_price;
-                const originalPct = eurMsrpActive ? eurStandardDiscount(it.quantity || 0) : (it.discount_pct || 0);
+                const originalPct = eurMsrpActive ? eurStandardDiscount(linkedProduct, it.quantity || 0) : (it.discount_pct || 0);
                 const originalNet = originalMsrp * it.quantity * (1 - originalPct / 100);
                 return (
                   <div className="mt-1 text-right text-[11px] text-slate-500">
