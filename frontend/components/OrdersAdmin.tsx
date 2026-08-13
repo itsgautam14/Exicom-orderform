@@ -334,8 +334,9 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     <th className="px-2 py-1.5">Product</th>
                     <th className="px-2 py-1.5 text-right">Qty</th>
                     <th className="px-2 py-1.5 text-right">MSRP</th>
+                    <th className="px-2 py-1.5 text-right">Provided Discount Price</th>
                     <th className="px-2 py-1.5 text-right">Discount %</th>
-                    <th className="px-2 py-1.5 text-right">Discount Price</th>
+                    <th className="px-2 py-1.5 text-right">Approval Price</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -343,6 +344,7 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                     const p = catalog.find((c) => c.product_code === it.product_code);
                     const book = pricebookPrice(p, reviewing.currency, it.quantity, it.eur_discount);
                     const below = book != null && it.unit_price < book - 1e-6;
+                    const approvalPrice = it.unit_price * (1 - (it.discount_pct || 0) / 100);
                     return (
                       <tr key={i} className="border-t border-slate-100">
                         <td className="px-2 py-1.5 text-slate-700">{it.product_name || it.product_code || "—"}</td>
@@ -350,11 +352,14 @@ export default function OrdersAdmin({ mode = "mine", onEdit }: { mode?: "mine" |
                         <td className={`px-2 py-1.5 text-right font-semibold ${below ? "text-rose-600" : "text-slate-700"}`}>
                           {reviewing.currency} {Math.round(it.unit_price).toLocaleString("en-US")}
                         </td>
+                        <td className="px-2 py-1.5 text-right text-slate-500">
+                          {book == null ? "—" : `${reviewing.currency} ${Math.round(book).toLocaleString("en-US")}`}
+                        </td>
                         <td className="px-2 py-1.5 text-right text-slate-600">
                           {it.discount_pct ? `${it.discount_pct}%` : "—"}
                         </td>
-                        <td className="px-2 py-1.5 text-right text-slate-500">
-                          {book == null ? "—" : `${reviewing.currency} ${Math.round(book).toLocaleString("en-US")}`}
+                        <td className="px-2 py-1.5 text-right font-semibold text-slate-700">
+                          {reviewing.currency} {Math.round(approvalPrice).toLocaleString("en-US")}
                         </td>
                       </tr>
                     );
