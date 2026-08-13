@@ -52,6 +52,12 @@ def below_pricebook_items(db: Session, currency: str, items) -> bool:
         code = getattr(it, "product_code", "") or ""
         if not code:
             continue
+        # EUR's own with/without-discount toggle (a standard 40/43.5/47% MoQ
+        # tier off MSRP) is never "below pricebook" by definition, even if
+        # independently-entered legacy EUR tier figures round slightly
+        # differently — only a manually-typed price/discount needs review.
+        if getattr(it, "eur_discount", "") in ("with", "without"):
+            continue
         prod = db.query(models.CatalogProduct).filter(
             models.CatalogProduct.product_code == code
         ).first()

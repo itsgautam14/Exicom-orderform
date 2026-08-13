@@ -533,6 +533,10 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
   function isBelowPricebook(it: OrderItem): boolean {
     const p = catalogProductFor(it);
     if (!p) return false; // free-text line, nothing to verify against
+    // EUR's own with/without-discount toggle (a standard 40/43.5/47% MoQ tier
+    // off MSRP) is never "below pricebook" by definition — only a manually
+    // typed price/discount needs review.
+    if (it.eur_discount === "with" || it.eur_discount === "without") return false;
     const book = catalogPrice(p, order.currency, it.quantity, it.eur_discount);
     if (book == null) return true; // catalog product with no price in this currency — can't verify
     const effective = it.unit_price * (1 - (it.discount_pct || 0) / 100);
