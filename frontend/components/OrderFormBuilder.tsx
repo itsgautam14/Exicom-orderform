@@ -451,24 +451,36 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
 
   // EUR discount is a fixed MoQ scale (1-50=40%, 51-150=43.5%, 151+=47%), never
   // hand-typed — keep every line's discount_pct in sync with its quantity
-  // whenever quantity or currency changes. A discount that was pushed away
-  // from the tier value by editing the after-discount Unit Price sticks until
-  // the next quantity/currency change re-syncs it (this effect doesn't run on
-  // a bare discount_pct edit, since that's not one of its dependencies).
+  // whenever quantity or currency changes. Also self-heals the sanctioned-
+  // discount flag: if a catalog-linked line's MSRP still matches the
+  // catalog's real price (i.e. no genuine override happened), it's restored
+  // to "with" so it doesn't sit stuck needing approval — this runs on its
+  // own, it doesn't require the user to re-touch the Net Price field.
   useEffect(() => {
     if (order.currency !== "EUR") return;
     setOrder((o) => {
       let changed = false;
       const items = o.items.map((it) => {
         const pct = eurStandardDiscount(it.quantity || 0);
-        if (it.discount_pct === pct) return it;
-        changed = true;
-        return { ...it, discount_pct: pct };
+        let next = it;
+        if (next.discount_pct !== pct) {
+          next = { ...next, discount_pct: pct };
+          changed = true;
+        }
+        if (next.catalog_id && next.eur_discount !== "with") {
+          const p = catalog.find((c) => c.id === next.catalog_id);
+          const trueMsrp = p?.prices?.[EUR_ND_KEY]?.[0]?.[2];
+          if (trueMsrp != null && Math.round(trueMsrp) === next.unit_price) {
+            next = { ...next, eur_discount: "with" };
+            changed = true;
+          }
+        }
+        return next;
       });
       return changed ? { ...o, items } : o;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.currency, order.items.map((it) => it.quantity).join(",")]);
+  }, [order.currency, order.items.map((it) => it.quantity).join(","), catalog]);
 
   // Auto-compute the transport cost from a registered rate (INR) × quantity, converted to the
   // order currency. If the country has no registered rate, leave the cost for manual entry.
