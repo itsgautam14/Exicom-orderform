@@ -997,37 +997,63 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
               <Field label="Product Code" v={it.product_code} on={(v) => setItem(i, { product_code: v })} />
               <Field label="Product Name" v={it.product_name} on={(v) => setItem(i, { product_name: v })} />
               <Area label="Description" v={it.description} on={(v) => setItem(i, { description: v })} rows={3} />
-              {order.currency === "EUR" && (() => {
+              {(() => {
                 const p = it.catalog_id
                   ? catalog.find((c) => c.id === it.catalog_id)
                   : it.product_code ? catalog.find((c) => c.product_code === it.product_code) : undefined;
-                if (!hasEurNoDiscount(p)) return null;
-                const msrp = p!.prices?.[EUR_ND_KEY]?.[0]?.[2];
-                if (!it.discount_pct) return null;
+                const eurMsrpActive = order.currency === "EUR" && hasEurNoDiscount(p);
+                const netPrice = Math.round(it.unit_price * (1 - (it.discount_pct || 0) / 100));
+
+                if (!eurMsrpActive) {
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="lbl">Qty *</label>
+                        <input className="inp" type="number" min="1" value={it.quantity}
+                          onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
+                      </div>
+                      <div>
+                        <label className="lbl">Unit Price ({order.currency}) *</label>
+                        <input className="inp" type="number" step="1" value={it.unit_price}
+                          onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
+                      </div>
+                      <div>
+                        <label className="lbl">Discount %</label>
+                        <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
+                          onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
+                      </div>
+                      <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
+                    </div>
+                  );
+                }
+
+                // EUR catalog products with the with/without-discount toggle: MSRP and
+                // Discount % drive the price, so Unit Price shown here is the resulting
+                // net (after-discount) price — read-only, not hand-typed.
                 return (
-                  <p className="mb-2 text-[10px] font-semibold text-emerald-600">
-                    {it.discount_pct}% off list price (MSRP €{Math.round(msrp!)})
-                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="lbl">Qty *</label>
+                      <input className="inp" type="number" min="1" value={it.quantity}
+                        onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
+                    </div>
+                    <div>
+                      <label className="lbl">MSRP ({order.currency})</label>
+                      <input className="inp bg-slate-100" type="number" value={it.unit_price} disabled />
+                    </div>
+                    <div>
+                      <label className="lbl">Discount %</label>
+                      <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
+                        onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
+                    </div>
+                    <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
+                    <div className="col-span-2">
+                      <label className="lbl">Unit Price ({order.currency}) — after discount</label>
+                      <input className="inp bg-slate-100" type="number" value={netPrice} disabled />
+                    </div>
+                  </div>
                 );
               })()}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="lbl">Qty *</label>
-                  <input className="inp" type="number" min="1" value={it.quantity}
-                    onChange={(e) => setQuantity(i, parseInt(e.target.value) || 0)} />
-                </div>
-                <div>
-                  <label className="lbl">Unit Price ({order.currency}) *</label>
-                  <input className="inp" type="number" step="1" value={it.unit_price}
-                    onChange={(e) => setItem(i, { unit_price: Math.round(parseFloat(e.target.value) || 0), catalog_id: undefined })} />
-                </div>
-                <div>
-                  <label className="lbl">Discount %</label>
-                  <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
-                    onChange={(e) => setItem(i, { discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) })} />
-                </div>
-                <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
-              </div>
               <div className="mt-1 text-right text-[11px] text-slate-500">
                 Line total: <span className="font-semibold text-slate-700">{cur} {fmt(lineNet(it))}</span>
                 {!!(it.discount_pct && it.discount_pct > 0) && (
