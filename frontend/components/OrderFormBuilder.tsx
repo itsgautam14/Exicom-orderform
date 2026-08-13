@@ -1074,6 +1074,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                             // Discount % is fixed to the standard tier and never changes —
                             // solve for MSRP instead so the tier percentage stays exact.
                             const pct = it.discount_pct || 0;
+                            const standardNet = Math.round(it.unit_price * (1 - pct / 100));
+                            // Typing back the same price the standard tier already gives —
+                            // not a real override. Restore the sanctioned-discount flag (in
+                            // case an earlier edit had cleared it) instead of leaving this
+                            // line stuck needing approval for a price that matches exactly.
+                            if (typed === standardNet) {
+                              if (it.eur_discount !== "with") setItem(i, { eur_discount: "with" });
+                              return;
+                            }
                             const newMsrp = pct < 100 ? Math.round(typed / (1 - pct / 100)) : typed;
                             setItem(i, { unit_price: newMsrp, eur_discount: "" });
                           } else {
