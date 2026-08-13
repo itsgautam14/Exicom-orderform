@@ -119,6 +119,13 @@ function eurTierIndex(p: CatalogProduct, qty: number): number {
   }
   return 0;
 }
+// Fixed EUR MoQ discount scale, independent of any one product's tier array:
+// 1-50 units = 40%, 51-150 = 43.5%, 151+ = 47%.
+function eurStandardDiscount(qty: number): number {
+  if (qty <= 50) return EUR_TIER_DISCOUNTS[0];
+  if (qty <= 150) return EUR_TIER_DISCOUNTS[1];
+  return EUR_TIER_DISCOUNTS[2];
+}
 // Pricebook price for a line, honouring the EUR with/without-discount choice.
 function catalogPrice(p: CatalogProduct, currency: string, qty: number, eurDiscount?: string): number | null {
   if (currency === "EUR" && eurDiscount === "without" && hasEurNoDiscount(p)) {
@@ -441,6 +448,27 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
     })();
     return () => { cancelled = true; };
   }, [order.currency]);
+
+  // EUR discount is a fixed MoQ scale (1-50=40%, 51-150=43.5%, 151+=47%), never
+  // hand-typed — keep every line's discount_pct in sync with its quantity
+  // whenever quantity or currency changes. A discount that was pushed away
+  // from the tier value by editing the after-discount Unit Price sticks until
+  // the next quantity/currency change re-syncs it (this effect doesn't run on
+  // a bare discount_pct edit, since that's not one of its dependencies).
+  useEffect(() => {
+    if (order.currency !== "EUR") return;
+    setOrder((o) => {
+      let changed = false;
+      const items = o.items.map((it) => {
+        const pct = eurStandardDiscount(it.quantity || 0);
+        if (it.discount_pct === pct) return it;
+        changed = true;
+        return { ...it, discount_pct: pct };
+      });
+      return changed ? { ...o, items } : o;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.currency, order.items.map((it) => it.quantity).join(",")]);
 
   // Auto-compute the transport cost from a registered rate (INR) × quantity, converted to the
   // order currency. If the country has no registered rate, leave the cost for manual entry.
@@ -1025,11 +1053,15 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     </div>
                     <div>
                       <label className="lbl">Discount %</label>
-                      <input className="inp" type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
+                      <input
+                        className={order.currency === "EUR" ? "inp bg-slate-100" : "inp"}
+                        type="number" min="0" max="100" step="0.01" value={it.discount_pct ?? 0}
+                        disabled={order.currency === "EUR"}
                         onChange={(e) => setItem(i, {
                           discount_pct: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
                           eur_discount: "",
-                        })} />
+                        })}
+                      />
                     </div>
                     <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
                     <div className="col-span-2">
