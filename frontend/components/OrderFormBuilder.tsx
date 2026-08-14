@@ -1095,7 +1095,7 @@ export default function OrderFormBuilder({ loadOrder, onLoaded }: { loadOrder?: 
                     </div>
                     <Field label="Unit" v={it.unit} on={(v) => setItem(i, { unit: v })} />
                     <div className="col-span-2">
-                      <label className="lbl">Unit Price ({order.currency}) — after discount</label>
+                      <label className="lbl">Unit Price ({order.currency}){order.currency === "EUR" ? " — after discount" : ""}</label>
                       <input
                         className="inp" type="number" step="1" value={netPrice}
                         onChange={(e) => {
