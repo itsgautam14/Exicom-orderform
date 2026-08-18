@@ -1401,7 +1401,7 @@ export default function OrderTracking() {
                   <td className="px-3 py-2 text-slate-600">{r.market || "—"}</td>
                   <td className="px-3 py-2 text-slate-600">{r.kam || "—"}</td>
                   <td className="px-3 py-2 text-slate-600">{r.ordered || "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order || "—"}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order ? fmtDateOnly(r.date_of_order) : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
                   </td>
