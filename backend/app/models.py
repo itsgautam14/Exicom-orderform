@@ -237,9 +237,10 @@ class OrderTracking(Base):
     bulk_date: Mapped[str] = mapped_column(String(64), default="")
     bulk_kam: Mapped[str] = mapped_column(String(128), default="")
 
-    # Fulfillment pipeline: in_production -> fg_ready -> dispatched -> shipment -> receipt.
-    # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
-    current_stage: Mapped[str] = mapped_column(String(32), default="in_production")
+    # Fulfillment pipeline: advance_payment -> in_production -> fg_ready -> dispatched
+    # -> shipment -> receipt. See TrackingStageEvent for the timestamped history
+    # (duration + remarks per stage).
+    current_stage: Mapped[str] = mapped_column(String(32), default="advance_payment")
 
     # Signed quotation / PO document, stored inline (small files — no object
     # storage configured). doc_filename is blank when nothing's been uploaded.

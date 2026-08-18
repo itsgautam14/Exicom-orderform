@@ -122,7 +122,7 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
 
 export interface TrackingStageEvent {
   id: string;
-  /** "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt" */
+  /** "advance_payment" | "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt" */
   stage: string;
   remarks: string;
   /** Who logged this stage entry — hand-entered, not inferred. */
@@ -180,7 +180,7 @@ export interface OrderTracking {
   bulk_date?: string;
   bulk_kam?: string;
 
-  /** Fulfillment pipeline position: "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt". */
+  /** Fulfillment pipeline position: "advance_payment" | "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt". */
   current_stage: string;
   doc_filename: string;
   doc_content_type: string;

@@ -42,7 +42,7 @@ _COLUMNS = [
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "part_code", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
-    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'in_production'"),
+    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'advance_payment'"),
     ("order_trackings", "doc_data", "BYTEA"),
     ("order_trackings", "doc_filename", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "doc_content_type", "VARCHAR(100) DEFAULT ''"),
@@ -86,10 +86,6 @@ def _backfill_tracking() -> None:
     try:
         for obj in db.query(models.Order).filter(models.Order.status == "so_created").all():
             crud._sync_tracking_from_order(db, obj)
-        # Rows created before the fulfillment tracker existed have no stage
-        # history yet — seed "in_production" so the tracker isn't blank for them.
-        for row in db.query(models.OrderTracking).filter(~models.OrderTracking.stage_events.any()).all():
-            row.stage_events.append(models.TrackingStageEvent(stage="in_production"))
         db.commit()
     finally:
         db.close()

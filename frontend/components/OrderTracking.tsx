@@ -6,24 +6,37 @@ import type { OrderTracking } from "@/lib/types";
 
 const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 
+// Advance Payment only ever captures a date (see stageEditKind below);
+// Shipment ("Shipment ID") only ever captures a tracking ID.
 const STAGES: { key: string; label: string }[] = [
+  { key: "advance_payment", label: "Advance Payment" },
   { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
-  { key: "shipment", label: "Shipment" },
+  { key: "shipment", label: "Shipment ID" },
   { key: "receipt", label: "Receipt" },
 ];
 
 // Short form used in the Logs table's Activity column.
 const STAGE_SHORT_LABEL: Record<string, string> = {
+  advance_payment: "Advance Payment",
   in_production: "In Production",
   fg_ready: "FG Ready",
   dispatched: "Dispatched",
-  shipment: "Shipment",
+  shipment: "Shipment ID",
   receipt: "Receipt",
   planned_dates: "Planned Dates",
   dispatch_details: "Dispatch Details",
 };
+
+// What a stage's remarks form/edit form should capture: a plain date
+// (Advance Payment), a single-line tracking ID (Shipment), or the usual
+// free-text remarks + KAM (everything else).
+function stageEditKind(stage: string): "date_only" | "id_only" | "full" {
+  if (stage === "advance_payment") return "date_only";
+  if (stage === "shipment") return "id_only";
+  return "full";
+}
 
 // Logs table's Stages column for pseudo-stages logged outside the real
 // in_production→receipt pipeline (see STAGES) — planned-date edits and the
@@ -121,9 +134,10 @@ export default function OrderTracking() {
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Partial<OrderTracking> | null>(null);
   const [viewing, setViewing] = useState<OrderTracking | null>(null);
-  const [selectedStage, setSelectedStage] = useState<string>("in_production");
+  const [selectedStage, setSelectedStage] = useState<string>("advance_payment");
   const [stageRemarks, setStageRemarks] = useState("");
   const [stageKam, setStageKam] = useState("");
+  const [stageDateInput, setStageDateInput] = useState(""); // Advance Payment's date-only entry
   const [editingRemark, setEditingRemark] = useState<
     { eventId: string; text: string; date: string; originalIso: string; kam: string } | null
   >(null);
@@ -140,6 +154,12 @@ export default function OrderTracking() {
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
   const stageRemarksRef = useRef<HTMLTextAreaElement>(null);
+  const stageIdRef = useRef<HTMLInputElement>(null); // Shipment ID's tracking-ID input
+  const stageDateRef = useRef<HTMLInputElement>(null); // Advance Payment's date input
+  // Whichever of the above is showing for the currently selected stage —
+  // used by the "Edit" link on a not-yet-reached stage to jump to it.
+  const activeStageFieldRef =
+    selectedStage === "advance_payment" ? stageDateRef : selectedStage === "shipment" ? stageIdRef : stageRemarksRef;
 
   async function reload() {
     setLoading(true);
@@ -376,13 +396,19 @@ export default function OrderTracking() {
 
   async function saveStage(stage: string) {
     if (!viewing) return;
-    if (!viewing.planned_production_date || !viewing.planned_dispatch_date || !viewing.expected_dispatch_date) {
+    // Advance Payment happens before production planning even exists, so it's
+    // exempt from the "planned dates filled in" gate the other stages need.
+    if (
+      stage !== "advance_payment" &&
+      (!viewing.planned_production_date || !viewing.planned_dispatch_date || !viewing.expected_dispatch_date)
+    ) {
       alert("Fill in Planned Production Date, Planned Dispatch Date and Expected Dispatch Date (see Planned Dates above) before adding a remark.");
       return;
     }
     setBusy(true);
     try {
-      const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks, stageKam);
+      const createdAt = stage === "advance_payment" ? stageDateInput || undefined : undefined;
+      const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks, stageKam, createdAt);
       setViewing(updated);
       // Stay on the stage that was just saved instead of letting the
       // default-selector effect jump elsewhere — this is the stage the
@@ -390,6 +416,7 @@ export default function OrderTracking() {
       setSelectedStage(stage);
       setStageRemarks("");
       setStageKam("");
+      setStageDateInput("");
       reload();
     } catch (err) {
       alert((err as Error).message);
@@ -408,9 +435,14 @@ export default function OrderTracking() {
         ? mergeDateKeepTime(editingRemark.date, editingRemark.originalIso)
         : undefined;
       // If nothing was written in Notes, still leave a trace of what
-      // happened instead of a blank log row.
+      // happened instead of a blank log row — except Advance Payment, which
+      // is date-only by design and should never gain placeholder remarks.
+      const eventStage = viewing.stage_events?.find((e) => e.id === editingRemark.eventId)?.stage || "";
       const dateChanged = editingRemark.date !== toDateOnly(editingRemark.originalIso);
-      const text = editingRemark.text.trim() || (dateChanged ? "Date changed" : "Edit option used");
+      const text =
+        stageEditKind(eventStage) === "date_only"
+          ? ""
+          : editingRemark.text.trim() || (dateChanged ? "Date changed" : "Edit option used");
       const updated = await api.updateStageRemark(
         viewing.id, editingRemark.eventId, text, createdAt, editingRemark.kam
       );
@@ -471,7 +503,7 @@ export default function OrderTracking() {
             {textField("Partner", "partner")}
             {textField("Country", "market")}
             {textField("KAM", "kam")}
-            {dateField("Date of Order", "date_of_order")}
+            {dateField("SO Creation", "date_of_order")}
             {numField("Value", "value")}
             <div>
               <label className="lbl">Currency</label>
@@ -982,19 +1014,23 @@ export default function OrderTracking() {
                           value={editingRemark.date}
                           onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
                         />
-                        <textarea
-                          className="inp mt-1 !py-1 !text-[11px]"
-                          rows={2}
-                          placeholder="Remarks (optional)…"
-                          value={editingRemark.text}
-                          onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
-                        />
-                        <input
-                          className="inp mt-1 !py-1 !text-[11px]"
-                          placeholder="Done by (KAM)…"
-                          value={editingRemark.kam}
-                          onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
-                        />
+                        {stageEditKind(selected.key) !== "date_only" && (
+                          <textarea
+                            className="inp mt-1 !py-1 !text-[11px]"
+                            rows={2}
+                            placeholder={stageEditKind(selected.key) === "id_only" ? "Tracking ID…" : "Remarks (optional)…"}
+                            value={editingRemark.text}
+                            onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                          />
+                        )}
+                        {stageEditKind(selected.key) === "full" && (
+                          <input
+                            className="inp mt-1 !py-1 !text-[11px]"
+                            placeholder="Done by (KAM)…"
+                            value={editingRemark.kam}
+                            onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                          />
+                        )}
                         <div className="mt-1 flex gap-2">
                           <button
                             type="button" disabled={busy}
@@ -1036,15 +1072,17 @@ export default function OrderTracking() {
                             type="button"
                             className="font-semibold text-exicom-teal hover:underline"
                             onClick={() => {
-                              stageRemarksRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-                              stageRemarksRef.current?.focus();
+                              activeStageFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                              activeStageFieldRef.current?.focus();
                             }}
                           >
                             Edit
                           </button>
                         )}
                         {primaryEvent?.remarks && (
-                          <div className="mt-0.5 italic">"{primaryEvent.remarks}"</div>
+                          <div className={selected.key === "shipment" ? "mt-0.5 font-mono" : "mt-0.5 italic"}>
+                            {selected.key === "shipment" ? primaryEvent.remarks : `"${primaryEvent.remarks}"`}
+                          </div>
                         )}
                       </div>
                     )}
@@ -1064,18 +1102,23 @@ export default function OrderTracking() {
                                 value={editingRemark.date}
                                 onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
                               />
-                              <textarea
-                                className="inp !py-1 !text-[11px]"
-                                rows={2}
-                                value={editingRemark.text}
-                                onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
-                              />
-                              <input
-                                className="inp mt-1 !py-1 !text-[11px]"
-                                placeholder="Done by (KAM)…"
-                                value={editingRemark.kam}
-                                onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
-                              />
+                              {stageEditKind(selected.key) !== "date_only" && (
+                                <textarea
+                                  className="inp !py-1 !text-[11px]"
+                                  rows={2}
+                                  placeholder={stageEditKind(selected.key) === "id_only" ? "Tracking ID…" : undefined}
+                                  value={editingRemark.text}
+                                  onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                                />
+                              )}
+                              {stageEditKind(selected.key) === "full" && (
+                                <input
+                                  className="inp mt-1 !py-1 !text-[11px]"
+                                  placeholder="Done by (KAM)…"
+                                  value={editingRemark.kam}
+                                  onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                                />
+                              )}
                               <div className="mt-1 flex gap-2">
                                 <button
                                   type="button" disabled={busy}
@@ -1112,17 +1155,41 @@ export default function OrderTracking() {
                   </div>
 
                   <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="lbl">
-                      Remarks for “{selected.label}” (optional)
-                    </label>
-                    <textarea
-                      ref={stageRemarksRef}
-                      className="inp" rows={2} value={stageRemarks}
-                      onChange={(e) => setStageRemarks(e.target.value)}
-                      placeholder="Why is it moving now / any delay reason…"
-                    />
-                    <label className="lbl mt-2">Done by (KAM)</label>
-                    <input className="inp" value={stageKam} onChange={(e) => setStageKam(e.target.value)} />
+                    {selected.key === "advance_payment" ? (
+                      <>
+                        <label className="lbl">Advance Payment Date</label>
+                        <input
+                          ref={stageDateRef}
+                          type="date" className="inp !w-auto"
+                          value={stageDateInput}
+                          onChange={(e) => setStageDateInput(e.target.value)}
+                        />
+                      </>
+                    ) : selected.key === "shipment" ? (
+                      <>
+                        <label className="lbl">Tracking ID</label>
+                        <input
+                          ref={stageIdRef}
+                          className="inp font-mono" value={stageRemarks}
+                          onChange={(e) => setStageRemarks(e.target.value)}
+                          placeholder="Enter the shipment tracking ID…"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label className="lbl">
+                          Remarks for “{selected.label}” (optional)
+                        </label>
+                        <textarea
+                          ref={stageRemarksRef}
+                          className="inp" rows={2} value={stageRemarks}
+                          onChange={(e) => setStageRemarks(e.target.value)}
+                          placeholder="Why is it moving now / any delay reason…"
+                        />
+                        <label className="lbl mt-2">Done by (KAM)</label>
+                        <input className="inp" value={stageKam} onChange={(e) => setStageKam(e.target.value)} />
+                      </>
+                    )}
                     <button
                       className="btn btn-primary mt-2" disabled={busy}
                       onClick={() => saveStage(selected.key)}
@@ -1166,22 +1233,26 @@ export default function OrderTracking() {
                                         onChange={(ev) => setEditingRemark({ ...editingRemark, date: ev.target.value })}
                                       />
                                     </div>
-                                    <div>
-                                      <label className="lbl">Done by (KAM)</label>
-                                      <input
-                                        className="inp !py-1 !text-xs"
-                                        value={editingRemark.kam}
-                                        onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="lbl">Notes</label>
-                                      <input
-                                        className="inp !py-1 !text-xs"
-                                        value={editingRemark.text}
-                                        onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
-                                      />
-                                    </div>
+                                    {stageEditKind(e.stage) === "full" && (
+                                      <div>
+                                        <label className="lbl">Done by (KAM)</label>
+                                        <input
+                                          className="inp !py-1 !text-xs"
+                                          value={editingRemark.kam}
+                                          onChange={(ev) => setEditingRemark({ ...editingRemark, kam: ev.target.value })}
+                                        />
+                                      </div>
+                                    )}
+                                    {stageEditKind(e.stage) !== "date_only" && (
+                                      <div>
+                                        <label className="lbl">{stageEditKind(e.stage) === "id_only" ? "Tracking ID" : "Notes"}</label>
+                                        <input
+                                          className="inp !py-1 !text-xs"
+                                          value={editingRemark.text}
+                                          onChange={(ev) => setEditingRemark({ ...editingRemark, text: ev.target.value })}
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="mt-2 flex gap-2">
                                     <button
@@ -1254,7 +1325,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Summary
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {(() => {
                 const events = viewing.stage_events || [];
                 const stageDate = (key: string) => events.find((e) => e.stage === key)?.created_at;
@@ -1315,7 +1386,7 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">Country</th>
                 <th className="px-3 py-2">KAM</th>
                 <th className="px-3 py-2">Ordered</th>
-                <th className="px-3 py-2">Order Date</th>
+                <th className="px-3 py-2">SO Creation</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
                 <th className="px-3 py-2">Planned / Expected</th>

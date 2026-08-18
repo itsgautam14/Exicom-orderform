@@ -464,6 +464,9 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
     total_quantity = sum(int(it.quantity or 0) for it in obj.items) or None
     transport_mode = obj.transport_mode or ""
     if row is None:
+        # No seeded stage_events — Advance Payment (the pipeline's first
+        # stage) is a hand-picked date, not "the moment this row was
+        # created", so nothing is marked reached until the user logs it.
         db.add(models.OrderTracking(
             quote_number=obj.quote_number,
             partner=partner,
@@ -476,8 +479,6 @@ def _sync_tracking_from_order(db: Session, obj: models.Order) -> None:
             currency=currency,
             total_quantity=total_quantity,
             transport_mode=transport_mode,
-            # Seed the first fulfillment stage so the tracker has a starting point.
-            stage_events=[models.TrackingStageEvent(stage="in_production")],
         ))
     else:
         row.partner = partner
@@ -536,10 +537,10 @@ def get_tracking(db: Session, tracking_id: str) -> models.OrderTracking | None:
 
 
 def create_tracking(db: Session, data: schemas.OrderTrackingCreate) -> models.OrderTracking:
-    obj = models.OrderTracking(
-        **data.model_dump(),
-        stage_events=[models.TrackingStageEvent(stage="in_production")],
-    )
+    # No auto-seeded stage_events entry — Advance Payment (the pipeline's new
+    # first stage) is a hand-picked date, not "the moment this row was
+    # created", so nothing is marked reached until the user actually logs it.
+    obj = models.OrderTracking(**data.model_dump())
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -595,7 +596,7 @@ def delete_tracking(db: Session, obj: models.OrderTracking) -> None:
 
 def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
     objs = [
-        models.OrderTracking(**r, stage_events=[models.TrackingStageEvent(stage="in_production")])
+        models.OrderTracking(**r)
         for r in rows
     ]
     db.add_all(objs)
@@ -603,19 +604,25 @@ def bulk_create_trackings(db: Session, rows: list[dict]) -> int:
     return len(objs)
 
 
-TRACKING_STAGES = ["in_production", "fg_ready", "dispatched", "shipment", "receipt"]
+TRACKING_STAGES = ["advance_payment", "in_production", "fg_ready", "dispatched", "shipment", "receipt"]
 
 
 def advance_tracking_stage(
-    db: Session, obj: models.OrderTracking, stage: str, remarks: str = "", kam: str = ""
+    db: Session, obj: models.OrderTracking, stage: str, remarks: str = "", kam: str = "",
+    created_at: dt.datetime | None = None,
 ) -> models.OrderTracking:
     """Record the tracked order entering ``stage`` and make it current.
 
     Appends a new TrackingStageEvent (so the prior stage's duration is fixed by
     its own event's timestamp) rather than editing history in place. ``kam`` is
     hand-entered — who logged this stage entry — not inferred from anywhere.
+    ``created_at`` lets Advance Payment (a hand-picked date, not "now") set its
+    own timestamp instead of the server-time default.
     """
-    obj.stage_events.append(models.TrackingStageEvent(stage=stage, remarks=remarks, kam=kam))
+    event = models.TrackingStageEvent(stage=stage, remarks=remarks, kam=kam)
+    if created_at is not None:
+        event.created_at = created_at
+    obj.stage_events.append(event)
     obj.current_stage = stage
     db.commit()
     db.refresh(obj)

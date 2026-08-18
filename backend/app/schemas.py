@@ -287,6 +287,9 @@ class StageEventIn(BaseModel):
     stage: str
     remarks: str = ""
     kam: str = ""
+    # Hand-picked date for stages captured as "just a date" (Advance Payment) —
+    # otherwise the event's created_at defaults to now.
+    created_at: Optional[dt.datetime] = None
 
 
 class StageEventUpdate(BaseModel):
@@ -314,7 +317,7 @@ class TrackingDispatchIn(BaseModel):
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
-    current_stage: str = "in_production"
+    current_stage: str = "advance_payment"
     doc_filename: str = ""
     doc_content_type: str = ""
     stage_events: list[StageEventOut] = []
