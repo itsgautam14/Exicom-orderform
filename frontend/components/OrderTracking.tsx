@@ -9,7 +9,7 @@ const CURRENCIES = ["USD", "EUR", "INR", "MYR"];
 // Advance Payment only ever captures a date (see stageEditKind below);
 // Shipment ("Shipment ID") only ever captures a tracking ID.
 const STAGES: { key: string; label: string }[] = [
-  { key: "advance_payment", label: "Advance Payment" },
+  { key: "advance_payment", label: "Advance Received Date" },
   { key: "in_production", label: "In Production" },
   { key: "fg_ready", label: "FG Ready" },
   { key: "dispatched", label: "Dispatched" },
@@ -19,7 +19,7 @@ const STAGES: { key: string; label: string }[] = [
 
 // Short form used in the Logs table's Activity column.
 const STAGE_SHORT_LABEL: Record<string, string> = {
-  advance_payment: "Advance Payment",
+  advance_payment: "Advance Received Date",
   in_production: "In Production",
   fg_ready: "FG Ready",
   dispatched: "Dispatched",
@@ -1157,7 +1157,7 @@ export default function OrderTracking() {
                   <div className="mt-4 border-t border-slate-100 pt-3">
                     {selected.key === "advance_payment" ? (
                       <>
-                        <label className="lbl">Advance Payment Date</label>
+                        <label className="lbl">Advance Received Date</label>
                         <input
                           ref={stageDateRef}
                           type="date" className="inp !w-auto"
