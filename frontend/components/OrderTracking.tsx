@@ -21,6 +21,16 @@ const STAGE_SHORT_LABEL: Record<string, string> = {
   dispatched: "Dispatched",
   shipment: "Shipment",
   receipt: "Receipt",
+  planned_dates: "Planned Dates",
+  dispatch_details: "Dispatch Details",
+};
+
+// Logs table's Stages column for pseudo-stages logged outside the real
+// in_production→receipt pipeline (see STAGES) — planned-date edits and the
+// multi-dispatch Yes/No answer.
+const LOG_EXTRA_STAGE_LABEL: Record<string, string> = {
+  planned_dates: "Planned Dates",
+  dispatch_details: "Dispatch Details",
 };
 
 function fmtDateTime(iso: string): string {
@@ -1170,7 +1180,7 @@ export default function OrderTracking() {
                             ) : (
                               <tr key={e.id} className="border-t border-slate-100">
                                 <td className="px-3 py-2 font-semibold text-slate-700">
-                                  {STAGES.find((s) => s.key === e.stage)?.label || e.stage}
+                                  {STAGES.find((s) => s.key === e.stage)?.label || LOG_EXTRA_STAGE_LABEL[e.stage] || e.stage}
                                 </td>
                                 <td className="px-3 py-2 text-slate-600">
                                   {STAGE_SHORT_LABEL[e.stage] || e.stage}

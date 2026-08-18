@@ -546,8 +546,32 @@ def create_tracking(db: Session, data: schemas.OrderTrackingCreate) -> models.Or
     return obj
 
 
+# Fields whose changes get their own Logs entry (pseudo-stages, distinct from
+# the real TRACKING_STAGES pipeline) so a KAM revisiting the order later can
+# see who moved a planned date or answered the multi-dispatch question, and
+# when — not just the current value.
+_PLANNED_DATE_LOG_LABELS = {
+    "planned_production_date": "Planned Production Date",
+    "planned_dispatch_date": "Planned Dispatch Date",
+    "expected_dispatch_date": "Expected Dispatch Date",
+}
+
+
 def update_tracking(db: Session, obj: models.OrderTracking, data: schemas.OrderTrackingUpdate):
-    for k, v in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for field, label in _PLANNED_DATE_LOG_LABELS.items():
+        if field not in changes:
+            continue
+        old, new = getattr(obj, field) or "", changes[field] or ""
+        if new == old:
+            continue
+        remark = f"{label} set to {new}" if not old else f"{label} changed from {old} to {new}"
+        obj.stage_events.append(models.TrackingStageEvent(stage="planned_dates", remarks=remark))
+    if "dispatch_in_tranches" in changes and changes["dispatch_in_tranches"] != obj.dispatch_in_tranches:
+        answer = "Yes" if changes["dispatch_in_tranches"] else "No"
+        remark = f"Are there multiple dispatches in this order? {answer}"
+        obj.stage_events.append(models.TrackingStageEvent(stage="dispatch_details", remarks=remark))
+    for k, v in changes.items():
         setattr(obj, k, v)
     db.commit()
     db.refresh(obj)
@@ -627,13 +651,18 @@ def delete_stage_event(db: Session, obj: models.OrderTracking, event_id: str) ->
     """Remove a log entry outright (e.g. a stray/blank one), unlike
     update_stage_event_remarks which corrects one in place. If the deleted
     entry was the most recent, current_stage falls back to whatever's now the
-    latest remaining entry (or the first pipeline stage if none are left)."""
+    latest remaining entry (or the first pipeline stage if none are left).
+    Only real pipeline stages count here — the planned-dates/dispatch-details
+    log entries update_tracking() appends are pseudo-stages for the Logs
+    table only and must never become current_stage."""
     event = next((e for e in obj.stage_events if e.id == event_id), None)
     if not event:
         return None
     obj.stage_events.remove(event)
     db.delete(event)
-    remaining = sorted(obj.stage_events, key=lambda e: e.created_at)
+    remaining = sorted(
+        (e for e in obj.stage_events if e.stage in TRACKING_STAGES), key=lambda e: e.created_at
+    )
     obj.current_stage = remaining[-1].stage if remaining else TRACKING_STAGES[0]
     db.commit()
     db.refresh(obj)
