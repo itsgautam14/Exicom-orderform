@@ -384,6 +384,10 @@ export default function OrderTracking() {
     try {
       const updated = await api.advanceTrackingStage(viewing.id, stage, stageRemarks, stageKam);
       setViewing(updated);
+      // Stay on the stage that was just saved instead of letting the
+      // default-selector effect jump elsewhere — this is the stage the
+      // latest remark belongs to, so it's what should stay on screen.
+      setSelectedStage(stage);
       setStageRemarks("");
       setStageKam("");
       reload();
@@ -1107,6 +1111,26 @@ export default function OrderTracking() {
                     )}
                   </div>
 
+                  <div className="mt-4 border-t border-slate-100 pt-3">
+                    <label className="lbl">
+                      Remarks for “{selected.label}” (optional)
+                    </label>
+                    <textarea
+                      ref={stageRemarksRef}
+                      className="inp" rows={2} value={stageRemarks}
+                      onChange={(e) => setStageRemarks(e.target.value)}
+                      placeholder="Why is it moving now / any delay reason…"
+                    />
+                    <label className="lbl mt-2">Done by (KAM)</label>
+                    <input className="inp" value={stageKam} onChange={(e) => setStageKam(e.target.value)} />
+                    <button
+                      className="btn btn-primary mt-2" disabled={busy}
+                      onClick={() => saveStage(selected.key)}
+                    >
+                      {busy ? "Saving…" : `Save “${selected.label}”`}
+                    </button>
+                  </div>
+
                   {/* logs — every stage transition, in order, KAM + timestamp + note */}
                   {events.length > 0 && (
                     <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
@@ -1220,26 +1244,6 @@ export default function OrderTracking() {
                       </div>
                     </div>
                   )}
-
-                  <div className="mt-4 border-t border-slate-100 pt-3">
-                    <label className="lbl">
-                      Remarks for “{selected.label}” (optional)
-                    </label>
-                    <textarea
-                      ref={stageRemarksRef}
-                      className="inp" rows={2} value={stageRemarks}
-                      onChange={(e) => setStageRemarks(e.target.value)}
-                      placeholder="Why is it moving now / any delay reason…"
-                    />
-                    <label className="lbl mt-2">Done by (KAM)</label>
-                    <input className="inp" value={stageKam} onChange={(e) => setStageKam(e.target.value)} />
-                    <button
-                      className="btn btn-primary mt-2" disabled={busy}
-                      onClick={() => saveStage(selected.key)}
-                    >
-                      {busy ? "Saving…" : `Save “${selected.label}”`}
-                    </button>
-                  </div>
                 </>
               );
             })()}
