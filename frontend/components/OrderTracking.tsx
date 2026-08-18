@@ -30,6 +30,12 @@ function fmtDateTime(iso: string): string {
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
+// A plain "YYYY-MM-DD" (as stored/sent to <input type="date">) shown as DD-MM-YYYY.
+function fmtDateOnly(value: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
+}
+
 function daysBetween(a: string, b: string): number {
   const ms = new Date(b).getTime() - new Date(a).getTime();
   return Math.max(0, Math.round(ms / 86400000));
@@ -539,7 +545,7 @@ export default function OrderTracking() {
                   </div>
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-slate-600">{viewing.planned_production_date || "—"}</span>
+                    <span className="text-slate-600">{viewing.planned_production_date ? fmtDateOnly(viewing.planned_production_date) : "—"}</span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("production")}>
                       Edit
                     </button>
@@ -573,7 +579,7 @@ export default function OrderTracking() {
                           />
                         ) : null;
                       })()}
-                      {viewing.planned_dispatch_date || "—"}
+                      {viewing.planned_dispatch_date ? fmtDateOnly(viewing.planned_dispatch_date) : "—"}
                     </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("dispatch")}>
                       Edit
@@ -608,7 +614,7 @@ export default function OrderTracking() {
                           />
                         ) : null;
                       })()}
-                      {viewing.expected_dispatch_date || "—"}
+                      {viewing.expected_dispatch_date ? fmtDateOnly(viewing.expected_dispatch_date) : "—"}
                     </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
                       Edit
@@ -716,7 +722,7 @@ export default function OrderTracking() {
                       <div className="text-slate-500">
                         Date:{" "}
                         <span className={`font-medium ${bulkColor === "amber" ? "text-amber-700" : bulkColor === "red" ? "text-rose-700" : "text-slate-700"}`}>
-                          {viewing.bulk_date || "—"}
+                          {viewing.bulk_date ? fmtDateOnly(viewing.bulk_date) : "—"}
                         </span>
                       </div>
                       <div className="text-slate-500">Mode: <span className="font-medium text-slate-700">{viewing.transport_mode || "—"}</span></div>
@@ -825,7 +831,7 @@ export default function OrderTracking() {
                     <div className="text-slate-500">
                       Date:{" "}
                       <span className={`font-medium ${color === "amber" ? "text-amber-700" : color === "red" ? "text-rose-700" : "text-slate-700"}`}>
-                        {d.date || "—"}
+                        {d.date ? fmtDateOnly(d.date) : "—"}
                       </span>
                     </div>
                     <div className="text-slate-500">Part Code: <span className="font-medium text-slate-700">{viewing.part_code || "—"}</span></div>
@@ -1331,11 +1337,11 @@ export default function OrderTracking() {
                       return (
                         <div className="flex flex-col gap-1 text-xs">
                           <div className="flex items-center gap-1.5">
-                            <span title={r.planned_dispatch_date || "—"} className={dotClass(plannedColor)} />
+                            <span title={r.planned_dispatch_date ? fmtDateOnly(r.planned_dispatch_date) : "—"} className={dotClass(plannedColor)} />
                             <span className="text-slate-500">Planned</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span title={r.expected_dispatch_date || "—"} className={dotClass(expectedColor)} />
+                            <span title={r.expected_dispatch_date ? fmtDateOnly(r.expected_dispatch_date) : "—"} className={dotClass(expectedColor)} />
                             <span className="text-slate-500">Expected</span>
                           </div>
                         </div>
