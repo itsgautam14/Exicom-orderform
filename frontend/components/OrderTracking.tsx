@@ -145,6 +145,8 @@ export default function OrderTracking() {
   const [expectedDraft, setExpectedDraft] = useState("");
   const [editingAdvanceReceived, setEditingAdvanceReceived] = useState(false);
   const [advanceReceivedDraft, setAdvanceReceivedDraft] = useState("");
+  const [editingSoCreation, setEditingSoCreation] = useState(false);
+  const [soCreationDraft, setSoCreationDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -387,6 +389,27 @@ export default function OrderTracking() {
     }
   }
 
+  function startEditSoCreation() {
+    if (!viewing) return;
+    setSoCreationDraft(viewing.date_of_order || "");
+    setEditingSoCreation(true);
+  }
+
+  async function saveSoCreation() {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateTracking(viewing.id, { date_of_order: soCreationDraft });
+      setViewing(updated);
+      setEditingSoCreation(false);
+      patchRow(updated);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onUploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -585,30 +608,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-lg border border-slate-200 p-3 text-sm">
-                <div className="font-semibold text-slate-700">
-                  Advance Received Date
-                </div>
-                {editingAdvanceReceived ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <input className="inp !w-auto" type="date" value={advanceReceivedDraft} onChange={(e) => setAdvanceReceivedDraft(e.target.value)} />
-                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveAdvanceReceived}>
-                      {busy ? "Saving…" : "Save"}
-                    </button>
-                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingAdvanceReceived(false)}>
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-slate-600">{viewing.advance_received_date ? fmtDateOnly(viewing.advance_received_date) : "—"}</span>
-                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditAdvanceReceived}>
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="text-rose-500">*</span>
@@ -697,6 +697,57 @@ export default function OrderTracking() {
                       {viewing.expected_dispatch_date ? fmtDateOnly(viewing.expected_dispatch_date) : "—"}
                     </span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditExpected}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* SO creation / advance received — kept separate from Planned Dates above */}
+          <div className="mb-5 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Order Dates
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">SO Creation</div>
+                {editingSoCreation ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input className="inp !w-auto" type="date" value={soCreationDraft} onChange={(e) => setSoCreationDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveSoCreation}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingSoCreation(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.date_of_order ? fmtDateOnly(viewing.date_of_order) : "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditSoCreation}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">Advance Received Date</div>
+                {editingAdvanceReceived ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input className="inp !w-auto" type="date" value={advanceReceivedDraft} onChange={(e) => setAdvanceReceivedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveAdvanceReceived}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingAdvanceReceived(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.advance_received_date ? fmtDateOnly(viewing.advance_received_date) : "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditAdvanceReceived}>
                       Edit
                     </button>
                   </div>
