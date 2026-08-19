@@ -77,10 +77,14 @@ function mergeDateKeepTime(dateStr: string, originalIso: string): string {
     .toISOString();
 }
 
-// Most recent remark left for a row's current stage, so the list reflects
-// whatever the Stage dropdown is showing without opening the detail view.
+// The single most recent remark left on any stage — not just the current
+// one — so the list always shows the latest note, never the whole log.
 function latestStageRemark(row: OrderTracking) {
-  return [...(row.stage_events || [])].reverse().find((e) => e.stage === row.current_stage && e.remarks);
+  const withRemarks = (row.stage_events || []).filter((e) => e.remarks);
+  if (!withRemarks.length) return undefined;
+  return withRemarks.reduce((latest, e) =>
+    new Date(e.created_at).getTime() > new Date(latest.created_at).getTime() ? e : latest
+  );
 }
 
 // Green while on/before the tentative dispatch date, amber 1 day past it,
@@ -1504,12 +1508,14 @@ export default function OrderTracking() {
                       return (
                         <div className="flex flex-col gap-1 text-xs">
                           <div className="flex items-center gap-1.5">
-                            <span title={r.planned_dispatch_date ? fmtDateOnly(r.planned_dispatch_date) : "—"} className={dotClass(plannedColor)} />
-                            <span className="text-slate-500">Planned</span>
+                            <span className={dotClass(plannedColor)} />
+                            <span className="text-slate-500">Planned:</span>
+                            <span className="text-slate-700">{r.planned_dispatch_date ? fmtDateOnly(r.planned_dispatch_date) : "—"}</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span title={r.expected_dispatch_date ? fmtDateOnly(r.expected_dispatch_date) : "—"} className={dotClass(expectedColor)} />
-                            <span className="text-slate-500">Expected</span>
+                            <span className={dotClass(expectedColor)} />
+                            <span className="text-slate-500">Expected:</span>
+                            <span className="text-slate-700">{r.expected_dispatch_date ? fmtDateOnly(r.expected_dispatch_date) : "—"}</span>
                           </div>
                         </div>
                       );
