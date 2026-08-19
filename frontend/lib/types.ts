@@ -122,7 +122,7 @@ export interface OrderOut extends Omit<OrderInput, "items"> {
 
 export interface TrackingStageEvent {
   id: string;
-  /** "advance_payment" | "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt" */
+  /** "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt" */
   stage: string;
   remarks: string;
   /** Who logged this stage entry — hand-entered, not inferred. */
@@ -150,6 +150,8 @@ export interface OrderTracking {
   part_code?: string;
   specifications: string;
   date_of_order: string;
+  /** Plain hand-entered date, not part of the Fulfillment Tracker pipeline. */
+  advance_received_date?: string;
   value: number | null;
   currency: string;
   /** Total ordered quantity — divides into `value` for the dispatch price split. */
@@ -180,7 +182,7 @@ export interface OrderTracking {
   bulk_date?: string;
   bulk_kam?: string;
 
-  /** Fulfillment pipeline position: "advance_payment" | "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt". */
+  /** Fulfillment pipeline position: "in_production" | "fg_ready" | "dispatched" | "shipment" | "receipt". */
   current_stage: string;
   doc_filename: string;
   doc_content_type: string;

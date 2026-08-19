@@ -93,7 +93,7 @@ def advance_tracking_stage(tracking_id: str, payload: schemas.StageEventIn, db: 
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracking row not found")
     if payload.stage not in crud.TRACKING_STAGES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid stage")
-    return crud.advance_tracking_stage(db, obj, payload.stage, payload.remarks, payload.kam, payload.created_at)
+    return crud.advance_tracking_stage(db, obj, payload.stage, payload.remarks, payload.kam)
 
 
 @router.put("/{tracking_id}/stage/{event_id}", response_model=schemas.OrderTrackingOut)

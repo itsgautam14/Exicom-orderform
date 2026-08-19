@@ -199,16 +199,14 @@ export const api = {
   deleteTrackingDocument: (id: string): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/document`, { method: "DELETE", headers: adminHeaders() }).then(json<OrderTracking>),
 
-  // Fulfillment stage tracker: advance_payment -> in_production -> fg_ready -> dispatched -> shipment -> receipt.
+  // Fulfillment stage tracker: in_production -> fg_ready -> dispatched -> shipment -> receipt.
   // Any stage can be set directly — ops fills these in manually, not strictly in order.
   // `kam` (who logged this entry) is hand-entered, not inferred.
-  advanceTrackingStage: (
-    id: string, stage: string, remarks: string, kam = "", createdAt?: string
-  ): Promise<OrderTracking> =>
+  advanceTrackingStage: (id: string, stage: string, remarks: string, kam = ""): Promise<OrderTracking> =>
     fetch(`${BASE}/api/tracking/${id}/stage`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...adminHeaders() },
-      body: JSON.stringify({ stage, remarks, kam, ...(createdAt ? { created_at: createdAt } : {}) }),
+      body: JSON.stringify({ stage, remarks, kam }),
     }).then(json<OrderTracking>),
 
   // Correct a previously recorded stage remark, date and/or KAM in place

@@ -212,6 +212,7 @@ class OrderTrackingBase(BaseModel):
     part_code: str = ""
     specifications: str = ""
     date_of_order: str = ""
+    advance_received_date: str = ""
     value: Optional[float] = None
     currency: str = ""
     total_quantity: Optional[int] = None
@@ -252,6 +253,7 @@ class OrderTrackingUpdate(BaseModel):
     part_code: Optional[str] = None
     specifications: Optional[str] = None
     date_of_order: Optional[str] = None
+    advance_received_date: Optional[str] = None
     value: Optional[float] = None
     currency: Optional[str] = None
     total_quantity: Optional[int] = None
@@ -287,9 +289,6 @@ class StageEventIn(BaseModel):
     stage: str
     remarks: str = ""
     kam: str = ""
-    # Hand-picked date for stages captured as "just a date" (Advance Payment) —
-    # otherwise the event's created_at defaults to now.
-    created_at: Optional[dt.datetime] = None
 
 
 class StageEventUpdate(BaseModel):
@@ -317,7 +316,7 @@ class TrackingDispatchIn(BaseModel):
 class OrderTrackingOut(OrderTrackingBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
-    current_stage: str = "advance_payment"
+    current_stage: str = "in_production"
     doc_filename: str = ""
     doc_content_type: str = ""
     stage_events: list[StageEventOut] = []

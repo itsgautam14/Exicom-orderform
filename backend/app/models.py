@@ -186,6 +186,10 @@ class OrderTracking(Base):
     part_code: Mapped[str] = mapped_column(String(255), default="")
     specifications: Mapped[str] = mapped_column(Text, default="")
     date_of_order: Mapped[str] = mapped_column(String(64), default="")
+    # Plain hand-entered date, not part of the Fulfillment Tracker stage
+    # pipeline (that was tried and reverted — see git history) — just an
+    # input field alongside date_of_order ("SO Creation").
+    advance_received_date: Mapped[str] = mapped_column(String(64), default="")
     value: Mapped[Optional[float]] = mapped_column(Numeric(16, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(8), default="")
     # Total ordered quantity (across all line items) — divides into `value` to
@@ -237,10 +241,9 @@ class OrderTracking(Base):
     bulk_date: Mapped[str] = mapped_column(String(64), default="")
     bulk_kam: Mapped[str] = mapped_column(String(128), default="")
 
-    # Fulfillment pipeline: advance_payment -> in_production -> fg_ready -> dispatched
-    # -> shipment -> receipt. See TrackingStageEvent for the timestamped history
-    # (duration + remarks per stage).
-    current_stage: Mapped[str] = mapped_column(String(32), default="advance_payment")
+    # Fulfillment pipeline: in_production -> fg_ready -> dispatched -> shipment -> receipt.
+    # See TrackingStageEvent for the timestamped history (duration + remarks per stage).
+    current_stage: Mapped[str] = mapped_column(String(32), default="in_production")
 
     # Signed quotation / PO document, stored inline (small files — no object
     # storage configured). doc_filename is blank when nothing's been uploaded.

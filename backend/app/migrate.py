@@ -42,7 +42,8 @@ _COLUMNS = [
     ("order_trackings", "quote_number", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "part_code", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "currency", "VARCHAR(8) DEFAULT ''"),
-    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'advance_payment'"),
+    ("order_trackings", "advance_received_date", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "current_stage", "VARCHAR(32) DEFAULT 'in_production'"),
     ("order_trackings", "doc_data", "BYTEA"),
     ("order_trackings", "doc_filename", "VARCHAR(255) DEFAULT ''"),
     ("order_trackings", "doc_content_type", "VARCHAR(100) DEFAULT ''"),
@@ -86,6 +87,10 @@ def _backfill_tracking() -> None:
     try:
         for obj in db.query(models.Order).filter(models.Order.status == "so_created").all():
             crud._sync_tracking_from_order(db, obj)
+        # Rows created before the fulfillment tracker existed have no stage
+        # history yet — seed "in_production" so the tracker isn't blank for them.
+        for row in db.query(models.OrderTracking).filter(~models.OrderTracking.stage_events.any()).all():
+            row.stage_events.append(models.TrackingStageEvent(stage="in_production"))
         db.commit()
     finally:
         db.close()
@@ -147,6 +152,40 @@ def _restore_in_production_stage() -> None:
         db.close()
 
 
+def _remove_advance_payment_stage() -> None:
+    """One-time cleanup: "Advance Payment" was briefly a Fulfillment Tracker
+    stage before this same pipeline slot was retried as a plain
+    advance_received_date field instead. Fold any rows/log entries that
+    already used it back into the real pipeline: copy the logged date into
+    advance_received_date (if not already set by hand) and drop the pseudo
+    stage_event, then reset current_stage back to "in_production".
+    """
+    from app import models
+
+    db = SessionLocal()
+    try:
+        events = (
+            db.query(models.TrackingStageEvent)
+            .filter(models.TrackingStageEvent.stage == "advance_payment")
+            .all()
+        )
+        for event in events:
+            row = db.get(models.OrderTracking, event.tracking_id)
+            if row and not row.advance_received_date:
+                row.advance_received_date = event.created_at.strftime("%Y-%m-%d")
+            db.delete(event)
+        bumped = (
+            db.query(models.OrderTracking)
+            .filter(models.OrderTracking.current_stage == "advance_payment")
+            .update({"current_stage": "in_production"})
+        )
+        if events or bumped:
+            db.commit()
+            print(f"Removed Advance Payment stage: migrated {len(events)} date(s), reset {bumped} row(s) to In Production.")
+    finally:
+        db.close()
+
+
 def _migrate_dispatch_slots_to_table() -> None:
     """One-time migration: the old fixed dispatch1/2/3 columns are replaced by
     the open-ended tracking_dispatches table (a tracked order can now have as
@@ -187,6 +226,7 @@ def run() -> None:
             conn.execute(text(
                 f'ALTER TABLE IF EXISTS {table} ADD COLUMN IF NOT EXISTS {column} {ddl}'
             ))
+    _remove_advance_payment_stage()
     _backfill_tracking()
     _remove_premature_tracking()
     _restore_in_production_stage()
