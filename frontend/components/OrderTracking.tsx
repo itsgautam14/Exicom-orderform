@@ -1361,6 +1361,19 @@ export default function OrderTracking() {
                       <div className="mt-0.5 text-[11px] text-slate-400">
                         {done ? "Reached" : "Not reached yet"}
                       </div>
+                      {/* Planned/Expected dates, shown against the stage they gate,
+                          so planned vs. actual progress can be compared at a glance. */}
+                      {s.key === "in_production" && viewing.planned_production_date && (
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Planned: {fmtDateOnly(viewing.planned_production_date)}
+                        </div>
+                      )}
+                      {s.key === "dispatched" && (viewing.planned_dispatch_date || viewing.expected_dispatch_date) && (
+                        <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                          {viewing.planned_dispatch_date && <div>Planned: {fmtDateOnly(viewing.planned_dispatch_date)}</div>}
+                          {viewing.expected_dispatch_date && <div>Expected: {fmtDateOnly(viewing.expected_dispatch_date)}</div>}
+                        </div>
+                      )}
                     </div>
                   );
                 });
