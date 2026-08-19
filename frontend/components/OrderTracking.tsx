@@ -143,6 +143,8 @@ export default function OrderTracking() {
   const [plannedDraft, setPlannedDraft] = useState("");
   const [editingExpected, setEditingExpected] = useState(false);
   const [expectedDraft, setExpectedDraft] = useState("");
+  const [editingAdvanceReceived, setEditingAdvanceReceived] = useState(false);
+  const [advanceReceivedDraft, setAdvanceReceivedDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const docInput = useRef<HTMLInputElement>(null);
@@ -364,6 +366,27 @@ export default function OrderTracking() {
     }
   }
 
+  function startEditAdvanceReceived() {
+    if (!viewing) return;
+    setAdvanceReceivedDraft(viewing.advance_received_date || "");
+    setEditingAdvanceReceived(true);
+  }
+
+  async function saveAdvanceReceived() {
+    if (!viewing) return;
+    setBusy(true);
+    try {
+      const updated = await api.updateTracking(viewing.id, { advance_received_date: advanceReceivedDraft });
+      setViewing(updated);
+      setEditingAdvanceReceived(false);
+      patchRow(updated);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onUploadDoc(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -492,7 +515,6 @@ export default function OrderTracking() {
             {textField("Country", "market")}
             {textField("KAM", "kam")}
             {dateField("SO Creation", "date_of_order")}
-            {dateField("Advance Received Date", "advance_received_date")}
             {numField("Value", "value")}
             <div>
               <label className="lbl">Currency</label>
@@ -563,7 +585,30 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">
+                  Advance Received Date
+                </div>
+                {editingAdvanceReceived ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input className="inp !w-auto" type="date" value={advanceReceivedDraft} onChange={(e) => setAdvanceReceivedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={saveAdvanceReceived}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingAdvanceReceived(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.advance_received_date ? fmtDateOnly(viewing.advance_received_date) : "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={startEditAdvanceReceived}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="text-rose-500">*</span>
@@ -1373,7 +1418,6 @@ export default function OrderTracking() {
                 <th className="px-3 py-2">KAM</th>
                 <th className="px-3 py-2">Ordered</th>
                 <th className="px-3 py-2">SO Creation</th>
-                <th className="px-3 py-2">Advance Received Date</th>
                 <th className="px-3 py-2 text-right">Value</th>
                 <th className="px-3 py-2">Stage</th>
                 <th className="px-3 py-2">Planned / Expected</th>
@@ -1389,7 +1433,6 @@ export default function OrderTracking() {
                   <td className="px-3 py-2 text-slate-600">{r.kam || "—"}</td>
                   <td className="px-3 py-2 text-slate-600">{r.ordered || "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.date_of_order ? fmtDateOnly(r.date_of_order) : "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-slate-600">{r.advance_received_date ? fmtDateOnly(r.advance_received_date) : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right text-slate-700">
                     {r.value == null ? "—" : `${r.currency ? r.currency + " " : ""}${fmtNum(r.value)}`}
                   </td>
