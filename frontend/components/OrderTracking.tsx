@@ -175,6 +175,15 @@ export default function OrderTracking() {
   }
   useEffect(() => { reload(); }, []);
 
+  // Patch a single row into the already-loaded list from a mutation's own
+  // response, instead of a full reload() — every save/edit inside the detail
+  // panel (remarks, dates, dispatch slots, documents) was re-fetching the
+  // entire tracking list and flashing the table to "Loading…", even though
+  // the mutation already returns the one row that changed.
+  function patchRow(updated: OrderTracking) {
+    setRows((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
+  }
+
   // ---- dashboard stats ----
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -213,7 +222,7 @@ export default function OrderTracking() {
     try {
       const updated = await api.updateTracking(viewing.id, { dispatch_in_tranches: value });
       setViewing(updated);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -282,7 +291,7 @@ export default function OrderTracking() {
       }
       setViewing(updated);
       setEditingDispatch(null);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -296,7 +305,7 @@ export default function OrderTracking() {
     try {
       const updated = await api.deleteTrackingDispatch(viewing.id, dispatchId);
       setViewing(updated);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -310,7 +319,7 @@ export default function OrderTracking() {
     try {
       const updated = await api.deleteStageRemark(viewing.id, eventId);
       setViewing(updated);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -335,7 +344,7 @@ export default function OrderTracking() {
       const updated = await api.updateTracking(viewing.id, body);
       setViewing(updated);
       setEditingPlanned(null);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -356,7 +365,7 @@ export default function OrderTracking() {
       const updated = await api.updateTracking(viewing.id, { expected_dispatch_date: expectedDraft });
       setViewing(updated);
       setEditingExpected(false);
-      reload();
+      patchRow(updated);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -372,7 +381,7 @@ export default function OrderTracking() {
     try {
       const updated = await api.uploadTrackingDocument(viewing.id, file);
       setViewing(updated);
-      reload();
+      patchRow(updated);
     } catch (err) {
       alert("Upload failed: " + (err as Error).message);
     } finally {
@@ -386,7 +395,7 @@ export default function OrderTracking() {
     try {
       const updated = await api.deleteTrackingDocument(viewing.id);
       setViewing(updated);
-      reload();
+      patchRow(updated);
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -417,7 +426,7 @@ export default function OrderTracking() {
       setStageRemarks("");
       setStageKam("");
       setStageDateInput("");
-      reload();
+      patchRow(updated);
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -448,7 +457,7 @@ export default function OrderTracking() {
       );
       setViewing(updated);
       setEditingRemark(null);
-      reload();
+      patchRow(updated);
     } catch (err) {
       alert((err as Error).message);
     } finally {
