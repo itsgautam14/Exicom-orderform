@@ -1425,48 +1425,51 @@ export default function OrderTracking() {
             })()}
           </div>
 
-          {/* KPI summary — lead time across the order's planned milestones */}
+          {/* KPI summary — days spent in each stage, red flag at 2+ days */}
           <div className="mt-5 rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Summary
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {(() => {
-                const metrics = [
-                  {
-                    key: "so",
-                    label: "Days to create SO",
-                    sub: "SO Creation − Payment Receipt",
-                    from: viewing.advance_received_date,
-                    to: viewing.date_of_order,
-                  },
-                  {
-                    key: "manufacture",
-                    label: "Days to manufacture",
-                    sub: "FG Readiness − SO Creation",
-                    from: viewing.date_of_order,
-                    to: viewing.planned_fg_readiness_date,
-                  },
-                  {
-                    key: "dispatch",
-                    label: "Days to dispatch",
-                    sub: "Dispatch − FG Readiness",
-                    from: viewing.planned_fg_readiness_date,
-                    to: viewing.planned_dispatch_date,
-                  },
-                ];
-                return metrics.map((m) => {
-                  const duration = m.from && m.to ? daysBetween(m.from, m.to) : null;
+                const events = viewing.stage_events || [];
+                const stageDate = (key: string) => events.find((e) => e.stage === key)?.created_at;
+                return STAGES.map((s, i) => {
+                  const reachedAt = stageDate(s.key);
+                  const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
+                  const done = reachedAt != null;
+                  const duration = reachedAt
+                    ? daysBetween(reachedAt, nextReachedAt || new Date().toISOString())
+                    : null;
+                  const delayed = duration != null && duration >= 2;
                   return (
-                    <div key={m.key} className="rounded-lg border border-slate-200 p-3">
+                    <div
+                      key={s.key}
+                      className={`rounded-lg border p-3 ${delayed ? "border-rose-300 bg-rose-50" : "border-slate-200"}`}
+                    >
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        {m.label}
+                        {s.label}
                       </div>
-                      <div className="mt-1 text-2xl font-bold text-slate-800">
+                      <div className={`mt-1 text-2xl font-bold ${delayed ? "text-rose-700" : "text-slate-800"}`}>
                         {duration == null ? "—" : `${duration}`}
                         {duration != null && <span className="text-xs font-semibold"> day{duration === 1 ? "" : "s"}</span>}
                       </div>
-                      <div className="mt-0.5 text-[11px] text-slate-400">{m.sub}</div>
+                      <div className="mt-0.5 text-[11px] text-slate-400">
+                        {done ? "Reached" : "Not reached yet"}
+                      </div>
+                      {/* Planned/Expected dates, shown against the stage they gate,
+                          so planned vs. actual progress can be compared at a glance. */}
+                      {s.key === "in_production" && viewing.planned_production_date && (
+                        <div className="mt-1 text-[11px] text-slate-500">
+                          Planned: {fmtDateOnly(viewing.planned_production_date)}
+                        </div>
+                      )}
+                      {s.key === "dispatched" && (viewing.planned_dispatch_date || viewing.expected_dispatch_date) && (
+                        <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                          {viewing.planned_dispatch_date && <div>Planned: {fmtDateOnly(viewing.planned_dispatch_date)}</div>}
+                          {viewing.expected_dispatch_date && <div>Expected: {fmtDateOnly(viewing.expected_dispatch_date)}</div>}
+                        </div>
+                      )}
                     </div>
                   );
                 });
