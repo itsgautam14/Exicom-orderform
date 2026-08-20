@@ -224,6 +224,7 @@ class OrderTrackingBase(BaseModel):
 
     # Freely editable by anyone.
     planned_production_date: str = ""
+    planned_fg_readiness_date: str = ""
     planned_dispatch_date: str = ""
     expected_dispatch_date: str = ""
 
@@ -264,6 +265,7 @@ class OrderTrackingUpdate(BaseModel):
     notes: Optional[str] = None
 
     planned_production_date: Optional[str] = None
+    planned_fg_readiness_date: Optional[str] = None
     planned_dispatch_date: Optional[str] = None
     expected_dispatch_date: Optional[str] = None
 

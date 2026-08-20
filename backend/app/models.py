@@ -209,8 +209,9 @@ class OrderTracking(Base):
     # /planned-dates endpoint (see routers/tracking.py), never through the
     # regular open update_tracking path.
     planned_production_date: Mapped[str] = mapped_column(String(64), default="")
+    planned_fg_readiness_date: Mapped[str] = mapped_column(String(64), default="")
     planned_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
-    # Freely editable by anyone, unlike the two fields above.
+    # Freely editable by anyone, unlike the fields above.
     expected_dispatch_date: Mapped[str] = mapped_column(String(64), default="")
 
     # Whether this order dispatches in multiple tranches — null until the user

@@ -143,7 +143,7 @@ export default function OrderTracking() {
     qty: null, date: "",
   });
   const [expandedRemarks, setExpandedRemarks] = useState<Set<string>>(new Set());
-  const [editingPlanned, setEditingPlanned] = useState<"production" | "dispatch" | null>(null);
+  const [editingPlanned, setEditingPlanned] = useState<"production" | "fg_readiness" | "dispatch" | null>(null);
   const [plannedDraft, setPlannedDraft] = useState("");
   const [editingExpected, setEditingExpected] = useState(false);
   const [expectedDraft, setExpectedDraft] = useState("");
@@ -326,9 +326,13 @@ export default function OrderTracking() {
     }
   }
 
-  function startEditPlanned(which: "production" | "dispatch") {
+  function startEditPlanned(which: "production" | "fg_readiness" | "dispatch") {
     if (!viewing) return;
-    setPlannedDraft((which === "production" ? viewing.planned_production_date : viewing.planned_dispatch_date) || "");
+    const current =
+      which === "production" ? viewing.planned_production_date
+      : which === "fg_readiness" ? viewing.planned_fg_readiness_date
+      : viewing.planned_dispatch_date;
+    setPlannedDraft(current || "");
     setEditingPlanned(which);
   }
 
@@ -337,9 +341,9 @@ export default function OrderTracking() {
     setBusy(true);
     try {
       const body =
-        editingPlanned === "production"
-          ? { planned_production_date: plannedDraft }
-          : { planned_dispatch_date: plannedDraft };
+        editingPlanned === "production" ? { planned_production_date: plannedDraft }
+        : editingPlanned === "fg_readiness" ? { planned_fg_readiness_date: plannedDraft }
+        : { planned_dispatch_date: plannedDraft };
       const updated = await api.updateTracking(viewing.id, body);
       setViewing(updated);
       setEditingPlanned(null);
@@ -446,8 +450,13 @@ export default function OrderTracking() {
 
   async function saveStage(stage: string) {
     if (!viewing) return;
-    if (!viewing.planned_production_date || !viewing.planned_dispatch_date || !viewing.expected_dispatch_date) {
-      alert("Fill in Planned Production Date, Planned Dispatch Date and Expected Dispatch Date (see Planned Dates above) before adding a remark.");
+    if (
+      !viewing.planned_production_date ||
+      !viewing.planned_fg_readiness_date ||
+      !viewing.planned_dispatch_date ||
+      !viewing.expected_dispatch_date
+    ) {
+      alert("Fill in Planned Production Date, FG Readiness Date, Planned Dispatch Date and Expected Dispatch Date (see Planned Dates above) before adding a remark.");
       return;
     }
     setBusy(true);
@@ -612,7 +621,7 @@ export default function OrderTracking() {
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Planned Dates
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="font-semibold text-slate-700">
                   Planned Production Date <span className="text-rose-500">*</span>
@@ -631,6 +640,29 @@ export default function OrderTracking() {
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-slate-600">{viewing.planned_production_date ? fmtDateOnly(viewing.planned_production_date) : "—"}</span>
                     <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("production")}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3 text-sm">
+                <div className="font-semibold text-slate-700">
+                  FG Readiness Date <span className="text-rose-500">*</span>
+                </div>
+                {editingPlanned === "fg_readiness" ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input className="inp !w-auto" type="date" value={plannedDraft} onChange={(e) => setPlannedDraft(e.target.value)} />
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" disabled={busy} onClick={savePlanned}>
+                      {busy ? "Saving…" : "Save"}
+                    </button>
+                    <button className="text-xs font-semibold text-slate-400 hover:text-slate-600" onClick={() => setEditingPlanned(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-600">{viewing.planned_fg_readiness_date ? fmtDateOnly(viewing.planned_fg_readiness_date) : "—"}</span>
+                    <button className="text-xs font-semibold text-exicom-teal hover:underline" onClick={() => startEditPlanned("fg_readiness")}>
                       Edit
                     </button>
                   </div>

@@ -50,6 +50,7 @@ _COLUMNS = [
     ("order_trackings", "total_quantity", "INTEGER"),
     ("order_trackings", "transport_mode", "VARCHAR(32) DEFAULT ''"),
     ("order_trackings", "planned_production_date", "VARCHAR(64) DEFAULT ''"),
+    ("order_trackings", "planned_fg_readiness_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "planned_dispatch_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "expected_dispatch_date", "VARCHAR(64) DEFAULT ''"),
     ("order_trackings", "bulk_part_code", "VARCHAR(64) DEFAULT ''"),

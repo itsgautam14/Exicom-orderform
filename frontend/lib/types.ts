@@ -168,6 +168,8 @@ export interface OrderTracking {
   /** Locked — only settable via api.updatePlannedDates (admin password required). */
   planned_production_date?: string;
   /** Locked — only settable via api.updatePlannedDates (admin password required). */
+  planned_fg_readiness_date?: string;
+  /** Locked — only settable via api.updatePlannedDates (admin password required). */
   planned_dispatch_date?: string;
 
   /** Null until the "dispatch in tranches?" prompt is answered. */
