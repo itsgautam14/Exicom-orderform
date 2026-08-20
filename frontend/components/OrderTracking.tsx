@@ -1435,7 +1435,10 @@ export default function OrderTracking() {
                 const events = viewing.stage_events || [];
                 const stageDate = (key: string) => events.find((e) => e.stage === key)?.created_at;
                 return STAGES.map((s, i) => {
-                  const reachedAt = stageDate(s.key);
+                  // SO Creation is treated as the start of In Production — the
+                  // order enters production the moment the SO is created,
+                  // rather than waiting on a separately-logged stage event.
+                  const reachedAt = s.key === "in_production" ? (viewing.date_of_order || undefined) : stageDate(s.key);
                   const nextReachedAt = STAGES[i + 1] ? stageDate(STAGES[i + 1].key) : undefined;
                   const done = reachedAt != null;
                   const duration = reachedAt
